@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "LOKL",
+    "slug": "lokl-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "lokl",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#14161A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.lokl.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#14161A"
+      },
+      "package": "com.lokl.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
