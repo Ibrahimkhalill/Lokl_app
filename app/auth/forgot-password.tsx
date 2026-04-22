@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Screen, BackButton, Input, PrimaryButton } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+import React, { useState } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
+import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ForgotPassword() {
   const router = useRouter();
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState("");
 
   return (
     <Screen>
@@ -14,7 +15,8 @@ export default function ForgotPassword() {
 
       <Text style={styles.title}>Forget Password</Text>
       <Text style={styles.subtitle}>
-        Enter your address to receive a reset link and regain{'\n'}access to your account.
+        Enter your address to receive a reset link and regain{"\n"}access to
+        your account.
       </Text>
 
       <View style={styles.form}>
@@ -28,7 +30,7 @@ export default function ForgotPassword() {
       </View>
 
       <View style={styles.bottom}>
-        <PrimaryButton title="Next" onPress={() => router.push('/auth/otp')} />
+        <PrimaryButton title="Next" onPress={() => router.push("/auth/otp")} />
       </View>
     </Screen>
   );
@@ -37,7 +39,7 @@ export default function ForgotPassword() {
 const styles = StyleSheet.create({
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 10,
     letterSpacing: -0.5,

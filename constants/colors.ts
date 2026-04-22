@@ -16,4 +16,5 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#000000',
   overlay: 'rgba(0,0,0,0.5)',
+  secondaryCard: '#1A1A1A',
 };

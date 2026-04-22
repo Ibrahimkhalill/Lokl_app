@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Screen, BackButton, Input, PrimaryButton } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+import React, { useState } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
+import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
+import { Colors } from "../../constants/colors";
 
 export default function ResetPassword() {
   const router = useRouter();
-  const [newPass, setNewPass] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [newPass, setNewPass] = useState("");
+  const [confirm, setConfirm] = useState("");
 
   return (
     <Screen>
@@ -36,7 +36,7 @@ export default function ResetPassword() {
       <View style={styles.bottom}>
         <PrimaryButton
           title="Next"
-          onPress={() => router.push('/auth/sign-in')}
+          onPress={() => router.push("/auth/sign-in")}
         />
       </View>
     </Screen>
@@ -46,7 +46,7 @@ export default function ResetPassword() {
 const styles = StyleSheet.create({
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 8,
     letterSpacing: -0.5,

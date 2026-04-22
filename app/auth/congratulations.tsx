@@ -1,13 +1,9 @@
-import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Congratulations() {
   const router = useRouter();
@@ -15,7 +11,7 @@ export default function Congratulations() {
   useEffect(() => {
     const timer = setTimeout(() => {
       // Navigate to home/main app
-      router.replace('/auth/sign-in');
+      router.replace("/auth/sign-in");
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
@@ -29,7 +25,8 @@ export default function Congratulations() {
           </View>
           <Text style={styles.title}>Congratulations!</Text>
           <Text style={styles.subtitle}>
-            Your account is ready to use. you will be redirected to the home page in a few seconds...
+            Your account is ready to use. you will be redirected to the home
+            page in a few seconds...
           </Text>
         </View>
       </View>
@@ -41,16 +38,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   card: {
     backgroundColor: Colors.card,
     borderRadius: 24,
     padding: 36,
-    alignItems: 'center',
-    width: '100%',
+    alignItems: "center",
+    width: "100%",
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
@@ -59,20 +56,20 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 20,
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
   },
 });

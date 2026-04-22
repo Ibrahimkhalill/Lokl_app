@@ -223,6 +223,7 @@ export default function HomeScreen() {
             key={pin.id}
             coordinate={{ latitude: pin.lat, longitude: pin.lng }}
             onPress={() => setSelectedPin(pin.id)}
+            tracksViewChanges={false}
           >
             <View
               style={[

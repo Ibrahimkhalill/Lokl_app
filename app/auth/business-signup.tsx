@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,35 +8,61 @@ import {
   FlatList,
   TextInput,
   ScrollView,
-  SafeAreaView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { BackButton, Input, PrimaryButton } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { BackButton, Input, PrimaryButton } from "../../components/ui";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const BUSINESS_TYPES = [
-  'Basketball court', 'Tennis / pickleball club', 'Soccer field',
-  'Baseball / softball field', 'Golf course', 'Driving range',
-  'Skating rink', 'Skate park', 'Yoga studio', 'Pilates studio',
-  'Dance studio', 'Barre studio', 'Stretch lab', 'Cycling studio',
-  'Boxing studio', 'Martial arts studio', 'Climbing gym',
-  'Personal trainer', 'Strength coach', 'Golf instructor',
-  'Tennis Coach', 'Boxing trainer', 'Running coach', 'Yoga instructor',
-  'Chiropractor', 'Physical therapy', 'Acupuncture', 'Massage therapy',
-  'IV therapy', 'Sauna / cold plunge', 'Cryotherapy',
-  'Sports recovery center', 'Salon', 'Barbershop', 'Tanning Salon',
-  'Waxing studio', 'Makeup Studio',
+  "Basketball court",
+  "Tennis / pickleball club",
+  "Soccer field",
+  "Baseball / softball field",
+  "Golf course",
+  "Driving range",
+  "Skating rink",
+  "Skate park",
+  "Yoga studio",
+  "Pilates studio",
+  "Dance studio",
+  "Barre studio",
+  "Stretch lab",
+  "Cycling studio",
+  "Boxing studio",
+  "Martial arts studio",
+  "Climbing gym",
+  "Personal trainer",
+  "Strength coach",
+  "Golf instructor",
+  "Tennis Coach",
+  "Boxing trainer",
+  "Running coach",
+  "Yoga instructor",
+  "Chiropractor",
+  "Physical therapy",
+  "Acupuncture",
+  "Massage therapy",
+  "IV therapy",
+  "Sauna / cold plunge",
+  "Cryotherapy",
+  "Sports recovery center",
+  "Salon",
+  "Barbershop",
+  "Tanning Salon",
+  "Waxing studio",
+  "Makeup Studio",
 ];
 
 const SOCIAL_PLATFORMS = [
-  { name: 'Instagram', icon: 'logo-instagram' },
-  { name: 'YouTube', icon: 'logo-youtube' },
-  { name: 'TikTok', icon: 'musical-notes-outline' },
-  { name: 'Threads', icon: 'at-outline' },
-  { name: 'X', icon: 'logo-twitter' },
-  { name: 'Pinterest', icon: 'grid-outline' },
-  { name: 'Snapchat', icon: 'happy-outline' },
+  { name: "Instagram", icon: "logo-instagram" },
+  { name: "YouTube", icon: "logo-youtube" },
+  { name: "TikTok", icon: "musical-notes-outline" },
+  { name: "Threads", icon: "at-outline" },
+  { name: "X", icon: "logo-twitter" },
+  { name: "Pinterest", icon: "grid-outline" },
+  { name: "Snapchat", icon: "happy-outline" },
 ] as const;
 
 interface SocialEntry {
@@ -76,60 +102,60 @@ function BottomSheetModal({
 const modalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   sheet: {
     backgroundColor: Colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '75%',
-    overflow: 'hidden',
+    maxHeight: "75%",
+    overflow: "hidden",
   },
   header: {
     backgroundColor: Colors.modalHeader,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
   headerTitle: {
     color: Colors.white,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });
 
 export default function BusinessSignUp() {
   const router = useRouter();
-  const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [website, setWebsite] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [businessName, setBusinessName] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [website, setWebsite] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [socialEntries, setSocialEntries] = useState<SocialEntry[]>([
-    { platform: 'Instagram', link: '' },
+    { platform: "Instagram", link: "" },
   ]);
 
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [socialModalIndex, setSocialModalIndex] = useState(0);
-  const [typeSearch, setTypeSearch] = useState('');
+  const [typeSearch, setTypeSearch] = useState("");
 
   const filteredTypes = BUSINESS_TYPES.filter((t) =>
-    t.toLowerCase().includes(typeSearch.toLowerCase())
+    t.toLowerCase().includes(typeSearch.toLowerCase()),
   );
 
   const addSocialEntry = () => {
-    setSocialEntries([...socialEntries, { platform: 'Instagram', link: '' }]);
+    setSocialEntries([...socialEntries, { platform: "Instagram", link: "" }]);
   };
 
   const openSocialPicker = (index: number) => {
@@ -159,7 +185,9 @@ export default function BusinessSignUp() {
             <Ionicons name="business" size={30} color="#00D4A8" />
           </View>
           <Text style={styles.title}>Create Business account</Text>
-          <Text style={styles.subtitle}>Grow your sports business with LOKL</Text>
+          <Text style={styles.subtitle}>
+            Grow your sports business with LOKL
+          </Text>
         </View>
 
         {/* Business Name */}
@@ -179,11 +207,22 @@ export default function BusinessSignUp() {
             onPress={() => setShowTypeModal(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="briefcase-outline" size={18} color={Colors.textSecondary} style={styles.fieldIcon} />
-            <Text style={[styles.dropdownText, !businessType && styles.placeholder]}>
-              {businessType || 'Enter Business type'}
+            <Ionicons
+              name="briefcase-outline"
+              size={18}
+              color={Colors.textSecondary}
+              style={styles.fieldIcon}
+            />
+            <Text
+              style={[styles.dropdownText, !businessType && styles.placeholder]}
+            >
+              {businessType || "Enter Business type"}
             </Text>
-            <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
@@ -236,12 +275,26 @@ export default function BusinessSignUp() {
               onPress={() => openSocialPicker(index)}
               activeOpacity={0.8}
             >
-              <Ionicons name="logo-instagram" size={18} color={Colors.textSecondary} style={styles.fieldIcon} />
+              <Ionicons
+                name="logo-instagram"
+                size={18}
+                color={Colors.textSecondary}
+                style={styles.fieldIcon}
+              />
               <Text style={styles.dropdownText}>{entry.platform}</Text>
-              <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+              <Ionicons
+                name="chevron-down"
+                size={18}
+                color={Colors.textSecondary}
+              />
             </TouchableOpacity>
             <View style={[styles.dropdownBtn, { marginTop: 8 }]}>
-              <Ionicons name="link-outline" size={18} color={Colors.textSecondary} style={styles.fieldIcon} />
+              <Ionicons
+                name="link-outline"
+                size={18}
+                color={Colors.textSecondary}
+                style={styles.fieldIcon}
+              />
               <TextInput
                 style={styles.inlineInput}
                 placeholder={`Enter ${entry.platform} link`}
@@ -281,7 +334,7 @@ export default function BusinessSignUp() {
 
         <PrimaryButton
           title="Sign Up"
-          onPress={() => router.push('/auth/otp')}
+          onPress={() => router.push("/auth/otp")}
           style={styles.signupBtn}
         />
       </ScrollView>
@@ -293,7 +346,12 @@ export default function BusinessSignUp() {
         title="Select business type"
       >
         <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={Colors.textSecondary} style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
@@ -311,10 +369,15 @@ export default function BusinessSignUp() {
               onPress={() => {
                 setBusinessType(item);
                 setShowTypeModal(false);
-                setTypeSearch('');
+                setTypeSearch("");
               }}
             >
-              <Text style={[styles.modalItemText, businessType === item && styles.modalItemSelected]}>
+              <Text
+                style={[
+                  styles.modalItemText,
+                  businessType === item && styles.modalItemSelected,
+                ]}
+              >
                 {item}
               </Text>
             </TouchableOpacity>
@@ -336,7 +399,12 @@ export default function BusinessSignUp() {
               style={styles.modalItem}
               onPress={() => selectPlatform(item.name)}
             >
-              <Ionicons name={item.icon as any} size={22} color={Colors.textSecondary} style={{ marginRight: 14 }} />
+              <Ionicons
+                name={item.icon as any}
+                size={22}
+                color={Colors.textSecondary}
+                style={{ marginRight: 14 }}
+              />
               <Text style={styles.modalItemText}>{item.name}</Text>
             </TouchableOpacity>
           )}
@@ -354,21 +422,21 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   iconHeader: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 28,
   },
   iconCircle: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,212,168,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,212,168,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 14,
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 4,
   },
@@ -379,13 +447,13 @@ const styles = StyleSheet.create({
   label: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 8,
   },
   fieldWrap: { marginBottom: 16 },
   dropdownBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.inputBg,
     borderRadius: 12,
     borderWidth: 1,
@@ -407,9 +475,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   addSocialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     height: 48,
     borderRadius: 12,
@@ -423,8 +491,8 @@ const styles = StyleSheet.create({
   },
   signupBtn: { marginTop: 8 },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     margin: 14,
     backgroundColor: Colors.background,
     borderRadius: 10,
@@ -438,8 +506,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
@@ -451,7 +519,7 @@ const styles = StyleSheet.create({
   },
   modalItemSelected: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   textMuted: { color: Colors.textMuted },
 });

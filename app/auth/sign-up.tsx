@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Screen, LogoText, Input, PrimaryButton, OrDivider, SocialButtons } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+  Screen,
+  LogoText,
+  Input,
+  PrimaryButton,
+  OrDivider,
+  SocialButtons,
+} from "../../components/ui";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUp() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [dob, setDob] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [dob, setDob] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
   return (
@@ -75,14 +78,14 @@ export default function SignUp() {
         <Text style={styles.rememberText}>Remember Me</Text>
       </TouchableOpacity>
 
-      <PrimaryButton title="Sign Up" onPress={() => router.push('/auth/otp')} />
+      <PrimaryButton title="Sign Up" onPress={() => router.push("/auth/otp")} />
 
       <OrDivider />
       <SocialButtons />
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account? </Text>
-        <TouchableOpacity onPress={() => router.push('/auth/sign-in')}>
+        <TouchableOpacity onPress={() => router.push("/auth/sign-in")}>
           <Text style={styles.footerLink}>Sign in</Text>
         </TouchableOpacity>
       </View>
@@ -93,7 +96,7 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 6,
     letterSpacing: -0.5,
@@ -104,8 +107,8 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 8,
     marginTop: -4,
@@ -117,8 +120,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.cardBorder,
     backgroundColor: Colors.inputBg,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkboxChecked: {
     backgroundColor: Colors.primary,
@@ -129,14 +132,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 20,
   },
   footerText: { color: Colors.textSecondary, fontSize: 14 },
   footerLink: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

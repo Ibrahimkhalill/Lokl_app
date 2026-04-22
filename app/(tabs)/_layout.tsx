@@ -46,6 +46,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarStyle: styles.tabBar,
         tabBarShowLabel: false,
         tabBarActiveTintColor: Colors.primary,
@@ -106,10 +108,11 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: "#1a1f2e",
-    borderTopWidth: 0,
+    backgroundColor: "#1F2A44",
+    borderWidth: 1,
+    borderColor: "#2E3A3F",
     height: 64,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingBottom: 0,
     paddingTop: 0,
     marginHorizontal: 16,
@@ -129,15 +132,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 50,
-    gap: 6,
+    gap: 4,
   },
   tabItemActive: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
-    width: 100,
+    width: 80,
   },
   tabLabel: {
     color: Colors.black,

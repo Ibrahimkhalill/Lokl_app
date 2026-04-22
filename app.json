@@ -7,6 +7,8 @@
     "scheme": "lokl",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
       "backgroundColor": "#14161A"
     },
     "ios": {
@@ -15,20 +17,35 @@
     },
     "android": {
       "adaptiveIcon": {
+        "image": "./assets/images/logo.png",
+        "resizeMode": "contain",
         "backgroundColor": "#14161A"
       },
       "package": "com.lokl.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDUG5-oxWq1CeJRKcMMJ69AstZhiscurv0"
+        }
+  }
     },
     "web": {
       "bundler": "metro",
       "output": "static"
     },
     "plugins": [
+     
       "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8bee028a-8a55-4019-a5d6-a13cfabc6640"
+      }
+    },
+    "owner": "aininja"
   }
 }

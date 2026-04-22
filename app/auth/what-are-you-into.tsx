@@ -1,37 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  SafeAreaView,
   ScrollView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { PrimaryButton } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { PrimaryButton } from "../../components/ui";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const ALL_TAGS = [
-  'Pickleball', 'Golf', 'Soccer', 'Boxing', 'Climbing', 'Yoga',
-  'Barre', 'Cycling', 'Training', 'Strength', 'Gym', 'Trainers',
-  'Tennis', 'Basketball', 'Running', 'Swimming', 'Pilates', 'HIIT',
-  'CrossFit', 'Martial Arts', 'Dance', 'Rowing', 'Volleyball',
+  "Pickleball",
+  "Golf",
+  "Soccer",
+  "Boxing",
+  "Climbing",
+  "Yoga",
+  "Barre",
+  "Cycling",
+  "Training",
+  "Strength",
+  "Gym",
+  "Trainers",
+  "Tennis",
+  "Basketball",
+  "Running",
+  "Swimming",
+  "Pilates",
+  "HIIT",
+  "CrossFit",
+  "Martial Arts",
+  "Dance",
+  "Rowing",
+  "Volleyball",
 ];
 
 export default function WhatAreYouInto() {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   const filtered = ALL_TAGS.filter((t) =>
-    t.toLowerCase().includes(search.toLowerCase())
+    t.toLowerCase().includes(search.toLowerCase()),
   );
 
   const toggle = (tag: string) => {
     setSelected((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   };
 
@@ -45,8 +64,18 @@ export default function WhatAreYouInto() {
 
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={Colors.textSecondary} style={styles.searchIcon} />
-          <Ionicons name="location-outline" size={16} color={Colors.textSecondary} style={styles.tagIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
+          <Ionicons
+            name="location-outline"
+            size={16}
+            color={Colors.textSecondary}
+            style={styles.tagIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="find your activities tag"
@@ -57,7 +86,10 @@ export default function WhatAreYouInto() {
         </View>
 
         {/* Tags */}
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.tagsScroll}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.tagsScroll}
+        >
           <View style={styles.tagsWrap}>
             {filtered.map((tag) => {
               const isSelected = selected.includes(tag);
@@ -74,7 +106,12 @@ export default function WhatAreYouInto() {
                     color={isSelected ? Colors.primary : Colors.textSecondary}
                     style={{ marginRight: 4 }}
                   />
-                  <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>
+                  <Text
+                    style={[
+                      styles.tagText,
+                      isSelected && styles.tagTextSelected,
+                    ]}
+                  >
                     {tag}
                   </Text>
                 </TouchableOpacity>
@@ -86,7 +123,7 @@ export default function WhatAreYouInto() {
         <View style={styles.bottom}>
           <PrimaryButton
             title={`Continue (${selected.length} Selected)`}
-            onPress={() => router.push('/auth/what-looking-for')}
+            onPress={() => router.push("/auth/what-looking-for")}
           />
         </View>
       </View>
@@ -105,7 +142,7 @@ const styles = StyleSheet.create({
   top: { marginBottom: 20 },
   title: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
     color: Colors.text,
     letterSpacing: 0.3,
     marginBottom: 6,
@@ -115,8 +152,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.card,
     borderRadius: 50,
     borderWidth: 1,
@@ -135,14 +172,14 @@ const styles = StyleSheet.create({
   },
   tagsScroll: { flex: 1 },
   tagsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     paddingBottom: 16,
   },
   tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 50,
@@ -152,16 +189,16 @@ const styles = StyleSheet.create({
   },
   tagSelected: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(209,255,0,0.08)',
+    backgroundColor: "rgba(209,255,0,0.08)",
   },
   tagText: {
     color: Colors.textSecondary,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   tagTextSelected: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   bottom: { paddingTop: 8 },
 });

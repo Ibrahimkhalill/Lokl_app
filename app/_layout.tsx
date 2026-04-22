@@ -27,6 +27,8 @@ export default function RootLayout() {
         <Stack.Screen name="auth/location" />
         <Stack.Screen name="auth/congratulations" />
         <Stack.Screen name="auth/terms" />
+
+        
         <Stack.Screen name="home/details" />
         <Stack.Screen name="home/filters" />
         <Stack.Screen name="home/search" />
@@ -46,6 +48,22 @@ export default function RootLayout() {
         <Stack.Screen name="events/friends-here" />
         <Stack.Screen name="events/share-event" />
         <Stack.Screen name="events/gallery" />
+
+        <Stack.Screen name="profile/streaks" />
+        <Stack.Screen name="profile/follow" />
+        <Stack.Screen name="profile/posts" />
+
+
+        <Stack.Screen name="settings/setting" />
+        <Stack.Screen name="settings/account" />
+        <Stack.Screen name="settings/edit-profile" />
+        <Stack.Screen name="settings/notifications" />
+        <Stack.Screen name="settings/privacy-security" />
+        <Stack.Screen name="settings/preferences" />
+        <Stack.Screen name="settings/terms" />
+        <Stack.Screen name="settings/privacy-policy" />
+        
+
       </Stack>
     </>
   );

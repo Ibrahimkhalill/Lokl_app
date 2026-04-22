@@ -1,21 +1,21 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native';
-import { PrimaryButton } from '../../components/ui';
-import { Colors } from '../../constants/colors';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { PrimaryButton } from "../../components/ui";
+import { Colors } from "../../constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const OTP_LENGTH = 6;
 
 export default function OTP() {
   const router = useRouter();
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const handleChange = (text: string, index: number) => {
@@ -28,7 +28,7 @@ export default function OTP() {
   };
 
   const handleKeyPress = (key: string, index: number) => {
-    if (key === 'Backspace' && !otp[index] && index > 0) {
+    if (key === "Backspace" && !otp[index] && index > 0) {
       inputs.current[index - 1]?.focus();
     }
   };
@@ -47,14 +47,15 @@ export default function OTP() {
           {otp.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(el) => (inputs.current[index] = el)}
-              style={[
-                styles.otpBox,
-                digit ? styles.otpBoxFilled : null,
-              ]}
+              ref={(el) => {
+                inputs.current[index] = el;
+              }}
+              style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
               value={digit}
               onChangeText={(text) => handleChange(text.slice(-1), index)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+              onKeyPress={({ nativeEvent }) =>
+                handleKeyPress(nativeEvent.key, index)
+              }
               keyboardType="number-pad"
               maxLength={1}
               textAlign="center"
@@ -73,7 +74,7 @@ export default function OTP() {
         <View style={styles.bottom}>
           <PrimaryButton
             title="Verify"
-            onPress={() => router.push('/auth/reset-password')}
+            onPress={() => router.push("/auth/reset-password")}
             disabled={!isComplete}
           />
         </View>
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.text,
     marginBottom: 8,
     letterSpacing: -0.5,
@@ -108,8 +109,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   otpRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 24,
     gap: 8,
   },
@@ -122,25 +123,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.inputBg,
     color: Colors.text,
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     maxWidth: 52,
   },
   otpBoxFilled: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(209,255,0,0.08)',
+    backgroundColor: "rgba(209,255,0,0.08)",
   },
   resendRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 8,
   },
   resendText: { color: Colors.textSecondary, fontSize: 14 },
   resendLink: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   bottom: {
-    marginTop: 'auto',
+    marginTop: "auto",
   },
 });
