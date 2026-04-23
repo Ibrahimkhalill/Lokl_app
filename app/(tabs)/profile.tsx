@@ -125,7 +125,10 @@ export default function ProfileScreen() {
               and connect with more customers
             </Text>
           </View>
-          <TouchableOpacity style={styles.businessBtn}>
+          <TouchableOpacity
+            style={styles.businessBtn}
+            onPress={() => router.push("/business/profile")}
+          >
             <Text style={styles.businessBtnText}>Create Business Profile</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.black} />
           </TouchableOpacity>

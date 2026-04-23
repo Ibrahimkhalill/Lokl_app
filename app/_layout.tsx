@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { Colors } from '../constants/colors';
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { Colors } from "../constants/colors";
 
 export default function RootLayout() {
   return (
@@ -10,11 +10,12 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.background },
-          animation: 'slide_from_right',
+          animation: "slide_from_right",
         }}
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
+
         <Stack.Screen name="auth/sign-in" />
         <Stack.Screen name="auth/sign-up" />
         <Stack.Screen name="auth/forgot-password" />
@@ -28,7 +29,6 @@ export default function RootLayout() {
         <Stack.Screen name="auth/congratulations" />
         <Stack.Screen name="auth/terms" />
 
-        
         <Stack.Screen name="home/details" />
         <Stack.Screen name="home/filters" />
         <Stack.Screen name="home/search" />
@@ -36,7 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="home/friends-think" />
         <Stack.Screen name="explore/notifications" />
         <Stack.Screen name="explore/user-profile" />
-        
+
         <Stack.Screen name="chat/inbox" />
         <Stack.Screen name="chat/id" />
 
@@ -53,7 +53,6 @@ export default function RootLayout() {
         <Stack.Screen name="profile/follow" />
         <Stack.Screen name="profile/posts" />
 
-
         <Stack.Screen name="settings/setting" />
         <Stack.Screen name="settings/account" />
         <Stack.Screen name="settings/edit-profile" />
@@ -62,8 +61,9 @@ export default function RootLayout() {
         <Stack.Screen name="settings/preferences" />
         <Stack.Screen name="settings/terms" />
         <Stack.Screen name="settings/privacy-policy" />
-        
 
+        <Stack.Screen name="business/create-event" />
+        <Stack.Screen name="business/event-detail" />
       </Stack>
     </>
   );
