@@ -7,15 +7,17 @@ import {
   ScrollView,
   TextInput,
   Image,
-  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
-
+import SearchIcon from "../../assets/icons/search.svg";
+import CreateGroupIcon from "../../assets/icons/create_group.svg";
+import PersonIcon from "../../assets/icons/friends.svg";
+import CalendarIcon from "../../assets/icons/create_group.svg";
+import TimeIcon from "../../assets/icons/clock.svg";
+import LocationIcon from "../../assets/icons/locations.svg";
 const EVENTS = [
   {
     id: "e1",
@@ -47,7 +49,7 @@ const EVENTS = [
     joined: 8,
     total: 15,
     image:
-      "https://images.unsplash.com/photo-1546519638405-a5f7678bdfae?w=600&q=80",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&q=80",
   },
   {
     id: "e3",
@@ -153,13 +155,13 @@ export default function EventsScreen() {
         </View>
         <View style={s.headerActions}>
           <TouchableOpacity style={s.iconBtn}>
-            <Ionicons name="search-outline" size={20} color={Colors.text} />
+            <SearchIcon width={22} height={22} color={Colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
             style={s.createBtn}
             onPress={() => router.push("/events/group-create")}
           >
-            <Ionicons name="calendar-outline" size={16} color={Colors.text} />
+            <CreateGroupIcon width={20} height={20} color={Colors.text} />
             <Text style={s.createBtnText}>Create Group</Text>
           </TouchableOpacity>
         </View>
@@ -179,11 +181,7 @@ export default function EventsScreen() {
 
         {/* Search */}
         <View style={s.searchWrap}>
-          <Ionicons
-            name="search-outline"
-            size={17}
-            color={Colors.textSecondary}
-          />
+          <SearchIcon width={20} height={20} color={Colors.textSecondary} />
           <TextInput
             style={s.searchInput}
             placeholder="Search ."
@@ -232,24 +230,24 @@ export default function EventsScreen() {
               <View style={s.eventBody}>
                 <Text style={s.eventTitle}>{event.title}</Text>
                 <View style={s.eventMeta}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={13}
+                  <CalendarIcon
+                    width={13}
+                    height={13}
                     color={Colors.textSecondary}
                   />
                   <Text style={s.eventMetaText}>{event.date}</Text>
                   <View style={s.metaDot} />
-                  <Ionicons
-                    name="time-outline"
-                    size={13}
+                  <TimeIcon
+                    width={13}
+                    height={13}
                     color={Colors.textSecondary}
                   />
                   <Text style={s.eventMetaText}>{event.time}</Text>
                 </View>
                 <View style={s.eventMeta}>
-                  <Ionicons
-                    name="location-outline"
-                    size={13}
+                  <LocationIcon
+                    width={13}
+                    height={13}
                     color={Colors.textSecondary}
                   />
                   <Text style={s.eventMetaText}>{event.venue}</Text>
@@ -267,11 +265,7 @@ export default function EventsScreen() {
                 </View>
                 {/* Progress */}
                 <View style={s.progressRow}>
-                  <Ionicons
-                    name="people-outline"
-                    size={14}
-                    color={Colors.primary}
-                  />
+                  <PersonIcon width={17} height={17} color={Colors.primary} />
                   <Text style={s.progressText}>
                     {String(event.joined).padStart(2, "0")}/{event.total} joined
                   </Text>
@@ -316,7 +310,9 @@ export default function EventsScreen() {
                         source={{ uri: av }}
                         style={[
                           s.stackAvatar,
-                          { marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i },
+                          i === 0 && s.stackAvatarLeft,
+                          i === 1 && s.stackAvatarRight,
+                          i === 2 && s.stackAvatarBottom,
                         ]}
                       />
                     ))}
@@ -367,12 +363,6 @@ const s = StyleSheet.create({
   greetingSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -438,7 +428,10 @@ const s = StyleSheet.create({
     position: "absolute",
     top: 12,
     left: 12,
-    backgroundColor: "rgba(20,22,26,0.8)",
+    backgroundColor: "rgba(85, 85, 85, 0.8)",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    opacity: 0.8,
     borderRadius: 8,
     paddingVertical: 4,
     paddingHorizontal: 10,
@@ -529,14 +522,23 @@ const s = StyleSheet.create({
     gap: 12,
   },
   groupCardTop: { flexDirection: "row", alignItems: "center", gap: 14 },
-  groupAvatarStack: { flexDirection: "row", alignItems: "center" },
-  stackAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: Colors.background,
+  groupAvatarStack: {
+    width: 72,
+    height: 62,
+    position: "relative",
+    marginTop: 2,
   },
+  stackAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2.2,
+    borderColor: Colors.background,
+    position: "absolute",
+  },
+  stackAvatarLeft: { left: 0, top: 0, zIndex: 2 },
+  stackAvatarRight: { left: 28, top: 0, zIndex: 3 },
+  stackAvatarBottom: { left: 12, top: 24, zIndex: 4 },
   groupInfo: { flex: 1 },
   groupName: {
     color: Colors.text,

@@ -6,13 +6,15 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  FlatList,
 } from "react-native";
 
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import SearchIcon from "../../assets/icons/search.svg";
+import LocationIcon from "../../assets/icons/locations.svg";
+import ShareIcon from "../../assets/icons/share.svg";
 
 const CATEGORIES = [
   { id: "1", label: "Yoga", icon: "body-outline", active: true },
@@ -29,28 +31,28 @@ const RECENTLY_VIEWED = [
     name: "Zen Garden Yoga",
     location: "Kyoto, North Asian",
     distance: "1.2 k",
-    price: "$45",
+    rating: "9/10",
   },
   {
     id: "2",
     name: "Gobi Yoga Camp",
     location: "Gobi Desert, North Asian",
     distance: "1.3 k",
-    price: "$30/hr",
+    rating: "8/10",
   },
   {
     id: "3",
     name: "Yoga Mountain",
     location: "Gobi Desert, Asian",
     distance: "1.4 k",
-    price: "$45",
+    rating: "8.5/10",
   },
   {
     id: "4",
     name: "Hanok Yoga",
     location: "Seoul, Asian",
     distance: "1.5 k",
-    price: "$50/hr",
+    rating: "9.2/10",
   },
 ];
 
@@ -82,12 +84,11 @@ export default function SearchScreen() {
             {/* Keyword search */}
             <View style={styles.searchBar}>
               <View style={styles.searchBarInner}>
-                <Ionicons
-                  name="search-outline"
-                  size={18}
+                <SearchIcon
+                  width={18}
+                  height={18}
                   color={Colors.textSecondary}
                 />
-                <View style={styles.divider} />
               </View>
               <TextInput
                 style={styles.searchInput}
@@ -102,14 +103,11 @@ export default function SearchScreen() {
             {/* Location search */}
             <View style={styles.searchBar}>
               <View style={styles.searchBarInner}>
-                <Ionicons
-                  name="location-outline"
-                  size={18}
+                <LocationIcon
+                  width={18}
+                  height={18}
                   color={Colors.textSecondary}
                 />
-                <View style={styles.regionChip}>
-                  <Text style={styles.regionText}>North Asian</Text>
-                </View>
               </View>
               <TextInput
                 style={styles.searchInput}
@@ -179,45 +177,47 @@ export default function SearchScreen() {
 
             <View style={styles.recentList}>
               {RECENTLY_VIEWED.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.recentItem}
-                  activeOpacity={0.8}
-                  onPress={() => router.push("/home/details")}
-                >
-                  {/* Left: location icon + distance */}
-                  <View style={styles.recentLeft}>
-                    <Ionicons
-                      name="location-outline"
-                      size={20}
-                      color={Colors.textSecondary}
-                    />
-                    <Text style={styles.recentDistance}>{item.distance}</Text>
-                  </View>
-
-                  {/* Middle: name + location */}
-                  <View style={styles.recentInfo}>
-                    <Text style={styles.recentName}>{item.name}</Text>
-                    <Text style={styles.recentLocation}>{item.location}</Text>
-                  </View>
-
-                  {/* Right: price chip + action buttons */}
-                  <View style={styles.recentRight}>
-                    <View style={styles.priceChip}>
-                      <Text style={styles.priceText}>{item.price}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.actionBtns}>
-                    <View style={styles.actionBtnGreen}>
-                      <Ionicons
-                        name="navigate-outline"
-                        size={18}
-                        color={Colors.text}
+                <View key={item.id} style={styles.recentItem}>
+                  <TouchableOpacity
+                    style={styles.recentMainTap}
+                    activeOpacity={0.85}
+                    onPress={() => router.push("/home/details")}
+                  >
+                    <View style={styles.recentLeft}>
+                      <LocationIcon
+                        width={22}
+                        height={22}
+                        color={Colors.textSecondary}
                       />
+                      <Text style={styles.recentDistance}>{item.distance}</Text>
                     </View>
-                  </View>
-                </TouchableOpacity>
+
+                    <View style={styles.recentMid}>
+                      <View style={styles.recentTitleRow}>
+                        <Text style={styles.recentName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <View style={styles.ratingBadge}>
+                          <Text style={styles.ratingBadgeText}>
+                            {item.rating}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.recentLocation} numberOfLines={1}>
+                        {item.location}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.recentCircleBtn}
+                    onPress={() => {}}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.75}
+                  >
+                    <ShareIcon width={18} height={18} color={Colors.text} />
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           </View>
@@ -364,63 +364,74 @@ const styles = StyleSheet.create({
   recentItem: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: Colors.secondaryCard,
     borderWidth: 1,
-    borderColor: "#2e3a3d",
+    borderColor: Colors.cardBorder,
     borderRadius: 16,
-    padding: 16,
-    gap: 12,
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 10,
+    gap: 4,
+  },
+  recentMainTap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    minWidth: 0,
+    paddingVertical: 2,
   },
   recentLeft: {
     alignItems: "center",
-    gap: 4,
-    width: 28,
+    justifyContent: "center",
+    gap: 6,
+    width: 40,
   },
   recentDistance: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
   },
-  recentInfo: { flex: 1 },
+  recentMid: {
+    flex: 1,
+    minWidth: 0,
+  },
+  recentTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
+  },
   recentName: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
-    marginBottom: 2,
+    flexShrink: 1,
+  },
+  ratingBadge: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  ratingBadgeText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
   },
   recentLocation: {
     color: Colors.textSecondary,
-    fontSize: 12,
-  },
-  recentRight: { alignItems: "flex-end" },
-  priceChip: {
-    borderWidth: 1,
-    borderColor: "#2e3a3d",
-    borderRadius: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  priceText: {
-    color: Colors.textSecondary,
     fontSize: 13,
-    fontWeight: "600",
   },
-  actionBtns: {
-    flexDirection: "row",
-    gap: 0,
-  },
-  actionBtnDark: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#303030",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionBtnGreen: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(11,33,32,0.2)",
+  recentCircleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
   },

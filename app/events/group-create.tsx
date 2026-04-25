@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ImageIcon from "../../assets/icons/image.svg";
 
 const MEMBERS = [
   {
@@ -82,11 +83,7 @@ export default function GroupCreateScreen() {
           style={s.photoBox}
           onPress={() => router.push("/events/gallery")}
         >
-          <Ionicons
-            name="image-outline"
-            size={40}
-            color={Colors.textSecondary}
-          />
+          <ImageIcon width={36} height={36} color={Colors.text} />
           <Text style={s.photoTitle}>Group Photos</Text>
           <Text style={s.photoSub}>upload a new photo</Text>
         </TouchableOpacity>
@@ -124,11 +121,17 @@ export default function GroupCreateScreen() {
             >
               <View style={s.memberAvatarWrap}>
                 <Image source={{ uri: member.avatar }} style={s.memberAvatar} />
-                {isSelected && (
-                  <View style={s.checkOverlay}>
-                    <Ionicons name="checkmark" size={16} color={Colors.black} />
-                  </View>
-                )}
+                <View
+                  style={[s.checkOverlay, isSelected && s.checkOverlaySelected]}
+                >
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark"
+                      size={14}
+                      color={Colors.primary}
+                    />
+                  )}
+                </View>
               </View>
               <View style={s.memberInfo}>
                 <Text style={s.memberName}>{member.name}</Text>
@@ -226,16 +229,20 @@ const s = StyleSheet.create({
   memberAvatar: { width: 50, height: 50, borderRadius: 25 },
   checkOverlay: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
+    left: "50%",
+    top: "50%",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: Colors.background,
+    borderColor: Colors.white,
+    backgroundColor: "transparent",
+    transform: [{ translateX: -12 }, { translateY: -12 }],
+  },
+  checkOverlaySelected: {
+    borderColor: Colors.primary,
   },
   memberInfo: { flex: 1 },
   memberName: {

@@ -11,6 +11,10 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import CommentIcon from "../../assets/icons/comments.svg";
+import ShareIcon from "../../assets/icons/share.svg";
+import BookmarkIcon from "../../assets/icons/bookmark.svg";
 
 const POSTS = [
   {
@@ -57,12 +61,19 @@ export default function PostsScreen() {
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
         <View style={styles.profileRow}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-            }}
-            style={styles.avatar}
-          />
+          <LinearGradient
+            colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.avatarBorder}
+          >
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
+              }}
+              style={styles.avatar}
+            />
+          </LinearGradient>
           <View style={styles.profileInfo}>
             <Text style={styles.username}>pixcraft_132</Text>
             <View style={styles.statsRow}>
@@ -99,7 +110,17 @@ export default function PostsScreen() {
           <View key={post.id} style={styles.postCard}>
             {/* Post Header */}
             <View style={styles.postHeader}>
-              <Image source={{ uri: post.avatar }} style={styles.postAvatar} />
+              <LinearGradient
+                colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.postAvatarBorder}
+              >
+                <Image
+                  source={{ uri: post.avatar }}
+                  style={styles.postAvatar}
+                />
+              </LinearGradient>
               <View style={styles.postMeta}>
                 <Text style={styles.postUsername}>{post.username}</Text>
                 <Text style={styles.postTag}>{post.tag}</Text>
@@ -108,7 +129,7 @@ export default function PostsScreen() {
                 <Ionicons
                   name="ellipsis-vertical"
                   size={18}
-                  color={Colors.textSecondary}
+                  color={Colors.text}
                 />
               </TouchableOpacity>
             </View>
@@ -141,33 +162,21 @@ export default function PostsScreen() {
             {/* Actions */}
             <View style={styles.postActions}>
               <TouchableOpacity style={styles.actionItem}>
-                <Ionicons
-                  name="heart-outline"
-                  size={20}
-                  color={Colors.textSecondary}
-                />
+                <Ionicons name="heart-outline" size={20} color={Colors.text} />
                 <Text style={styles.actionText}>{post.likes} likes</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionItem}>
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={20}
-                  color={Colors.textSecondary}
-                />
+                <CommentIcon width={20} height={20} color={Colors.text} />
                 <Text style={styles.actionText}>{post.comments} comments</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionItem}>
-                <Ionicons
-                  name="paper-plane-outline"
-                  size={20}
-                  color={Colors.textSecondary}
-                />
+                <ShareIcon width={20} height={20} color={Colors.text} />
                 <Text style={styles.actionText}>{post.shares}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionItem}>
-                <Ionicons
-                  name="bookmark-outline"
-                  size={20}
+                <BookmarkIcon
+                  width={20}
+                  height={20}
                   color={Colors.textSecondary}
                 />
                 <Text style={styles.actionText}>{post.saves}</Text>
@@ -200,12 +209,17 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatar: {
+  avatarBorder: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    padding: 2,
+  },
+  avatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 30,
+    backgroundColor: Colors.background,
   },
   profileInfo: { flex: 1 },
   username: {
@@ -246,12 +260,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  postAvatar: {
+  postAvatarBorder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    padding: 2,
+  },
+  postAvatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 18,
+    backgroundColor: Colors.background,
   },
   postMeta: { flex: 1 },
   postUsername: { color: Colors.text, fontSize: 15, fontWeight: "700" },
@@ -299,6 +318,7 @@ const styles = StyleSheet.create({
   },
   postActions: {
     flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     gap: 20,
   },

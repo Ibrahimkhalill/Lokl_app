@@ -10,7 +10,17 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
-
+import DollarIcon from "../../assets/icons/dollar.svg";
+import FriendsIcon from "../../assets/icons/friends.svg";
+import LocationIcon from "../../assets/icons/locations.svg";
+import PhoneIcon from "../../assets/icons/call.svg";
+import TimeIcon from "../../assets/icons/clock.svg";
+import GlobeIcon from "../../assets/icons/website.svg";
+import ShowerIcon from "../../assets/icons/shower.svg";
+import LockerIcon from "../../assets/icons/loack.svg";
+import WifiIcon from "../../assets/icons/wifi.svg";
+import NavigateIcon from "../../assets/icons/navigate.svg";
+import VenueIcon from "../../assets/icons/venue.svg";
 const REVIEWS = [
   {
     id: "r1",
@@ -33,9 +43,18 @@ const REVIEWS = [
 ];
 
 const AMENITIES = [
-  { icon: "water-outline", label: "Shower" },
-  { icon: "lock-closed-outline", label: "Locker" },
-  { icon: "wifi-outline", label: "WiFi" },
+  {
+    icon: <ShowerIcon width={20} height={20} color={Colors.primary} />,
+    label: "Shower",
+  },
+  {
+    icon: <LockerIcon width={20} height={20} color={Colors.primary} />,
+    label: "Locker",
+  },
+  {
+    icon: <WifiIcon width={20} height={20} color={Colors.primary} />,
+    label: "WiFi",
+  },
 ];
 
 export default function EventDetailsScreen() {
@@ -63,10 +82,10 @@ export default function EventDetailsScreen() {
               <Ionicons name="arrow-back" size={20} color={Colors.text} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[s.slideBtn, { left: 14 }]}>
+          <TouchableOpacity style={[s.slideBtn, { left: 20 }]}>
             <Ionicons name="chevron-back" size={18} color={Colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={[s.slideBtn, { right: 14 }]}>
+          <TouchableOpacity style={[s.slideBtn, { right: 20 }]}>
             <Ionicons name="chevron-forward" size={18} color={Colors.text} />
           </TouchableOpacity>
           <View style={s.heroDots}>
@@ -99,7 +118,7 @@ export default function EventDetailsScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.actionOutlineBtn}
-                onPress={() => router.push("/events/chatting")}
+                onPress={() => router.push("/chat/id?id=1")}
               >
                 <Text style={s.actionOutlineBtnText}>Message</Text>
               </TouchableOpacity>
@@ -115,11 +134,12 @@ export default function EventDetailsScreen() {
             <View style={s.scoreChip}>
               <Text style={s.scoreChipText}>9.2</Text>
             </View>
-            <Text style={s.metaText}>$$</Text>
+            <DollarIcon width={14} height={14} color={Colors.textSecondary} />
+
             <View style={s.metaDot} />
             <Text style={s.metaText}>1.2 mi</Text>
             <View style={{ flex: 1 }} />
-            <Ionicons name="logo-usd" size={14} color={Colors.text} />
+            <DollarIcon width={14} height={14} color={Colors.primary} />
             <Text style={s.priceText}>$2500</Text>
           </View>
 
@@ -145,15 +165,11 @@ export default function EventDetailsScreen() {
 
           {/* Friends Here */}
           <TouchableOpacity
-            style={s.infoCard}
+            style={s.friendsCard}
             onPress={() => router.push("/events/friends-here")}
           >
             <View style={s.friendsHeader}>
-              <Ionicons
-                name="people-outline"
-                size={16}
-                color={Colors.primary}
-              />
+              <FriendsIcon width={18} height={18} color={Colors.primary} />
               <Text style={s.friendsTitle}>FRIENDS HERE</Text>
             </View>
             <View style={s.friendRow}>
@@ -168,7 +184,7 @@ export default function EventDetailsScreen() {
                   source={{
                     uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
                   }}
-                  style={[s.friendAvatar, { marginLeft: -10 }]}
+                  style={[s.friendAvatar, s.friendAvatarOverlap]}
                 />
               </View>
               <View>
@@ -180,31 +196,39 @@ export default function EventDetailsScreen() {
 
           {/* Info Cards */}
           {[
-            { icon: "location-outline", label: "Venue", value: "Central Park" },
             {
-              icon: "navigate-circle-outline",
+              icon: <VenueIcon width={20} height={20} color={Colors.primary} />,
+              label: "Venue",
+              value: "Central Park",
+            },
+            {
+              icon: (
+                <LocationIcon width={20} height={20} color={Colors.primary} />
+              ),
               label: "Location",
               value: "New York",
             },
             {
-              icon: "time-outline",
+              icon: <TimeIcon width={20} height={20} color={Colors.primary} />,
               label: "Time & Date",
               value: "Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-AM",
             },
-            { icon: "people-outline", label: "Max Participants", value: "120" },
             {
-              icon: "globe-outline",
+              icon: (
+                <FriendsIcon width={20} height={20} color={Colors.primary} />
+              ),
+              label: "Max Participants",
+              value: "120",
+            },
+            {
+              icon: <GlobeIcon width={20} height={20} color={Colors.primary} />,
               label: "Website",
               value: "Zenyogastudio.com",
               link: true,
             },
           ].map((info, i) => (
             <View key={i} style={s.infoCard}>
-              <Ionicons
-                name={info.icon as any}
-                size={18}
-                color={Colors.primary}
-              />
+              {info.icon}
               <View style={s.infoText}>
                 <Text style={s.infoLabel}>{info.label}</Text>
                 <Text style={[s.infoValue, (info as any).link && s.infoLink]}>
@@ -219,11 +243,7 @@ export default function EventDetailsScreen() {
           <View style={s.amenitiesGrid}>
             {AMENITIES.map((a, i) => (
               <View key={i} style={s.amenityChip}>
-                <Ionicons
-                  name={a.icon as any}
-                  size={16}
-                  color={Colors.primary}
-                />
+                {a.icon}
                 <Text style={s.amenityText}>{a.label}</Text>
               </View>
             ))}
@@ -245,12 +265,12 @@ export default function EventDetailsScreen() {
                 <View style={s.reviewInfo}>
                   <Text style={s.reviewName}>{rev.name}</Text>
                   <Text style={s.reviewTime}>{rev.time}</Text>
+                  <Text style={s.reviewText}>{rev.text}</Text>
                 </View>
                 <View style={s.reviewScore}>
                   <Text style={s.reviewScoreText}>{rev.rating}</Text>
                 </View>
               </View>
-              <Text style={s.reviewText}>{rev.text}</Text>
             </View>
           ))}
         </View>
@@ -281,8 +301,7 @@ const s = StyleSheet.create({
   },
   slideBtn: {
     position: "absolute",
-    top: "50%",
-    marginTop: -16,
+    top: "55%",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -397,15 +416,24 @@ const s = StyleSheet.create({
   },
   hostAvatar: { width: 42, height: 42, borderRadius: 21 },
   hostName: { color: Colors.text, fontSize: 15, fontWeight: "600" },
-  infoCard: {
+  friendsCard: {
     backgroundColor: Colors.card,
-    borderRadius: 12,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    padding: 14,
-    marginBottom: 10,
+    padding: 18,
+    marginBottom: 14,
+  },
+  infoCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 14,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 14,
   },
   friendsHeader: {
@@ -415,25 +443,26 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   friendsTitle: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.4,
   },
   friendRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   friendAvatars: { flexDirection: "row" },
   friendAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 21,
     borderWidth: 1.5,
     borderColor: Colors.background,
   },
-  friendName: { color: Colors.text, fontSize: 14, fontWeight: "600" },
-  friendStatus: { color: Colors.textSecondary, fontSize: 12 },
-  infoText: { flex: 1 },
-  infoLabel: { color: Colors.textMuted, fontSize: 12, marginBottom: 2 },
-  infoValue: { color: Colors.text, fontSize: 14 },
+  friendAvatarOverlap: { marginLeft: -10 },
+  friendName: { color: Colors.text, fontSize: 14, fontWeight: "500" },
+  friendStatus: { color: Colors.textSecondary, fontSize: 15, marginTop: 2 },
+  infoText: { flex: 1, paddingTop: 1 },
+  infoLabel: { color: Colors.textSecondary, fontSize: 16.5, marginBottom: 4 },
+  infoValue: { color: Colors.text, fontSize: 32 / 2, lineHeight: 31 },
   infoLink: { color: Colors.primary },
   amenitiesGrid: {
     flexDirection: "row",
@@ -469,7 +498,7 @@ const s = StyleSheet.create({
   },
   reviewTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
     marginBottom: 8,
   },
@@ -481,7 +510,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 6,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 5,
   },
   reviewScoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
   reviewText: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },

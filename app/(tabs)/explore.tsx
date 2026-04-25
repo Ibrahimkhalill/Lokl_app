@@ -12,10 +12,35 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LocationIcon from "../../assets/icons/locations.svg";
+import HeartIcon from "../../assets/icons/heart.svg";
+import CommentsIcon from "../../assets/icons/comments.svg";
+import NavigateIcon from "../../assets/icons/navigate.svg";
+import BookmarkIcon from "../../assets/icons/bookmark.svg";
+import MessengerIcon from "../../assets/icons/messenger.svg";
+import NotificationsIcon from "../../assets/icons/notifications.svg";
 
 const { width } = Dimensions.get("window");
 
-const POSTS = [
+type ExplorePost = {
+  id: string;
+  user: string;
+  avatar: string;
+  tag: string;
+  location: string;
+  score: string;
+  distance: string;
+  image: string;
+  likes: number;
+  comments: number;
+  shares: string;
+  saves: number;
+  isFollowing?: boolean;
+  group?: string | null;
+  groupAvatar?: string;
+};
+
+const POSTS: ExplorePost[] = [
   {
     id: "1",
     user: "Pixcraft_132",
@@ -72,7 +97,7 @@ const POSTS = [
   },
 ];
 
-const GROUP_POSTS = [
+const GROUP_POSTS: ExplorePost[] = [
   {
     id: "g1",
     group: "Football Club",
@@ -132,15 +157,12 @@ const GROUP_POSTS = [
   },
 ];
 
-type Post = (typeof POSTS)[0];
-type GroupPost = (typeof GROUP_POSTS)[0];
-
 function PostCard({
   item,
   isGroup,
   router,
 }: {
-  item: any;
+  item: ExplorePost;
   isGroup: boolean;
   router: any;
 }) {
@@ -189,11 +211,7 @@ function PostCard({
       {/* Tag + Location + Score */}
       <View style={postStyles.metaRow}>
         <Text style={postStyles.tag}>{item.tag}</Text>
-        <Ionicons
-          name="location-outline"
-          size={13}
-          color={Colors.textSecondary}
-        />
+        <LocationIcon width={13} height={13} color={Colors.textSecondary} />
         <Text style={postStyles.metaText}>{item.location}</Text>
         <View style={postStyles.scoreBadge}>
           <Text style={postStyles.scoreText}>{item.score}</Text>
@@ -227,40 +245,28 @@ function PostCard({
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
             size={20}
-            color={liked ? "#FF4444" : Colors.textSecondary}
+            color={liked ? "#FF4444" : Colors.text}
           />
           <Text style={postStyles.actionText}>
             {liked ? item.likes + 1 : item.likes} likes
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={postStyles.actionBtn}>
-          <Ionicons
-            name="chatbubble-outline"
-            size={19}
-            color={Colors.textSecondary}
-          />
+          <CommentsIcon width={20} height={20} color={Colors.text} />
           <Text style={postStyles.actionText}>{item.comments} comments</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={postStyles.actionBtn}
           onPress={() => router.push("/home/share-event")}
         >
-          <Ionicons
-            name="navigate-outline"
-            size={19}
-            color={Colors.textSecondary}
-          />
+          <NavigateIcon width={20} height={20} color={Colors.text} />
           <Text style={postStyles.actionText}>{item.shares}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={postStyles.actionBtn}
           onPress={() => setSaved(!saved)}
         >
-          <Ionicons
-            name={saved ? "bookmark" : "bookmark-outline"}
-            size={19}
-            color={saved ? Colors.primary : Colors.textSecondary}
-          />
+          <BookmarkIcon width={20} height={20} color={Colors.text} />
           <Text style={postStyles.actionText}>{item.saves}</Text>
         </TouchableOpacity>
       </View>
@@ -379,7 +385,7 @@ export default function ExploreScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"public" | "group">("public");
 
-  const data = activeTab === "public" ? POSTS : GROUP_POSTS;
+  const data: ExplorePost[] = activeTab === "public" ? POSTS : GROUP_POSTS;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -413,27 +419,19 @@ export default function ExploreScreen() {
             style={styles.iconBtn}
             onPress={() => router.push("/chat/inbox")}
           >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={22}
-              color={Colors.text}
-            />
+            <MessengerIcon width={20} height={20} color={Colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => router.push("/explore/notifications")}
           >
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={Colors.text}
-            />
+            <NotificationsIcon width={20} height={20} color={Colors.text} />
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <FlatList
+      <FlatList<ExplorePost>
         data={data}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (

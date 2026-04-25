@@ -119,8 +119,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
   },
   backBtn: {
     width: 40,
@@ -158,5 +156,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.cardBorder,
     marginHorizontal: 16,
+    marginVertical: 6,
   },
 });

@@ -10,10 +10,47 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { BackButton, Input, PrimaryButton } from "../../components/ui";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BusinessIcon from "../../assets/icons/bussiness.svg";
+import BusinessTypeIcon from "../../assets/icons/business_type.svg";
+import PersonIcon from "../../assets/icons/person.svg";
+import EmailIcon from "../../assets/icons/email.svg";
+import CallIcon from "../../assets/icons/call.svg";
+import LocationsIcon from "../../assets/icons/locations.svg";
+import LinkIcon from "../../assets/icons/link.svg";
+import LockIcon from "../../assets/icons/loack.svg";
+import InstagramIcon from "../../assets/icons/instagram.svg";
+import YoutubeIcon from "../../assets/icons/youtube.svg";
+import TiktokIcon from "../../assets/icons/tiktok.svg";
+import ThreadsIcon from "../../assets/icons/threads.svg";
+import XIcon from "../../assets/icons/x.svg";
+import PinterestIcon from "../../assets/icons/pinterest.svg";
+import SnapchatIcon from "../../assets/icons/snapchat.svg";
+import SearchIcon from "../../assets/icons/search.svg";
+import CloseIcon from "../../assets/icons/close.svg";
+import ChevronDownIcon from "../../assets/icons/chevron-down.svg";
+import AddIcon from "../../assets/icons/add.svg";
+import type { SvgProps } from "react-native-svg";
+
+type SvgIconComponent = React.ComponentType<SvgProps>;
+
+const SOCIAL_PLATFORMS: { name: string; Icon: SvgIconComponent }[] = [
+  { name: "Instagram", Icon: InstagramIcon },
+  { name: "YouTube", Icon: YoutubeIcon },
+  { name: "TikTok", Icon: TiktokIcon },
+  { name: "Threads", Icon: ThreadsIcon },
+  { name: "X", Icon: XIcon },
+  { name: "Pinterest", Icon: PinterestIcon },
+  { name: "Snapchat", Icon: SnapchatIcon },
+];
+
+function SocialPlatformSvg({ platform }: { platform: string }) {
+  const row = SOCIAL_PLATFORMS.find((p) => p.name === platform);
+  const Icon = row?.Icon ?? LinkIcon;
+  return <Icon width={18} height={18} color={Colors.textSecondary} />;
+}
 
 const BUSINESS_TYPES = [
   "Basketball court",
@@ -55,16 +92,6 @@ const BUSINESS_TYPES = [
   "Makeup Studio",
 ];
 
-const SOCIAL_PLATFORMS = [
-  { name: "Instagram", icon: "logo-instagram" },
-  { name: "YouTube", icon: "logo-youtube" },
-  { name: "TikTok", icon: "musical-notes-outline" },
-  { name: "Threads", icon: "at-outline" },
-  { name: "X", icon: "logo-twitter" },
-  { name: "Pinterest", icon: "grid-outline" },
-  { name: "Snapchat", icon: "happy-outline" },
-] as const;
-
 interface SocialEntry {
   platform: string;
   link: string;
@@ -88,8 +115,8 @@ function BottomSheetModal({
         <View style={modalStyles.sheet}>
           <View style={modalStyles.header}>
             <Text style={modalStyles.headerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color={Colors.white} />
+            <TouchableOpacity onPress={onClose} hitSlop={12}>
+              <CloseIcon width={22} height={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
           {children}
@@ -182,7 +209,7 @@ export default function BusinessSignUp() {
         {/* Header icon */}
         <View style={styles.iconHeader}>
           <View style={styles.iconCircle}>
-            <Ionicons name="business" size={30} color="#00D4A8" />
+            <BusinessIcon height={30} width={30} />
           </View>
           <Text style={styles.title}>Create Business account</Text>
           <Text style={styles.subtitle}>
@@ -194,7 +221,9 @@ export default function BusinessSignUp() {
         <Input
           label="Business Name*"
           placeholder="Your business name"
-          leftIcon="business-outline"
+          leftSlot={
+            <BusinessIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           value={businessName}
           onChangeText={setBusinessName}
         />
@@ -207,20 +236,21 @@ export default function BusinessSignUp() {
             onPress={() => setShowTypeModal(true)}
             activeOpacity={0.8}
           >
-            <Ionicons
-              name="briefcase-outline"
-              size={18}
-              color={Colors.textSecondary}
-              style={styles.fieldIcon}
-            />
+            <View style={styles.fieldIcon}>
+              <BusinessTypeIcon
+                width={18}
+                height={18}
+                color={Colors.textSecondary}
+              />
+            </View>
             <Text
               style={[styles.dropdownText, !businessType && styles.placeholder]}
             >
               {businessType || "Enter Business type"}
             </Text>
-            <Ionicons
-              name="chevron-down"
-              size={18}
+            <ChevronDownIcon
+              width={18}
+              height={18}
               color={Colors.textSecondary}
             />
           </TouchableOpacity>
@@ -229,14 +259,18 @@ export default function BusinessSignUp() {
         <Input
           label="Owner Name*"
           placeholder="Your full name"
-          leftIcon="person-outline"
+          leftSlot={
+            <PersonIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           value={ownerName}
           onChangeText={setOwnerName}
         />
         <Input
           label="Email*"
           placeholder="business@gmail.com"
-          leftIcon="mail-outline"
+          leftSlot={
+            <EmailIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
@@ -245,7 +279,9 @@ export default function BusinessSignUp() {
         <Input
           label="Business Phone*"
           placeholder="+880 1XXX-XXXXXX"
-          leftIcon="call-outline"
+          leftSlot={
+            <CallIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
@@ -253,14 +289,22 @@ export default function BusinessSignUp() {
         <Input
           label="Business Address*"
           placeholder="Street address"
-          leftIcon="location-outline"
+          leftSlot={
+            <LocationsIcon
+              width={18}
+              height={18}
+              color={Colors.textSecondary}
+            />
+          }
           value={address}
           onChangeText={setAddress}
         />
         <Input
           label="Website link"
           placeholder="Enter link"
-          leftIcon="link-outline"
+          leftSlot={
+            <LinkIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           autoCapitalize="none"
           value={website}
           onChangeText={setWebsite}
@@ -275,26 +319,20 @@ export default function BusinessSignUp() {
               onPress={() => openSocialPicker(index)}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="logo-instagram"
-                size={18}
-                color={Colors.textSecondary}
-                style={styles.fieldIcon}
-              />
+              <View style={styles.fieldIcon}>
+                <SocialPlatformSvg platform={entry.platform} />
+              </View>
               <Text style={styles.dropdownText}>{entry.platform}</Text>
-              <Ionicons
-                name="chevron-down"
-                size={18}
+              <ChevronDownIcon
+                width={18}
+                height={18}
                 color={Colors.textSecondary}
               />
             </TouchableOpacity>
             <View style={[styles.dropdownBtn, { marginTop: 8 }]}>
-              <Ionicons
-                name="link-outline"
-                size={18}
-                color={Colors.textSecondary}
-                style={styles.fieldIcon}
-              />
+              <View style={styles.fieldIcon}>
+                <LinkIcon width={18} height={18} color={Colors.textSecondary} />
+              </View>
               <TextInput
                 style={styles.inlineInput}
                 placeholder={`Enter ${entry.platform} link`}
@@ -311,14 +349,16 @@ export default function BusinessSignUp() {
         ))}
 
         <TouchableOpacity style={styles.addSocialBtn} onPress={addSocialEntry}>
-          <Ionicons name="add" size={18} color={Colors.textSecondary} />
+          <AddIcon width={18} height={18} color={Colors.textSecondary} />
           <Text style={styles.addSocialText}>Add social media</Text>
         </TouchableOpacity>
 
         <Input
           label="Password*"
           placeholder="Create password"
-          leftIcon="lock-closed-outline"
+          leftSlot={
+            <LockIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           isPassword
           value={password}
           onChangeText={setPassword}
@@ -326,7 +366,9 @@ export default function BusinessSignUp() {
         <Input
           label="Confirm Password*"
           placeholder="Re-enter password"
-          leftIcon="lock-closed-outline"
+          leftSlot={
+            <LockIcon width={18} height={18} color={Colors.textSecondary} />
+          }
           isPassword
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -334,7 +376,7 @@ export default function BusinessSignUp() {
 
         <PrimaryButton
           title="Sign Up"
-          onPress={() => router.push("/auth/otp")}
+          onPress={() => router.push("/auth/email-otp-verifications")}
           style={styles.signupBtn}
         />
       </ScrollView>
@@ -346,12 +388,9 @@ export default function BusinessSignUp() {
         title="Select business type"
       >
         <View style={styles.searchWrap}>
-          <Ionicons
-            name="search"
-            size={16}
-            color={Colors.textSecondary}
-            style={styles.searchIcon}
-          />
+          <View style={styles.searchIcon}>
+            <SearchIcon width={16} height={16} color={Colors.textSecondary} />
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
@@ -399,12 +438,13 @@ export default function BusinessSignUp() {
               style={styles.modalItem}
               onPress={() => selectPlatform(item.name)}
             >
-              <Ionicons
-                name={item.icon as any}
-                size={22}
-                color={Colors.textSecondary}
-                style={{ marginRight: 14 }}
-              />
+              <View style={{ marginRight: 14 }}>
+                <item.Icon
+                  width={22}
+                  height={22}
+                  color={Colors.textSecondary}
+                />
+              </View>
               <Text style={styles.modalItemText}>{item.name}</Text>
             </TouchableOpacity>
           )}
@@ -429,7 +469,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: "rgba(0,212,168,0.12)",
+    backgroundColor: "#00CCA8",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 14,
@@ -494,8 +534,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     margin: 14,
-    backgroundColor: Colors.background,
-    borderRadius: 10,
+    backgroundColor: "#2E3A3F",
+    borderRadius: 20,
     paddingHorizontal: 12,
     height: 44,
   },
@@ -523,5 +563,3 @@ const styles = StyleSheet.create({
   },
   textMuted: { color: Colors.textMuted },
 });
-
-const styles2 = { textMuted: Colors.textMuted };

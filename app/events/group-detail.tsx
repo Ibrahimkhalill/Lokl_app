@@ -12,6 +12,10 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
+import MultisportIcon from "../../assets/icons/multisport.svg";
+import MemberIcon from "../../assets/icons/member.svg";
+import CommentIcon from "../../assets/icons/comments.svg";
+import ImageIcon from "../../assets/icons/image.svg";
 
 const POSTS = [
   {
@@ -42,10 +46,11 @@ const POSTS = [
 export default function GroupDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const isAdmin = params.admin === "true";
+  const isAdmin = "true";
   const [joined, setJoined] = useState(isAdmin);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
 
   return (
     <View style={s.container}>
@@ -82,21 +87,21 @@ export default function GroupDetailScreen() {
           </Text>
           <View style={s.groupMeta}>
             <View style={s.metaChip}>
-              <Ionicons
-                name="ribbon-outline"
-                size={14}
+              <MultisportIcon
+                width={14}
+                height={14}
                 color={Colors.textSecondary}
               />
               <Text style={s.metaChipText}>Multisport</Text>
             </View>
-            <View style={s.metaChip}>
-              <Ionicons
-                name="people-outline"
-                size={14}
-                color={Colors.textSecondary}
-              />
+            <TouchableOpacity
+              style={s.metaChip}
+              onPress={() => router.push("/events/members" as never)}
+              activeOpacity={0.8}
+            >
+              <MemberIcon width={14} height={14} color={Colors.textSecondary} />
               <Text style={s.metaChipText}>6 Members</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Action Buttons */}
@@ -107,20 +112,23 @@ export default function GroupDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.messageBtn}
-                onPress={() => router.push("/events/chatting")}
+                onPress={() => router.push("/chat/id?id=1")}
               >
                 <Text style={s.messageBtnText}>Message</Text>
               </TouchableOpacity>
             </View>
           ) : !joined ? (
-            <TouchableOpacity style={s.joinBtn} onPress={() => setJoined(true)}>
+            <TouchableOpacity
+              style={s.joinBtn}
+              onPress={() => setJoined("true")}
+            >
               <Text style={s.joinBtnText}>Join Group</Text>
             </TouchableOpacity>
           ) : (
             <View style={s.adminActions}>
               <TouchableOpacity
                 style={s.messageBtn}
-                onPress={() => router.push("/events/chatting")}
+                onPress={() => router.push("/chat/id?id=1")}
               >
                 <Text style={s.messageBtnText}>Message</Text>
               </TouchableOpacity>
@@ -129,29 +137,28 @@ export default function GroupDetailScreen() {
 
           {/* Post input (admin only) */}
           {isAdmin && (
-            <View style={s.postInputRow}>
-              <Image
-                source={{
-                  uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&q=80",
-                }}
-                style={s.postInputAvatar}
-              />
-              <TouchableOpacity
-                style={s.postInputField}
-                onPress={() => router.push("/events/gallery")}
-              >
-                <Text style={s.postInputPlaceholder}>Post something...</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.postMediaBtn}
-                onPress={() => router.push("/events/gallery")}
-              >
-                <Ionicons
-                  name="image-outline"
-                  size={20}
-                  color={Colors.textSecondary}
+            <View>
+              <View style={s.fullDivider} />
+              <View style={s.postInputRow}>
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&q=80",
+                  }}
+                  style={s.postInputAvatar}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.postInputField}
+                  onPress={() => router.push("/events/gallery")}
+                >
+                  <Text style={s.postInputPlaceholder}>Post something...</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.postMediaBtn}
+                  onPress={() => router.push("/events/gallery")}
+                >
+                  <ImageIcon width={20} height={20} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -166,7 +173,9 @@ export default function GroupDetailScreen() {
                 </View>
                 {isAdmin && (
                   <TouchableOpacity
-                    onPress={() => {
+                    onPress={(e) => {
+                      const { pageX, pageY } = e.nativeEvent;
+                      setMenuPos({ x: pageX, y: pageY });
                       setSelectedPost(post.id);
                       setShowDeleteModal(true);
                     }}
@@ -174,7 +183,7 @@ export default function GroupDetailScreen() {
                     <Ionicons
                       name="ellipsis-vertical"
                       size={18}
-                      color={Colors.textSecondary}
+                      color={Colors.text}
                     />
                   </TouchableOpacity>
                 )}
@@ -194,16 +203,12 @@ export default function GroupDetailScreen() {
                   <Ionicons
                     name="heart-outline"
                     size={18}
-                    color={Colors.textSecondary}
+                    color={Colors.text}
                   />
                   <Text style={s.postActionText}>{post.likes} likes</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.postAction}>
-                  <Ionicons
-                    name="chatbubble-outline"
-                    size={17}
-                    color={Colors.textSecondary}
-                  />
+                  <CommentIcon width={18} height={18} color={Colors.text} />
                   <Text style={s.postActionText}>{post.comments} comments</Text>
                 </TouchableOpacity>
               </View>
@@ -214,20 +219,33 @@ export default function GroupDetailScreen() {
 
       {/* Delete modal */}
       <Modal visible={showDeleteModal} transparent animationType="fade">
-        <TouchableOpacity
-          style={s.deleteOverlay}
-          onPress={() => setShowDeleteModal(false)}
-          activeOpacity={1}
-        >
-          <View style={s.deleteSheet}>
+        <View style={s.deleteOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setShowDeleteModal(false)}
+            activeOpacity={1}
+          />
+          <View
+            style={[
+              s.deleteSheet,
+              {
+                top: menuPos.y + 12,
+                left: Math.max(12, menuPos.x - 126),
+              },
+            ]}
+          >
             <TouchableOpacity
               style={s.deleteBtn}
-              onPress={() => setShowDeleteModal(false)}
+              onPress={() => {
+                // TODO: delete API call
+                setShowDeleteModal(false);
+                setSelectedPost(null);
+              }}
             >
               <Text style={s.deleteBtnText}>Delete</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -244,7 +262,8 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(20,22,26,0.7)",
+    borderWidth: 1,
+    borderColor: Colors.text,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -252,7 +271,7 @@ const s = StyleSheet.create({
   groupAvatar: {
     width: 72,
     height: 72,
-    borderRadius: 18,
+    borderRadius: 36,
     borderWidth: 3,
     borderColor: Colors.background,
   },
@@ -302,33 +321,37 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   messageBtnText: { color: Colors.text, fontSize: 14, fontWeight: "600" },
+  fullDivider: {
+    height: 1,
+    backgroundColor: Colors.cardBorder,
+    marginHorizontal: -18,
+  },
   postInputRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 8,
+    marginHorizontal: -18,
     backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 10,
+    borderRadius: 0,
+
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
   postInputAvatar: { width: 36, height: 36, borderRadius: 18 },
   postInputField: { flex: 1 },
   postInputPlaceholder: { color: Colors.textMuted, fontSize: 14 },
   postMediaBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.iconBg,
     justifyContent: "center",
     alignItems: "center",
   },
   postCard: {
+    marginHorizontal: -18,
     borderTopWidth: 1,
     borderTopColor: Colors.cardBorder,
     paddingTop: 16,
     marginBottom: 4,
+    paddingHorizontal: 18,
   },
   postHeader: {
     flexDirection: "row",
@@ -342,29 +365,30 @@ const s = StyleSheet.create({
   postTime: { color: Colors.textMuted, fontSize: 12, marginTop: 1 },
   postImage: { width: "100%", height: 180, borderRadius: 12, marginBottom: 12 },
   postText: {
-    color: Colors.textSecondary,
+    color: Colors.text,
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 12,
   },
   postActions: { flexDirection: "row", gap: 20, paddingBottom: 16 },
   postAction: { flexDirection: "row", alignItems: "center", gap: 6 },
-  postActionText: { color: Colors.textSecondary, fontSize: 13 },
+  postActionText: { color: Colors.text, fontSize: 13 },
   deleteOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    // backgroundColor: "rgba(0,0,0,0.5)",
   },
   deleteSheet: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
+    position: "absolute",
+    backgroundColor: Colors.text,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
     overflow: "hidden",
-    minWidth: 160,
+    minWidth: 126,
   },
   deleteBtn: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     alignItems: "center",
   },
   deleteBtnText: { color: "#FF6B35", fontSize: 16, fontWeight: "700" },

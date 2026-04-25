@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderRadius: 14,
-    backgroundColor: Colors.card,
+    backgroundColor: "rgba(31, 42, 68, 0.4)",
     borderWidth: 1.5,
     borderColor: Colors.cardBorder,
   },

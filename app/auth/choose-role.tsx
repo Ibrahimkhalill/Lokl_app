@@ -4,7 +4,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, PrimaryButton } from "../../components/ui";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import PersonalIcon from "../../assets/icons/person.svg";
+import BusinessIcon from "../../assets/icons/bussiness.svg";
 
 type Role = "personal" | "business" | "community" | null;
 
@@ -17,13 +18,29 @@ export default function ChooseRole() {
       id: "personal" as Role,
       title: "Personal Account",
       subtitle: "Join as an athlete or sports enthusiast",
-      icon: "person-outline" as const,
+      icon: (
+        <PersonalIcon
+          width={22}
+          height={22}
+          color={
+            selected === "personal" ? Colors.primary : Colors.textSecondary
+          }
+        />
+      ),
     },
     {
       id: "business" as Role,
       title: "Business Account",
       subtitle: "Coach, Trainer, and other role.",
-      icon: "business-outline" as const,
+      icon: (
+        <BusinessIcon
+          width={22}
+          height={22}
+          color={
+            selected === "business" ? Colors.primary : Colors.textSecondary
+          }
+        />
+      ),
     },
   ];
 
@@ -61,11 +78,7 @@ export default function ChooseRole() {
                     isSelected && styles.iconWrapSelected,
                   ]}
                 >
-                  <Ionicons
-                    name={role.icon}
-                    size={22}
-                    color={isSelected ? Colors.primary : Colors.textSecondary}
-                  />
+                  {role.icon}
                 </View>
                 <View style={styles.cardText}>
                   <Text style={styles.cardTitle}>{role.title}</Text>

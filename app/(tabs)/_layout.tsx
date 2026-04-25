@@ -1,42 +1,30 @@
+import React from "react";
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
+import HomeIcon from "../../assets/icons/home.svg";
+import ExploreIcon from "../../assets/icons/explore.svg";
+import PostIcon from "../../assets/icons/posts.svg";
+import EventsIcon from "../../assets/icons/events.svg";
+import ProfileIcon from "../../assets/icons/profile.svg";
+import type { SvgProps } from "react-native-svg";
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
+type SvgIcon = React.ComponentType<SvgProps>;
 
-function TabIcon({
-  icon,
-  label,
+function SvgTabIcon({
+  Icon,
   focused,
-  isPost = false,
+  label,
 }: {
-  icon: IoniconsName;
-  label: string;
+  Icon: SvgIcon;
   focused: boolean;
-  isPost?: boolean;
+  label: string;
 }) {
-  if (isPost) {
-    return (
-      <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-        <Ionicons
-          name="add-circle-outline"
-          size={22}
-          color={focused ? Colors.black : Colors.white}
-        />
-        {focused && <Text style={styles.tabLabel}>{label}</Text>}
-      </View>
-    );
-  }
-
+  const color = focused ? Colors.black : Colors.white;
   return (
     <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Ionicons
-        name={icon}
-        size={20}
-        color={focused ? Colors.black : Colors.white}
-      />
-      {focused && <Text style={styles.tabLabel}>{label}</Text>}
+      <Icon width={22} height={22} color={color} />
+      {focused ? <Text style={styles.tabLabel}>{label}</Text> : null}
     </View>
   );
 }
@@ -53,52 +41,61 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textSecondary,
         tabBarIconStyle: {
-          width: "100%",
-          height: "100%",
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
         },
         tabBarItemStyle: {
+          flex: 1,
           paddingVertical: 0,
           marginVertical: 0,
+          justifyContent: "center",
+          alignItems: "center",
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
+          title: "Home",
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="home-outline" label="Home" focused={focused} />
+            <SvgTabIcon Icon={HomeIcon} focused={focused} label="Home" />
           ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
+          title: "Explore",
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="compass-outline" label="Explore" focused={focused} />
+            <SvgTabIcon Icon={ExploreIcon} focused={focused} label="Explore" />
           ),
         }}
       />
       <Tabs.Screen
         name="post"
         options={{
+          title: "Post",
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="add" label="Post" focused={focused} isPost />
+            <SvgTabIcon Icon={PostIcon} focused={focused} label="Post" />
           ),
         }}
       />
       <Tabs.Screen
         name="events"
         options={{
+          title: "Events",
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="calendar-outline" label="Events" focused={focused} />
+            <SvgTabIcon Icon={EventsIcon} focused={focused} label="Events" />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          title: "Profile",
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="person-outline" label="Profile" focused={focused} />
+            <SvgTabIcon Icon={ProfileIcon} focused={focused} label="Profile" />
           ),
         }}
       />
@@ -133,13 +130,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: 50,
     gap: 4,
+    minHeight: 40,
   },
   tabItemActive: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
-    width: 80,
+    minWidth: 80,
+    paddingHorizontal: 12,
   },
   tabLabel: {
     color: Colors.black,

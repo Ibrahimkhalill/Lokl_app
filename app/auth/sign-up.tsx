@@ -11,7 +11,6 @@ import {
   SocialButtons,
 } from "../../components/ui";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUp() {
   const router = useRouter();
@@ -78,7 +77,10 @@ export default function SignUp() {
         <Text style={styles.rememberText}>Remember Me</Text>
       </TouchableOpacity>
 
-      <PrimaryButton title="Sign Up" onPress={() => router.push("/auth/otp")} />
+      <PrimaryButton
+        title="Sign Up"
+        onPress={() => router.push("/auth/email-otp-verifications")}
+      />
 
       <OrDivider />
       <SocialButtons />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,72 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
-
+import FilterIcon from "../../assets/icons/filter.svg";
 const { width, height } = Dimensions.get("window");
 
+/** Region that fits all demo pins (padding so edges aren’t clipped) */
+function regionCoveringPins(pins: { lat: number; lng: number }[]): {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+} {
+  const lats = pins.map((p) => p.lat);
+  const lngs = pins.map((p) => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const midLat = (minLat + maxLat) / 2;
+  const midLng = (minLng + maxLng) / 2;
+  const latSpan = Math.max(maxLat - minLat, 0.002);
+  const lngSpan = Math.max(maxLng - minLng, 0.002);
+  return {
+    latitude: midLat,
+    longitude: midLng,
+    latitudeDelta: Math.min(latSpan * 2.4, 0.035),
+    longitudeDelta: Math.min(lngSpan * 2.4, 0.035),
+  };
+}
+
+const MAP_EDGE_PADDING = {
+  top: height * 0.14,
+  right: 28,
+  bottom: height * 0.42,
+  left: 28,
+};
+
+/** Map pill markers — icon + score; selected pin uses inverted (white) pill */
 const MAP_PINS = [
   {
     id: "1",
+    score: "7.6/10",
+    icon: "hand-left-outline",
+    lat: 40.7154,
+    lng: -74.0095,
+    venue: {
+      name: "TITLE BOXING DOWNTOWN",
+      score: "7.6",
+      ratings: "980",
+      type: "Boxing",
+      price: "$$",
+      distance: "0.8 ml",
+      image:
+        "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=80",
+      friends: 1,
+      friendImages: [
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=96&h=96&fit=crop&crop=faces",
+      ],
+    },
+  },
+  {
+    id: "2",
     score: "2.3/10",
     icon: "golf-outline",
     lat: 40.7158,
@@ -36,38 +89,20 @@ const MAP_PINS = [
     },
   },
   {
-    id: "2",
-    score: "7.6/10",
-    icon: "body-outline",
-    lat: 40.7148,
-    lng: -74.008,
-    venue: {
-      name: "FLEX BODY STUDIO",
-      score: "7.6",
-      ratings: "980",
-      type: "Fitness",
-      price: "$$",
-      distance: "0.8 ml",
-      image:
-        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80",
-      friends: 1,
-    },
-  },
-  {
     id: "3",
     score: "8/10",
-    icon: "fitness-outline",
-    lat: 40.7138,
-    lng: -74.003,
+    icon: "baseball-outline",
+    lat: 40.7136,
+    lng: -74.0042,
     venue: {
-      name: "POWER FITNESS GYM",
+      name: "CRICKET GROUNDS NYC",
       score: "8.0",
       ratings: "1,100",
-      type: "Gym",
+      type: "Cricket",
       price: "$",
       distance: "0.6 ml",
       image:
-        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80",
+        "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=80",
       friends: 0,
     },
   },
@@ -88,6 +123,10 @@ const MAP_PINS = [
       image:
         "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&q=80",
       friends: 2,
+      friendImages: [
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=96&h=96&fit=crop&crop=faces",
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96&h=96&fit=crop&crop=faces",
+      ],
     },
   },
   {
@@ -106,10 +145,36 @@ const MAP_PINS = [
       image:
         "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&q=80",
       friends: 1,
+      friendImages: [
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=96&h=96&fit=crop&crop=faces",
+      ],
     },
   },
   {
     id: "6",
+    score: "9.8/10",
+    icon: "barbell-outline",
+    lat: 40.7098,
+    lng: -74.007,
+    venue: {
+      name: "IRON BARBELL CLUB",
+      score: "9.8",
+      ratings: "2,200",
+      type: "Gym",
+      price: "$$",
+      distance: "1.1 ml",
+      image:
+        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&q=80",
+      friends: 3,
+      friendImages: [
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=96&h=96&fit=crop&crop=faces",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=96&h=96&fit=crop&crop=faces",
+        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=96&h=96&fit=crop&crop=faces",
+      ],
+    },
+  },
+  {
+    id: "7",
     score: "6.8/10",
     icon: "basketball-outline",
     lat: 40.7108,
@@ -126,25 +191,9 @@ const MAP_PINS = [
       friends: 0,
     },
   },
-  {
-    id: "7",
-    score: "9.8/10",
-    icon: "barbell-outline",
-    lat: 40.7098,
-    lng: -74.007,
-    venue: {
-      name: "IRON BARBELL CLUB",
-      score: "9.8",
-      ratings: "2,200",
-      type: "Weightlifting",
-      price: "$$",
-      distance: "1.1 ml",
-      image:
-        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&q=80",
-      friends: 3,
-    },
-  },
 ];
+
+const MAP_INITIAL_REGION = regionCoveringPins(MAP_PINS);
 
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d1117" }] },
@@ -194,62 +243,68 @@ const DARK_MAP_STYLE = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const mapRef = useRef<MapView>(null);
   const [selectedPin, setSelectedPin] = useState("4");
 
   const selectedPinData = MAP_PINS.find((p) => p.id === selectedPin)!;
   const venue = selectedPinData.venue;
 
+  const fitMapToPins = useCallback(() => {
+    const coords = MAP_PINS.map((p) => ({
+      latitude: p.lat,
+      longitude: p.lng,
+    }));
+    mapRef.current?.fitToCoordinates(coords, {
+      edgePadding: MAP_EDGE_PADDING,
+      animated: false,
+    });
+  }, []);
+
   return (
     <View style={styles.container}>
-      {/* Real Map */}
+      {/* Real Map — region + fit so all demo pins stay visible (not user GPS) */}
       <MapView
+        ref={mapRef}
         style={styles.map}
         provider={PROVIDER_DEFAULT}
         customMapStyle={DARK_MAP_STYLE}
-        initialRegion={{
-          latitude: 40.7128,
-          longitude: -74.006,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        showsUserLocation
+        initialRegion={MAP_INITIAL_REGION}
+        onMapReady={fitMapToPins}
+        showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
         showsBuildings={false}
         showsTraffic={false}
       >
-        {MAP_PINS.map((pin) => (
-          <Marker
-            key={pin.id}
-            coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-            onPress={() => setSelectedPin(pin.id)}
-            tracksViewChanges={false}
-          >
-            <View
-              style={[
-                styles.pin,
-                pin.featured && styles.pinFeatured,
-                selectedPin === pin.id && styles.pinSelected,
-              ]}
+        {MAP_PINS.map((pin) => {
+          const isSelected = selectedPin === pin.id;
+          return (
+            <Marker
+              key={`${pin.id}-${selectedPin}`}
+              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
+              onPress={() => setSelectedPin(pin.id)}
+              tracksViewChanges={false}
             >
-              <Ionicons
-                name={pin.icon as any}
-                size={13}
-                color={
-                  selectedPin === pin.id ? Colors.primary : Colors.textSecondary
-                }
-              />
-              <Text
-                style={[
-                  styles.pinText,
-                  selectedPin === pin.id && styles.pinTextActive,
-                ]}
+              <View
+                style={[styles.mapPill, isSelected && styles.mapPillSelected]}
               >
-                {pin.score}
-              </Text>
-            </View>
-          </Marker>
-        ))}
+                <Ionicons
+                  name={pin.icon as keyof typeof Ionicons.glyphMap}
+                  size={16}
+                  color={isSelected ? Colors.black : Colors.white}
+                />
+                <Text
+                  style={[
+                    styles.mapPillScore,
+                    isSelected && styles.mapPillScoreSelected,
+                  ]}
+                >
+                  {pin.score}
+                </Text>
+              </View>
+            </Marker>
+          );
+        })}
       </MapView>
 
       {/* Search Bar overlay */}
@@ -263,16 +318,15 @@ export default function HomeScreen() {
             <Ionicons
               name="search-outline"
               size={18}
-              color={Colors.textSecondary}
+              color={"rgba(187, 198, 224, 1)"}
             />
             <Text style={styles.searchPlaceholder}>Search venues</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.filterBtn}
-            activeOpacity={0.85}
             onPress={() => router.push("/home/filters")}
           >
-            <Ionicons name="options-outline" size={20} color={Colors.text} />
+            <FilterIcon width={24} height={24} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -311,31 +365,21 @@ export default function HomeScreen() {
                 <View style={styles.dot} />
                 <Text style={styles.venueMetaText}>{venue.price}</Text>
               </View>
-              {venue.friends > 0 && (
+              {venue.friends > 0 && (venue.friendImages?.length ?? 0) > 0 && (
                 <View style={styles.friendsRow}>
                   <View style={styles.friendAvatars}>
-                    <View
-                      style={[
-                        styles.friendAvatar,
-                        { backgroundColor: "#7B61FF" },
-                      ]}
-                    />
-                    {venue.friends > 1 && (
-                      <View
-                        style={[
-                          styles.friendAvatar,
-                          { backgroundColor: "#FF6B6B", marginLeft: -8 },
-                        ]}
-                      />
-                    )}
-                    {venue.friends > 2 && (
-                      <View
-                        style={[
-                          styles.friendAvatar,
-                          { backgroundColor: "#00C9A7", marginLeft: -8 },
-                        ]}
-                      />
-                    )}
+                    {venue
+                      .friendImages!.slice(0, venue.friends)
+                      .map((uri, idx) => (
+                        <Image
+                          key={`${uri}-${idx}`}
+                          source={{ uri }}
+                          style={[
+                            styles.friendAvatar,
+                            idx > 0 && styles.friendAvatarOverlap,
+                          ]}
+                        />
+                      ))}
                   </View>
                   <Text style={styles.friendsText}>
                     {venue.friends} Friends here
@@ -394,46 +438,50 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(20,22,26,0.92)",
+    backgroundColor: "rgba(187, 198, 224, 0.1)",
     borderRadius: 50,
     height: 48,
     paddingHorizontal: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(187, 198, 224, 1)",
   },
-  searchPlaceholder: { color: Colors.textSecondary, fontSize: 15 },
+  searchPlaceholder: { color: "rgba(187, 198, 224, 1)", fontSize: 15 },
   filterBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(20,22,26,0.92)",
+    backgroundColor: "rgba(187, 198, 224, 1)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(187, 198, 224, 1)",
   },
 
-  pin: {
+  /** Map marker pill: black bg + white icon/text (matches design); selected = inverted */
+  mapPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(20,22,26,0.88)",
-    borderRadius: 50,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    gap: 6,
+    backgroundColor: Colors.black,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.14)",
   },
-  pinFeatured: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(20,22,26,0.95)",
+  mapPillSelected: {
+    backgroundColor: Colors.white,
+    borderColor: Colors.white,
   },
-  pinSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(20,22,26,0.95)",
+  mapPillScore: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
-  pinText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "600" },
-  pinTextActive: { color: Colors.primary },
+  mapPillScoreSelected: {
+    color: Colors.black,
+  },
 
   venueSheet: {
     position: "absolute",
@@ -467,12 +515,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(20,22,26,0.85)",
-    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: Colors.black,
+    borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 10,
   },
-  distanceText: { color: Colors.text, fontSize: 12, fontWeight: "600" },
+  distanceText: {
+    color: "rgba(187, 198, 224, 1)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   venueInfo: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   venueName: {
     color: Colors.text,
@@ -504,12 +557,14 @@ const styles = StyleSheet.create({
   friendsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   friendAvatars: { flexDirection: "row" },
   friendAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1.5,
     borderColor: Colors.background,
+    backgroundColor: Colors.cardBorder,
   },
+  friendAvatarOverlap: { marginLeft: -4 },
   friendsText: { color: Colors.textSecondary, fontSize: 13 },
   venueActions: {
     flexDirection: "row",

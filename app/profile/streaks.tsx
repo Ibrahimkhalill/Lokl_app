@@ -21,6 +21,9 @@ import NeighboIcon from "../../assets/icons/neighbo.svg";
 import ExploreStreaksIcon from "../../assets/icons/explore_streaks.svg";
 import ActivityIcon from "../../assets/icons/activity.svg";
 import StarIcon from "../../assets/icons/star.svg";
+import DiscoveryIcon from "../../assets/icons/discovery.svg";
+import CameraIcon from "../../assets/icons/camera.svg";
+import QueenIcon from "../../assets/icons/king.svg";
 
 type Tab = "streaks" | "achievements" | "leaderboard";
 
@@ -89,7 +92,8 @@ const ACHIEVEMENTS = [
     desc: "Posted your first photo or video at a venue",
     rarity: "Rare",
     locked: false,
-    icon: "🔥",
+    icon: <FireIcon width={24} height={24} color={Colors.text} />,
+    bgColor: "rgba(21, 93, 252, 1)",
   },
   {
     id: "a2",
@@ -97,7 +101,8 @@ const ACHIEVEMENTS = [
     desc: "visited your first new venue through LOKL",
     rarity: "Common",
     locked: false,
-    icon: "🗺️",
+    icon: <DiscoveryIcon width={24} height={24} color={Colors.text} />,
+    bgColor: "rgba(74, 85, 101, 1)",
   },
   {
     id: "a3",
@@ -105,7 +110,8 @@ const ACHIEVEMENTS = [
     desc: "Left your first review with a score",
     rarity: "Common",
     locked: false,
-    icon: "⭐",
+    icon: <StarIcon width={24} height={24} color={Colors.text} />,
+    bgColor: "rgba(74, 85, 101, 1)",
   },
   {
     id: "a4",
@@ -113,7 +119,8 @@ const ACHIEVEMENTS = [
     desc: "posted your first photo or video at a venue",
     rarity: "Common",
     locked: false,
-    icon: "📷",
+    icon: <CameraIcon width={24} height={24} color={Colors.text} />,
+    bgColor: "rgba(74, 85, 101, 1)",
   },
   {
     id: "a5",
@@ -301,7 +308,11 @@ export default function StreaksScreen() {
                 </View>
 
                 <View style={styles.streakDayBadge}>
-                  <FireIcon width={14} height={14} />
+                  <FireIcon
+                    width={14}
+                    height={14}
+                    color={streak.iconGradient[0]}
+                  />
                   <Text style={styles.streakDayNum}>
                     {String(streak.days).padStart(2, "0")}
                   </Text>
@@ -328,7 +339,11 @@ export default function StreaksScreen() {
               <View style={styles.streakStats}>
                 <View style={styles.streakStatItem}>
                   <View style={styles.streakStatLabelRow}>
-                    <TimeIcon width={13} height={13} />
+                    <TimeIcon
+                      width={13}
+                      height={13}
+                      color={Colors.textSecondary}
+                    />
                     <Text style={styles.streakStatLabel}>Current</Text>
                   </View>
                   <Text style={styles.streakStatNum}>
@@ -337,7 +352,11 @@ export default function StreaksScreen() {
                 </View>
                 <View style={styles.streakStatItem}>
                   <View style={styles.streakStatLabelRow}>
-                    <TrophyIcon width={13} height={13} />
+                    <TrophyIcon
+                      width={13}
+                      height={13}
+                      color={Colors.textSecondary}
+                    />
                     <Text style={styles.streakStatLabel}>Best</Text>
                   </View>
                   <Text style={styles.streakStatNum}>
@@ -497,10 +516,15 @@ export default function StreaksScreen() {
                   style={[
                     styles.achIconWrap,
                     ach.locked && styles.achIconLocked,
+                    !ach.locked && { backgroundColor: ach.bgColor },
                   ]}
                 >
                   {ach.locked ? (
-                    <LoackIcon width={22} height={22} />
+                    <LoackIcon
+                      width={22}
+                      height={22}
+                      color={Colors.textMuted}
+                    />
                   ) : (
                     <Text style={styles.achIcon}>{ach.icon}</Text>
                   )}
@@ -569,7 +593,7 @@ export default function StreaksScreen() {
                 <Text style={styles.podiumDays}>76 days</Text>
               </View>
               <View style={[styles.podiumItem, styles.podiumFirst]}>
-                <Text style={styles.crown}>👑</Text>
+                <QueenIcon width={22} height={22} color={Colors.primary} />
                 <View style={styles.podiumRank1}>
                   <Text style={styles.podiumRankText}>1</Text>
                 </View>
@@ -620,7 +644,11 @@ export default function StreaksScreen() {
                 />
                 <Text style={styles.leaderName}>{entry.name}</Text>
                 <View style={styles.leaderScore}>
-                  <Ionicons name="flame" size={16} color="#FF6B35" />
+                  <FireIcon
+                    width={16}
+                    height={16}
+                    color={"rgba(255, 105, 0, 1)"}
+                  />
                   <Text style={styles.leaderScoreNum}>{entry.score}</Text>
                 </View>
               </View>
@@ -838,12 +866,17 @@ const styles = StyleSheet.create({
   achIconWrap: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 10,
     backgroundColor: "#4A90E233",
     justifyContent: "center",
     alignItems: "center",
   },
-  achIconLocked: { backgroundColor: Colors.cardBorder },
+  achIconLocked: {
+    backgroundColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: Colors.cardBorder,
+  },
   achIcon: { fontSize: 22 },
   achInfo: { flex: 1 },
   achTitleRow: {
@@ -948,7 +981,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  podiumRankText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  podiumRankText: { color: Colors.black, fontSize: 10, fontWeight: "800" },
   leaderRow: {
     flexDirection: "row",
     alignItems: "center",

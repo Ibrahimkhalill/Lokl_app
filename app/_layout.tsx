@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth/sign-up" />
         <Stack.Screen name="auth/forgot-password" />
         <Stack.Screen name="auth/otp" />
+        <Stack.Screen name="auth/email-otp-verifications" />
         <Stack.Screen name="auth/reset-password" />
         <Stack.Screen name="auth/choose-role" />
         <Stack.Screen name="auth/business-signup" />
@@ -64,6 +65,7 @@ export default function RootLayout() {
 
         <Stack.Screen name="business/create-event" />
         <Stack.Screen name="business/event-detail" />
+        <Stack.Screen name="business/profile" />
       </Stack>
     </>
   );

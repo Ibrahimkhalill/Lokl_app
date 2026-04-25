@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Image,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "../../constants/colors";
 
 export default function BusinessEventDetailScreen() {
   const router = useRouter();
@@ -17,7 +21,9 @@ export default function BusinessEventDetailScreen() {
         {/* Hero Carousel */}
         <View style={s.hero}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80' }}
+            source={{
+              uri: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80",
+            }}
             style={s.heroImage}
             resizeMode="cover"
           />
@@ -34,8 +40,11 @@ export default function BusinessEventDetailScreen() {
           </TouchableOpacity>
           {/* Dots */}
           <View style={s.heroDots}>
-            {[0,1,2].map((i) => (
-              <View key={i} style={[s.heroDot, i === imgIdx && s.heroDotActive]} />
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={[s.heroDot, i === imgIdx && s.heroDotActive]}
+              />
             ))}
           </View>
         </View>
@@ -44,8 +53,12 @@ export default function BusinessEventDetailScreen() {
           {/* Title + meta */}
           <Text style={s.title}>ZEN YOGA STUDIO</Text>
           <View style={s.metaRow}>
-            <View style={s.tagChip}><Text style={s.tagText}>Yoga</Text></View>
-            <View style={s.scoreChip}><Text style={s.scoreText}>9.2</Text></View>
+            <View style={s.tagChip}>
+              <Text style={s.tagText}>Yoga</Text>
+            </View>
+            <View style={s.scoreChip}>
+              <Text style={s.scoreText}>9.2</Text>
+            </View>
             <Text style={s.metaText}>$$</Text>
             <View style={s.metaDot} />
             <Text style={s.metaText}>1.2 mi</Text>
@@ -56,19 +69,71 @@ export default function BusinessEventDetailScreen() {
 
           {/* Description */}
           <Text style={s.description}>
-            Experience the tranquility of Zen Yoga Studio, where ancient practices meet modern wellness. Our expert instructors guide you through transformative sessions in our serene, state-of-the-art facilities.
+            Experience the tranquility of Zen Yoga Studio, where ancient
+            practices meet modern wellness. Our expert instructors guide you
+            through transformative sessions in our serene, state-of-the-art
+            facilities.
           </Text>
+
+          {/* Friends Here */}
+          <View style={s.friendsCard}>
+            <View style={s.friendsHeader}>
+              <Ionicons
+                name="people-outline"
+                size={18}
+                color={Colors.primary}
+              />
+              <Text style={s.friendsHeaderText}>FRIENDS HERE</Text>
+            </View>
+            <View style={s.friendsBody}>
+              <View style={s.friendAvatars}>
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=80&q=80",
+                  }}
+                  style={s.friendAvatar}
+                />
+                <Image
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
+                  }}
+                  style={[s.friendAvatar, s.friendAvatarOverlap]}
+                />
+              </View>
+              <View>
+                <Text style={s.friendName}>Sarah, Mike</Text>
+                <Text style={s.friendStatus}>are here now</Text>
+              </View>
+            </View>
+          </View>
 
           {/* Info Cards */}
           {[
-            { icon: 'location-outline', label: 'Venue', value: 'Central Park' },
-            { icon: 'navigate-circle-outline', label: 'Location', value: 'New York' },
-            { icon: 'time-outline', label: 'Time & Date', value: 'Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-AM' },
-            { icon: 'people-outline', label: 'Max Participants', value: '120' },
-            { icon: 'globe-outline', label: 'Website', value: 'Zenyogastudio.com', link: true },
+            { icon: "location-outline", label: "Venue", value: "Central Park" },
+            {
+              icon: "navigate-circle-outline",
+              label: "Location",
+              value: "New York",
+            },
+            {
+              icon: "time-outline",
+              label: "Time & Date",
+              value: "Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-AM",
+            },
+            { icon: "people-outline", label: "Max Participants", value: "120" },
+            {
+              icon: "globe-outline",
+              label: "Website",
+              value: "Zenyogastudio.com",
+              link: true,
+            },
           ].map((info, i) => (
             <View key={i} style={s.infoCard}>
-              <Ionicons name={info.icon as any} size={20} color={Colors.primary} />
+              <Ionicons
+                name={info.icon as any}
+                size={20}
+                color={Colors.primary}
+              />
               <View style={s.infoText}>
                 <Text style={s.infoLabel}>{info.label}</Text>
                 <Text style={[s.infoValue, (info as any).link && s.infoLink]}>
@@ -85,66 +150,138 @@ export default function BusinessEventDetailScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  hero: { height: 300, position: 'relative' },
-  heroImage: { width: '100%', height: '100%' },
+  hero: { height: 300, position: "relative" },
+  heroImage: { width: "100%", height: "100%" },
   heroBack: {
-    position: 'absolute', top: 52, left: 16,
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(20,22,26,0.7)',
-    justifyContent: 'center', alignItems: 'center',
+    position: "absolute",
+    top: 52,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(20,22,26,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   slideBtn: {
-    position: 'absolute', top: '50%', marginTop: -16,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(20,22,26,0.6)',
-    justifyContent: 'center', alignItems: 'center',
+    position: "absolute",
+    top: "50%",
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(20,22,26,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   heroDots: {
-    position: 'absolute', bottom: 14,
-    alignSelf: 'center', flexDirection: 'row', gap: 6,
+    position: "absolute",
+    bottom: 14,
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 6,
   },
   heroDot: {
-    width: 8, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    width: 8,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   heroDotActive: { width: 22, backgroundColor: Colors.primary },
   content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 40 },
   title: {
-    color: Colors.text, fontSize: 24,
-    fontWeight: '800', letterSpacing: 0.3, marginBottom: 10,
+    color: Colors.text,
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    marginBottom: 10,
   },
   metaRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 8, marginBottom: 16, flexWrap: 'wrap',
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: "wrap",
   },
   tagChip: {
-    borderWidth: 1, borderColor: Colors.cardBorder,
-    borderRadius: 8, paddingVertical: 4, paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
   },
   tagText: { color: Colors.text, fontSize: 13 },
   scoreChip: {
-    backgroundColor: Colors.primary, borderRadius: 8,
-    paddingVertical: 3, paddingHorizontal: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
   },
-  scoreText: { color: Colors.black, fontSize: 13, fontWeight: '800' },
+  scoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
   metaText: { color: Colors.textSecondary, fontSize: 13 },
   metaDot: {
-    width: 3, height: 3, borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: Colors.textSecondary,
   },
-  priceText: { color: Colors.text, fontSize: 15, fontWeight: '700' },
+  priceText: { color: Colors.text, fontSize: 15, fontWeight: "700" },
   description: {
-    color: Colors.textSecondary, fontSize: 14,
-    lineHeight: 22, marginBottom: 20,
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 20,
   },
+  friendsCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 18,
+    marginBottom: 14,
+  },
+  friendsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  friendsHeaderText: {
+    color: Colors.text,
+    fontSize: 30 / 2,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
+  friendsBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  friendAvatars: { flexDirection: "row" },
+  friendAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: Colors.background,
+  },
+  friendAvatarOverlap: { marginLeft: -10 },
+  friendName: { color: Colors.text, fontSize: 34 / 2, fontWeight: "500" },
+  friendStatus: { color: Colors.textSecondary, fontSize: 15, marginTop: 2 },
   infoCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    backgroundColor: Colors.card, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.cardBorder,
-    padding: 15, marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 14,
   },
-  infoText: { flex: 1 },
-  infoLabel: { color: Colors.textMuted, fontSize: 12, marginBottom: 3 },
-  infoValue: { color: Colors.text, fontSize: 14 },
-  infoLink: { color: Colors.primary },
+  infoText: { flex: 1, paddingTop: 1 },
+  infoLabel: { color: Colors.textSecondary, fontSize: 33 / 2, marginBottom: 4 },
+  infoValue: { color: Colors.text, fontSize: 20 * 1.0, lineHeight: 31 },
+  infoLink: { color: Colors.primary, textDecorationLine: "none" },
 });

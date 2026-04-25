@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { PrimaryButton } from "../../components/ui";
+import { BackButton, PrimaryButton, Screen } from "../../components/ui";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -36,7 +36,8 @@ export default function OTP() {
   const isComplete = otp.every((d) => d.length === 1);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
+      <BackButton onPress={() => router.back()} />
       <View style={styles.container}>
         <View style={styles.top}>
           <Text style={styles.title}>Phone Verification</Text>
@@ -79,7 +80,7 @@ export default function OTP() {
           />
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+
     paddingTop: 40,
     paddingBottom: 32,
   },

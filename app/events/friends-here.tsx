@@ -79,8 +79,6 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
   },
   backBtn: {
     width: 40,

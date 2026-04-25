@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInputProps,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/colors';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "../constants/colors";
+import GoogleIcon from "../assets/icons/google.svg";
+import AppleIcon from "../assets/icons/apple.svg";
+import LogoIcon from "../assets/icons/logo.svg";
 
 // ─── Logo ───────────────────────────────────────────────────────────────────
 export function LogoText() {
   return (
     <View style={logoStyles.container}>
-      <Text style={logoStyles.text}>Lokl.</Text>
+      <LogoIcon />
     </View>
   );
 }
@@ -23,7 +26,7 @@ const logoStyles = StyleSheet.create({
   container: { marginBottom: 32 },
   text: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: "800",
     color: Colors.white,
     letterSpacing: -1,
   },
@@ -32,11 +35,21 @@ const logoStyles = StyleSheet.create({
 // ─── Input ───────────────────────────────────────────────────────────────────
 interface InputProps extends TextInputProps {
   label?: string;
+  /** Ionicons name (used when `leftSlot` is not provided) */
   leftIcon?: keyof typeof Ionicons.glyphMap;
+  /** Custom left icon (e.g. SVG); takes precedence over `leftIcon` */
+  leftSlot?: React.ReactNode;
   isPassword?: boolean;
 }
 
-export function Input({ label, leftIcon, isPassword, style, ...props }: InputProps) {
+export function Input({
+  label,
+  leftIcon,
+  leftSlot,
+  isPassword,
+  style,
+  ...props
+}: InputProps) {
   const [secure, setSecure] = useState(isPassword ?? false);
   const [focused, setFocused] = useState(false);
 
@@ -49,13 +62,17 @@ export function Input({ label, leftIcon, isPassword, style, ...props }: InputPro
           focused && inputStyles.inputContainerFocused,
         ]}
       >
-        {leftIcon && (
-          <Ionicons
-            name={leftIcon}
-            size={18}
-            color={Colors.textSecondary}
-            style={inputStyles.leftIcon}
-          />
+        {leftSlot ? (
+          <View style={inputStyles.leftIcon}>{leftSlot}</View>
+        ) : (
+          leftIcon && (
+            <Ionicons
+              name={leftIcon}
+              size={18}
+              color={Colors.textSecondary}
+              style={inputStyles.leftIcon}
+            />
+          )
         )}
         <TextInput
           style={[inputStyles.input, style]}
@@ -66,9 +83,12 @@ export function Input({ label, leftIcon, isPassword, style, ...props }: InputPro
           {...props}
         />
         {isPassword && (
-          <TouchableOpacity onPress={() => setSecure(!secure)} style={inputStyles.eyeBtn}>
+          <TouchableOpacity
+            onPress={() => setSecure(!secure)}
+            style={inputStyles.eyeBtn}
+          >
             <Ionicons
-              name={secure ? 'eye-off-outline' : 'eye-outline'}
+              name={secure ? "eye-off-outline" : "eye-outline"}
               size={20}
               color={Colors.textSecondary}
             />
@@ -84,12 +104,12 @@ const inputStyles = StyleSheet.create({
   label: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 8,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.inputBg,
     borderRadius: 12,
     borderWidth: 1,
@@ -114,11 +134,17 @@ interface ButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'outline';
+  variant?: "primary" | "outline";
   style?: object;
 }
 
-export function PrimaryButton({ title, onPress, disabled, variant = 'primary', style }: ButtonProps) {
+export function PrimaryButton({
+  title,
+  onPress,
+  disabled,
+  variant = "primary",
+  style,
+}: ButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -126,16 +152,13 @@ export function PrimaryButton({ title, onPress, disabled, variant = 'primary', s
       activeOpacity={0.85}
       style={[
         btnStyles.btn,
-        variant === 'outline' && btnStyles.outline,
+        variant === "outline" && btnStyles.outline,
         disabled && btnStyles.disabled,
         style,
       ]}
     >
       <Text
-        style={[
-          btnStyles.text,
-          variant === 'outline' && btnStyles.outlineText,
-        ]}
+        style={[btnStyles.text, variant === "outline" && btnStyles.outlineText]}
       >
         {title}
       </Text>
@@ -148,12 +171,12 @@ const btnStyles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 50,
     height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 8,
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1.5,
     borderColor: Colors.cardBorder,
   },
@@ -161,12 +184,12 @@ const btnStyles = StyleSheet.create({
   text: {
     color: Colors.black,
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.2,
   },
   outlineText: {
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 
@@ -183,8 +206,8 @@ export function OrDivider() {
 
 const divStyles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 24,
     gap: 12,
   },
@@ -197,11 +220,11 @@ export function SocialButtons() {
   return (
     <View style={socialStyles.container}>
       <TouchableOpacity style={socialStyles.btn} activeOpacity={0.8}>
-        <Text style={socialStyles.googleG}>G</Text>
+        <GoogleIcon width={20} height={20} />
         <Text style={socialStyles.socialText}>Google</Text>
       </TouchableOpacity>
       <TouchableOpacity style={socialStyles.btn} activeOpacity={0.8}>
-        <Ionicons name="logo-apple" size={20} color={Colors.black} />
+        <AppleIcon width={20} height={20} />
         <Text style={socialStyles.socialText}>Apple</Text>
       </TouchableOpacity>
     </View>
@@ -209,12 +232,12 @@ export function SocialButtons() {
 }
 
 const socialStyles = StyleSheet.create({
-  container: { flexDirection: 'row', gap: 12 },
+  container: { flexDirection: "row", gap: 12 },
   btn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -224,13 +247,13 @@ const socialStyles = StyleSheet.create({
   },
   googleG: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#4285F4',
+    fontWeight: "700",
+    color: "#4285F4",
   },
   socialText: {
     color: Colors.black,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 
@@ -241,7 +264,11 @@ interface BackBtnProps {
 
 export function BackButton({ onPress }: BackBtnProps) {
   return (
-    <TouchableOpacity style={backStyles.btn} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={backStyles.btn}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <Ionicons name="arrow-back" size={22} color={Colors.text} />
     </TouchableOpacity>
   );
@@ -255,15 +282,15 @@ const backStyles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 24,
   },
 });
 
 // ─── Screen Wrapper ──────────────────────────────────────────────────────────
-import { ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -272,9 +299,7 @@ interface ScreenProps {
 }
 
 export function Screen({ children, scrollable = false, style }: ScreenProps) {
-  const content = (
-    <View style={[screenStyles.inner, style]}>{children}</View>
-  );
+  const content = <View style={[screenStyles.inner, style]}>{children}</View>;
 
   if (scrollable) {
     return (
@@ -290,11 +315,7 @@ export function Screen({ children, scrollable = false, style }: ScreenProps) {
     );
   }
 
-  return (
-    <SafeAreaView style={screenStyles.safe}>
-      {content}
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={screenStyles.safe}>{content}</SafeAreaView>;
 }
 
 const screenStyles = StyleSheet.create({
@@ -306,7 +327,6 @@ const screenStyles = StyleSheet.create({
   inner: {
     flex: 1,
     paddingHorizontal: 0,
-    
   },
   scroll: {
     flexGrow: 1,

@@ -73,12 +73,12 @@ export default function ReviewsScreen() {
               <View style={s.info}>
                 <Text style={s.name}>{item.name}</Text>
                 <Text style={s.time}>{item.time}</Text>
+                <Text style={s.reviewText}>{item.text}</Text>
               </View>
               <View style={s.scoreBadge}>
                 <Text style={s.scoreText}>{item.rating}</Text>
               </View>
             </View>
-            <Text style={s.reviewText}>{item.text}</Text>
           </View>
         )}
       />
@@ -94,8 +94,6 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
   },
   backBtn: {
     width: 40,
@@ -123,7 +121,7 @@ const s = StyleSheet.create({
   },
   cardTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
     marginBottom: 10,
   },

@@ -1,19 +1,40 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import MessagesIcon from "../../assets/icons/comments.svg";
+import WhatsAppIcon from "../../assets/icons/whatsapp.svg";
+import EmailIcon from "../../assets/icons/email.svg";
+import MoreIcon from "../../assets/icons/link.svg";
+
 const SHARE_OPTIONS = [
-  { icon: "chatbubble-outline", label: "Messages", bg: "#1A237E" },
-  { icon: "logo-whatsapp", label: "WhatsApp", bg: "#1B5E20" },
-  { icon: "mail-outline", label: "Email", bg: "#B71C1C" },
-  { icon: "link-outline", label: "More", bg: "#4A148C" },
+  {
+    icon: <MessagesIcon width={20} height={20} color={Colors.text} />,
+    label: "Messages",
+    color: "#34C759",
+  },
+  {
+    icon: <WhatsAppIcon width={20} height={20} color={Colors.text} />,
+    label: "WhatsApp",
+    color: "#25D366",
+  },
+  {
+    icon: <EmailIcon width={20} height={20} color={Colors.text} />,
+    label: "Email",
+    color: "#5AC8FA",
+  },
+  {
+    icon: <MoreIcon width={20} height={20} color={Colors.text} />,
+    label: "More",
+    color: Colors.textSecondary,
+  },
 ];
 
 export default function ShareEventScreen() {
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
     setCopied(true);
@@ -21,60 +42,61 @@ export default function ShareEventScreen() {
   };
 
   return (
-    <SafeAreaView style={s.safe}>
-      <View style={s.container}>
-        <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Share</Text>
+          <Text style={styles.headerTitle}>Share</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <View style={s.eventCard}>
+        {/* Event Card */}
+        <View style={styles.eventCard}>
           <Image
             source={{
-              uri: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=200&q=80",
+              uri: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=200&q=80",
             }}
-            style={s.eventThumb}
+            style={styles.eventImage}
           />
-          <View style={s.eventInfo}>
-            <Text style={s.eventName}>BOXING FUNDAMENTALS</Text>
-            <View style={s.eventMeta}>
-              <Text style={s.eventMetaText}>Tomorrow</Text>
-              <View style={s.dot} />
-              <Text style={s.eventMetaText}>Downtown Courts</Text>
+          <View style={styles.eventInfo}>
+            <Text style={styles.eventName}>PICKUP BASKETBALL</Text>
+            <View style={styles.eventMeta}>
+              <Text style={styles.eventMetaText}>Tomorrow</Text>
+              <View style={styles.metaDot} />
+              <Text style={styles.eventMetaText}>Downtown Courts</Text>
             </View>
           </View>
         </View>
 
-        <Text style={s.label}>Event Link</Text>
-        <View style={s.linkRow}>
-          <Text style={s.linkText} numberOfLines={1}>
+        {/* Event Link */}
+        <Text style={styles.label}>Event Link</Text>
+        <View style={styles.linkRow}>
+          <Text style={styles.linkText} numberOfLines={1}>
             https://lokl.app/event/2
           </Text>
-          <TouchableOpacity style={s.copyBtn} onPress={handleCopy}>
-            <Ionicons name="copy-outline" size={15} color={Colors.black} />
-            <Text style={s.copyText}>{copied ? "Copied!" : "Copy"}</Text>
+          <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
+            <Ionicons name="copy-outline" size={16} color={Colors.black} />
+            <Text style={styles.copyText}>{copied ? "Copied!" : "Copy"}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.label}>Share</Text>
-        <View style={s.shareGrid}>
+        {/* Share Options */}
+        <Text style={styles.label}>Share</Text>
+        <View style={styles.shareGrid}>
           {SHARE_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.label}
-              style={s.shareOption}
+              style={styles.shareOption}
               activeOpacity={0.8}
             >
-              <View style={[s.shareIconWrap, { backgroundColor: opt.bg }]}>
-                <Ionicons
-                  name={opt.icon as any}
-                  size={24}
-                  color={Colors.white}
-                />
-              </View>
-              <Text style={s.shareLabel}>{opt.label}</Text>
+              <View style={styles.shareIconWrap}>{opt.icon}</View>
+              <Text style={styles.shareLabel}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -83,15 +105,14 @@ export default function ShareEventScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, paddingHorizontal: 18 },
+  container: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
-    marginBottom: 8,
+    marginBottom: 24,
   },
   backBtn: {
     width: 40,
@@ -113,19 +134,19 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     padding: 14,
-    marginBottom: 22,
+    marginBottom: 24,
   },
-  eventThumb: { width: 52, height: 52, borderRadius: 10 },
+  eventImage: { width: 52, height: 52, borderRadius: 10 },
   eventInfo: { flex: 1 },
   eventName: {
     color: Colors.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
     marginBottom: 4,
   },
   eventMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
-  eventMetaText: { color: Colors.textSecondary, fontSize: 12 },
-  dot: {
+  eventMetaText: { color: Colors.textSecondary, fontSize: 13 },
+  metaDot: {
     width: 3,
     height: 3,
     borderRadius: 2,
@@ -133,9 +154,9 @@ const s = StyleSheet.create({
   },
   label: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   linkRow: {
     flexDirection: "row",
@@ -149,7 +170,7 @@ const s = StyleSheet.create({
     marginBottom: 24,
     overflow: "hidden",
   },
-  linkText: { flex: 1, color: Colors.textSecondary, fontSize: 13 },
+  linkText: { flex: 1, color: Colors.textSecondary, fontSize: 14 },
   copyBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -157,8 +178,9 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     height: "100%",
+    borderRadius: 12,
   },
-  copyText: { color: Colors.black, fontSize: 13, fontWeight: "700" },
+  copyText: { color: Colors.black, fontSize: 14, fontWeight: "700" },
   shareGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   shareOption: {
     width: "47%",
@@ -166,16 +188,17 @@ const s = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    padding: 18,
+    padding: 20,
     alignItems: "center",
     gap: 10,
   },
   shareIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.iconBg,
     justifyContent: "center",
     alignItems: "center",
   },
-  shareLabel: { color: Colors.text, fontSize: 13, fontWeight: "500" },
+  shareLabel: { color: Colors.text, fontSize: 14, fontWeight: "500" },
 });

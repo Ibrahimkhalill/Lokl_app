@@ -6,14 +6,22 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const { width } = Dimensions.get("window");
+import PlusIcon from "../../assets/icons/plus.svg";
+import BookmarkIcon from "../../assets/icons/bookmark.svg";
+import LocationIcon from "../../assets/icons/locations.svg";
+import PhoneIcon from "../../assets/icons/call.svg";
+import TimeIcon from "../../assets/icons/clock.svg";
+import GlobeIcon from "../../assets/icons/website.svg";
+import ShowerIcon from "../../assets/icons/shower.svg";
+import LockerIcon from "../../assets/icons/loack.svg";
+import WifiIcon from "../../assets/icons/wifi.svg";
+import NavigateIcon from "../../assets/icons/navigate.svg";
+import FriendsIcon from "../../assets/icons/friends.svg";
 
 const REVIEWS = [
   {
@@ -47,9 +55,18 @@ const REVIEWS = [
 ];
 
 const AMENITIES = [
-  { icon: "water-outline", label: "Shower" },
-  { icon: "lock-closed-outline", label: "Locker" },
-  { icon: "wifi-outline", label: "WiFi" },
+  {
+    icon: <ShowerIcon width={20} height={20} color={Colors.primary} />,
+    label: "Shower",
+  },
+  {
+    icon: <LockerIcon width={20} height={20} color={Colors.primary} />,
+    label: "Locker",
+  },
+  {
+    icon: <WifiIcon width={20} height={20} color={Colors.primary} />,
+    label: "WiFi",
+  },
 ];
 
 export default function DetailsScreen() {
@@ -76,16 +93,18 @@ export default function DetailsScreen() {
               <Ionicons name="arrow-back" size={20} color={Colors.text} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.heroBtn}>
-              <Ionicons name="navigate-outline" size={20} color={Colors.text} />
+              <NavigateIcon width={20} height={20} color={Colors.text} />
             </TouchableOpacity>
           </SafeAreaView>
           {/* Prev/Next */}
-          <TouchableOpacity style={[styles.slideBtn, { left: 12 }]}>
-            <Ionicons name="chevron-back" size={18} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.slideBtn, { right: 12 }]}>
-            <Ionicons name="chevron-forward" size={18} color={Colors.text} />
-          </TouchableOpacity>
+          <View style={styles.slideBtnWrap}>
+            <TouchableOpacity style={[styles.slideBtn, { left: 12 }]}>
+              <Ionicons name="chevron-back" size={18} color={Colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.slideBtn, { right: 12 }]}>
+              <Ionicons name="chevron-forward" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
           {/* Dots */}
           <View style={styles.heroDots}>
             {[0, 1, 2].map((i) => (
@@ -124,7 +143,7 @@ export default function DetailsScreen() {
                 <Ionicons
                   name="time-outline"
                   size={14}
-                  color={Colors.primary}
+                  color="rgba(5, 223, 114, 1)"
                 />
                 <Text style={styles.openText}>Open Now</Text>
               </View>
@@ -135,14 +154,10 @@ export default function DetailsScreen() {
                 <Text style={styles.actionBtnText}>Share</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionIconBtn}>
-                <Ionicons name="add" size={20} color={Colors.text} />
+                <PlusIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionIconBtn}>
-                <Ionicons
-                  name="bookmark-outline"
-                  size={20}
-                  color={Colors.text}
-                />
+                <BookmarkIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -158,11 +173,7 @@ export default function DetailsScreen() {
           {/* Friends Here */}
           <View style={styles.section}>
             <View style={styles.friendsHeader}>
-              <Ionicons
-                name="people-outline"
-                size={16}
-                color={Colors.primary}
-              />
+              <FriendsIcon width={20} height={20} color={Colors.primary} />
               <Text style={styles.friendsTitle}>FRIENDS HERE</Text>
             </View>
             <View style={styles.friendRow}>
@@ -190,29 +201,31 @@ export default function DetailsScreen() {
           {/* Info Cards */}
           {[
             {
-              icon: "time-outline",
+              icon: <TimeIcon width={24} height={24} color={Colors.primary} />,
               label: "Hours",
               value: "Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-AM",
             },
-            { icon: "call-outline", label: "Phone", value: "(555) 123-4567" },
             {
-              icon: "globe-outline",
+              icon: <PhoneIcon width={20} height={20} color={Colors.primary} />,
+              label: "Phone",
+              value: "(555) 123-4567",
+            },
+            {
+              icon: <GlobeIcon width={20} height={20} color={Colors.primary} />,
               label: "Website",
               value: "Zenyogastudio.com",
               link: true,
             },
             {
-              icon: "location-outline",
+              icon: (
+                <LocationIcon width={20} height={20} color={Colors.primary} />
+              ),
               label: "Address",
               value: "123 Main St",
             },
           ].map((info, i) => (
             <View key={i} style={styles.infoCard}>
-              <Ionicons
-                name={info.icon as any}
-                size={18}
-                color={Colors.primary}
-              />
+              {info.icon}
               <View style={styles.infoText}>
                 <Text style={styles.infoLabel}>{info.label}</Text>
                 <Text style={[styles.infoValue, info.link && styles.infoLink]}>
@@ -227,11 +240,7 @@ export default function DetailsScreen() {
           <View style={styles.amenitiesGrid}>
             {AMENITIES.map((a, i) => (
               <View key={i} style={styles.amenityChip}>
-                <Ionicons
-                  name={a.icon as any}
-                  size={16}
-                  color={Colors.primary}
-                />
+                {a.icon}
                 <Text style={styles.amenityText}>{a.label}</Text>
               </View>
             ))}
@@ -255,23 +264,23 @@ export default function DetailsScreen() {
                 <View style={styles.reviewInfo}>
                   <Text style={styles.reviewName}>{review.name}</Text>
                   <Text style={styles.reviewTime}>{review.time}</Text>
+                  <Text style={styles.reviewText}>{review.text}</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.reviewImages}
+                  >
+                    {review.images.map((img, i) => (
+                      <Image
+                        key={i}
+                        source={{ uri: img }}
+                        style={styles.reviewImg}
+                      />
+                    ))}
+                  </ScrollView>
                 </View>
                 <Text style={styles.reviewRating}>{review.rating}</Text>
               </View>
-              <Text style={styles.reviewText}>{review.text}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.reviewImages}
-              >
-                {review.images.map((img, i) => (
-                  <Image
-                    key={i}
-                    source={{ uri: img }}
-                    style={styles.reviewImg}
-                  />
-                ))}
-              </ScrollView>
             </View>
           ))}
         </View>
@@ -298,9 +307,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(20,22,26,0.7)",
+    backgroundColor: "rgba(17, 33, 32, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  slideBtnWrap: {
+    position: "absolute",
+    top: "50%",
+    left: 10,
+    right: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
   },
   slideBtn: {
     position: "absolute",
@@ -308,10 +326,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(20,22,26,0.6)",
+    backgroundColor: "rgba(17, 33, 32, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: -16,
+    marginTop: 10,
   },
   heroDots: {
     position: "absolute",
@@ -362,13 +380,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary,
     borderRadius: 50,
     paddingVertical: 8,
     paddingHorizontal: 14,
+    backgroundColor: "rgba(16, 58, 37, 1)",
   },
-  openText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+  openText: { color: "rgba(5, 223, 114, 1)", fontSize: 13, fontWeight: "600" },
   actionBtn: {
     borderWidth: 1,
     borderColor: Colors.cardBorder,
@@ -378,9 +395,10 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
   actionIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     justifyContent: "center",
@@ -425,7 +443,7 @@ const styles = StyleSheet.create({
   friendStatus: { color: Colors.textSecondary, fontSize: 12 },
   infoCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 14,
     backgroundColor: Colors.card,
     borderRadius: 12,
@@ -479,7 +497,7 @@ const styles = StyleSheet.create({
   },
   reviewTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
     marginBottom: 10,
   },
@@ -487,7 +505,11 @@ const styles = StyleSheet.create({
   reviewInfo: { flex: 1 },
   reviewName: { color: Colors.text, fontSize: 14, fontWeight: "600" },
   reviewTime: { color: Colors.textMuted, fontSize: 12 },
-  reviewRating: { color: Colors.text, fontSize: 13, fontWeight: "700" },
+  reviewRating: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
   reviewText: {
     color: Colors.textSecondary,
     fontSize: 13,

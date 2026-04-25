@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import SearchIcon from "../../assets/icons/search.svg";
 
 const CHATS = [
   {
@@ -71,6 +72,15 @@ type ChatItem = (typeof CHATS)[0];
 export default function MessagesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      const t = setTimeout(() => searchInputRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [showSearch]);
 
   const filtered = CHATS.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
@@ -83,10 +93,39 @@ export default function MessagesScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="search-outline" size={20} color={Colors.text} />
-        </TouchableOpacity>
+        {showSearch ? (
+          <View style={styles.headerSearchWrap}>
+            <SearchIcon width={18} height={18} color={Colors.textSecondary} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.headerSearchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search messages"
+              placeholderTextColor={Colors.textSecondary}
+            />
+            <TouchableOpacity
+              style={styles.headerSearchClose}
+              onPress={() => {
+                setShowSearch(false);
+                setSearch("");
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={18} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.headerTitle}>Messages</Text>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setShowSearch(true)}
+            >
+              <SearchIcon width={20} height={20} color={Colors.text} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <FlatList
@@ -153,6 +192,31 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 18,
     fontWeight: "700",
+  },
+  headerSearchWrap: {
+    flex: 1,
+    marginLeft: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 42,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 21,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.card,
+  },
+  headerSearchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  headerSearchClose: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   listContent: { paddingBottom: 120 },

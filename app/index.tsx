@@ -1,114 +1,82 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  FlatList,
   ImageBackground,
-  Animated,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Colors } from '../constants/colors';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Colors } from "../constants/colors";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 const slides = [
   {
-    id: '1',
-    title: 'Find your\nLokl Gym',
-    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80',
+    id: "1",
+    title: "Find your\nLokl Gym",
+    image: require("../assets/images/onboarding-3.png"),
   },
   {
-    id: '2',
-    title: 'Find your\nLokl Course',
-    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&q=80',
+    id: "2",
+    title: "Find your\nLokl Course",
+    image: require("../assets/images/onboarding-2.png"),
   },
   {
-    id: '3',
-    title: 'Find your\nLokl Class',
-    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80',
+    id: "3",
+    title: "Find your\nLokl Class",
+    image: require("../assets/images/onboarding-1.png"),
   },
   {
-    id: '4',
-    title: 'Find your\nLokl Workout',
-    image: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&q=80',
+    id: "4",
+    title: "Find your\nLokl Workout",
+    image: require("../assets/images/onboarding-4.png"),
+  },
+  {
+    id: "5",
+    title: "Find your\nLokl Competition",
+    image: require("../assets/images/onboarding-5.png"),
   },
 ];
 
 export default function SplashScreen() {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-  const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const currentSlide = slides[currentIndex];
 
-  useEffect(() => {
-    autoPlayRef.current = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % slides.length;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentIndex(nextIndex);
-    }, 3000);
-    return () => {
-      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
-    };
-  }, [currentIndex]);
-
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
+  const handlePrimaryPress = () => {
+    const isLastSlide = currentIndex === slides.length - 1;
+    if (isLastSlide) {
+      router.push("/auth/choose-role");
+      return;
     }
-  }).current;
-
-  const renderSlide = ({ item }: { item: typeof slides[0] }) => (
-    <ImageBackground
-      source={{ uri: item.image }}
-      style={styles.slide}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay} />
-      <View style={styles.slideContent}>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-      </View>
-    </ImageBackground>
-  );
+    setCurrentIndex((prev) => prev + 1);
+  };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        ref={flatListRef}
-        data={slides}
-        renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-      />
-
-      {/* Dots */}
-      <View style={styles.dotsContainer}>
-        {slides.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              index === currentIndex ? styles.dotActive : styles.dotInactive,
-            ]}
-          />
-        ))}
-      </View>
+      <ImageBackground
+        source={currentSlide.image}
+        style={styles.slide}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <View style={styles.slideContent}>
+          <Text style={styles.slideTitle}>{currentSlide.title}</Text>
+        </View>
+      </ImageBackground>
 
       {/* Button */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.push('/auth/choose-role')}
+          onPress={handlePrimaryPress}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>Get Started</Text>
+          <Text style={styles.buttonText}>
+            {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -126,44 +94,24 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   slideContent: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 28,
-    paddingBottom: 200,
   },
   slideTitle: {
     fontSize: 40,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.white,
     lineHeight: 48,
     letterSpacing: -0.5,
-  },
-  dotsContainer: {
-    position: 'absolute',
-    bottom: 160,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dot: {
-    height: 4,
-    borderRadius: 2,
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: Colors.primary,
-  },
-  dotInactive: {
-    width: 8,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    textAlign: "left",
   },
   buttonContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 48,
     left: 24,
     right: 24,
@@ -172,13 +120,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 50,
     height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonText: {
     color: Colors.black,
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.2,
   },
 });

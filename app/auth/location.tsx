@@ -1,21 +1,19 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { PrimaryButton } from "../../components/ui";
+import { PrimaryButton, Screen } from "../../components/ui";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import LocationIcon from "../../assets/icons/locations.svg";
 
 export default function Location() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <View style={styles.container}>
         <View style={styles.center}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="location-outline" size={44} color={Colors.text} />
-          </View>
+          <LocationIcon width={70} height={70} color={Colors.text} />
+
           <Text style={styles.title}>FIND VENUES{"\n"}NEAR YOU</Text>
           <Text style={styles.subtitle}>
             we'll show you the best spots based on your location
@@ -25,17 +23,17 @@ export default function Location() {
         <View style={styles.bottom}>
           <PrimaryButton
             title="Enable Location"
-            onPress={() => router.push("/auth/congratulations")}
+            onPress={() => router.push("/(tabs)")}
           />
           <TouchableOpacity
             style={styles.skipBtn}
-            onPress={() => router.push("/auth/congratulations")}
+            onPress={() => router.push("/(tabs)")}
           >
             <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -53,9 +51,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   iconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
     borderWidth: 2,
     borderColor: Colors.text,
     justifyContent: "center",
@@ -72,7 +67,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.text,
     textAlign: "center",
     lineHeight: 22,
     maxWidth: 260,

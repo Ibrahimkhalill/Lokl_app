@@ -11,6 +11,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 const FOLLOWERS = Array(8)
   .fill(null)
@@ -56,12 +57,19 @@ export default function FollowScreen() {
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
         <View style={styles.profileRow}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-            }}
-            style={styles.avatar}
-          />
+          <LinearGradient
+            colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.avatarBorder}
+          >
+            <Image
+              source={{
+                uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
+              }}
+              style={styles.avatar}
+            />
+          </LinearGradient>
           <View style={styles.profileInfo}>
             <Text style={styles.username}>pixcraft_132</Text>
             <View style={styles.statsRow}>
@@ -160,6 +168,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
+  avatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 30,
+    backgroundColor: Colors.background,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -171,12 +185,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatar: {
+
+  avatarBorder: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    padding: 2,
   },
   profileInfo: { flex: 1 },
   username: {

@@ -4,12 +4,32 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import MessagesIcon from "../../assets/icons/comments.svg";
+import WhatsAppIcon from "../../assets/icons/whatsapp.svg";
+import EmailIcon from "../../assets/icons/email.svg";
+import MoreIcon from "../../assets/icons/link.svg";
 
 const SHARE_OPTIONS = [
-  { icon: "chatbubble-outline", label: "Messages", color: "#34C759" },
-  { icon: "logo-whatsapp", label: "WhatsApp", color: "#25D366" },
-  { icon: "mail-outline", label: "Email", color: "#5AC8FA" },
-  { icon: "link-outline", label: "More", color: Colors.textSecondary },
+  {
+    icon: <MessagesIcon width={20} height={20} color={Colors.text} />,
+    label: "Messages",
+    color: "#34C759",
+  },
+  {
+    icon: <WhatsAppIcon width={20} height={20} color={Colors.text} />,
+    label: "WhatsApp",
+    color: "#25D366",
+  },
+  {
+    icon: <EmailIcon width={20} height={20} color={Colors.text} />,
+    label: "Email",
+    color: "#5AC8FA",
+  },
+  {
+    icon: <MoreIcon width={20} height={20} color={Colors.text} />,
+    label: "More",
+    color: Colors.textSecondary,
+  },
 ];
 
 export default function ShareEventScreen() {
@@ -75,9 +95,7 @@ export default function ShareEventScreen() {
               style={styles.shareOption}
               activeOpacity={0.8}
             >
-              <View style={styles.shareIconWrap}>
-                <Ionicons name={opt.icon as any} size={24} color={opt.color} />
-              </View>
+              <View style={styles.shareIconWrap}>{opt.icon}</View>
               <Text style={styles.shareLabel}>{opt.label}</Text>
             </TouchableOpacity>
           ))}

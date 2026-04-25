@@ -9,9 +9,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { PrimaryButton } from "../../components/ui";
+import { PrimaryButton, Screen } from "../../components/ui";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import FindIcon from "../../assets/icons/find.svg";
+import SearchIcon from "../../assets/icons/search.svg";
 
 const ALL_TAGS = [
   "Pickleball",
@@ -55,7 +56,7 @@ export default function WhatAreYouInto() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <View style={styles.container}>
         <View style={styles.top}>
           <Text style={styles.title}>WHAT ARE YOU INTO?</Text>
@@ -64,18 +65,8 @@ export default function WhatAreYouInto() {
 
         {/* Search */}
         <View style={styles.searchWrap}>
-          <Ionicons
-            name="search"
-            size={16}
-            color={Colors.textSecondary}
-            style={styles.searchIcon}
-          />
-          <Ionicons
-            name="location-outline"
-            size={16}
-            color={Colors.textSecondary}
-            style={styles.tagIcon}
-          />
+          <SearchIcon width={16} height={16} color={Colors.textSecondary} />
+          <FindIcon width={16} height={16} color={Colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="find your activities tag"
@@ -100,11 +91,10 @@ export default function WhatAreYouInto() {
                   onPress={() => toggle(tag)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name="location-outline"
-                    size={13}
-                    color={isSelected ? Colors.primary : Colors.textSecondary}
-                    style={{ marginRight: 4 }}
+                  <FindIcon
+                    width={13}
+                    height={13}
+                    color={isSelected ? Colors.black : Colors.textSecondary}
                   />
                   <Text
                     style={[
@@ -127,7 +117,7 @@ export default function WhatAreYouInto() {
           />
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -135,7 +125,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+
     paddingTop: 48,
     paddingBottom: 32,
   },
@@ -154,7 +144,7 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#2E3A3F",
     borderRadius: 50,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
@@ -183,13 +173,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 50,
-    backgroundColor: Colors.card,
+    backgroundColor: "#2E3A3F",
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    gap: 6,
   },
   tagSelected: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(209,255,0,0.08)",
+    backgroundColor: Colors.primary,
   },
   tagText: {
     color: Colors.textSecondary,
@@ -197,7 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   tagTextSelected: {
-    color: Colors.primary,
+    color: Colors.black,
     fontWeight: "600",
   },
   bottom: { paddingTop: 8 },

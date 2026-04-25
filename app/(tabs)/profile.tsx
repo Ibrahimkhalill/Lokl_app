@@ -143,20 +143,20 @@ export default function ProfileScreen() {
               challenge
             </Text>
             <TouchableOpacity>
-              <EditIcon width={24} height={24} />
+              <EditIcon width={24} height={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
           <View style={styles.bioMeta}>
             <View style={styles.bioMetaItem}>
               <LocationsIcon
-                fill={Colors.textSecondary}
                 width={14}
                 height={14}
+                color={Colors.textSecondary}
               />
               <Text style={styles.bioMetaText}>San Francisco,CA</Text>
             </View>
             <View style={styles.bioMetaItem}>
-              <DateIcon width={14} height={14} />
+              <DateIcon width={14} height={14} color={Colors.textSecondary} />
               <Text style={styles.bioMetaText}>joined Jan 2025</Text>
             </View>
           </View>
@@ -176,7 +176,7 @@ export default function ProfileScreen() {
 
         {/* Weekly Activity */}
         <View style={styles.activityHeader}>
-          <IncreaseIcon fill={Colors.primary} width={18} height={18} />
+          <IncreaseIcon width={18} height={18} color={Colors.primary} />
           <Text style={styles.activityTitle}>THIS WEEK'S ACTIVITY</Text>
         </View>
 
