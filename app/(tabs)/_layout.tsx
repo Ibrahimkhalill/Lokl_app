@@ -138,8 +138,7 @@ const styles = StyleSheet.create({
   tabItemActive: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
-    minWidth: 80,
-    paddingHorizontal: 12,
+    width: 90,
   },
   tabLabel: {
     color: Colors.black,

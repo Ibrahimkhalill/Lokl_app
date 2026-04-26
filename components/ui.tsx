@@ -6,12 +6,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInputProps,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 import GoogleIcon from "../assets/icons/google.svg";
 import AppleIcon from "../assets/icons/apple.svg";
 import LogoIcon from "../assets/icons/logo.svg";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Logo ───────────────────────────────────────────────────────────────────
 export function LogoText() {
@@ -169,7 +173,7 @@ export function PrimaryButton({
 const btnStyles = StyleSheet.create({
   btn: {
     backgroundColor: Colors.primary,
-    borderRadius: 50,
+    borderRadius: 14,
     height: 56,
     justifyContent: "center",
     alignItems: "center",
@@ -288,10 +292,6 @@ const backStyles = StyleSheet.create({
   },
 });
 
-// ─── Screen Wrapper ──────────────────────────────────────────────────────────
-import { ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
 interface ScreenProps {
   children: React.ReactNode;
   scrollable?: boolean;
@@ -304,21 +304,38 @@ export function Screen({ children, scrollable = false, style }: ScreenProps) {
   if (scrollable) {
     return (
       <SafeAreaView style={screenStyles.safe}>
-        <ScrollView
-          contentContainerStyle={screenStyles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          style={screenStyles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
-          {content}
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={screenStyles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {content}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
-  return <SafeAreaView style={screenStyles.safe}>{content}</SafeAreaView>;
+  return (
+    <SafeAreaView style={screenStyles.safe}>
+      <KeyboardAvoidingView
+        style={screenStyles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      >
+        {content}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const screenStyles = StyleSheet.create({
+  flex: { flex: 1 },
   safe: {
     flex: 1,
     backgroundColor: Colors.background,

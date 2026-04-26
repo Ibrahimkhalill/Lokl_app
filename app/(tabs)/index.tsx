@@ -399,7 +399,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.reviewBtn}
-              onPress={() => router.push("/post")}
+              onPress={() => router.push("/events/reviews")}
               activeOpacity={0.85}
             >
               <Text style={styles.reviewBtnText}>Review</Text>

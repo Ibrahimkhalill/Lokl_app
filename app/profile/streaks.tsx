@@ -245,7 +245,7 @@ const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Active days from Figma: days 3,4,5,6,7 in last row = indices 30-34 area
 // Calendar shows 5 weeks, active = last 7 days ending today (index 30 = day 1, 36 = today)
-const ACTIVE_DAYS = [30, 31, 32, 33, 34, 35, 36];
+const ACTIVE_DAYS = [30, 31];
 const TODAY_INDEX = 36;
 
 export default function StreaksScreen() {
@@ -385,7 +385,7 @@ export default function StreaksScreen() {
 
                   {/* Calendar grid - 5 rows x 7 cols */}
                   <View style={styles.calendarGrid}>
-                    {Array(35)
+                    {Array(30)
                       .fill(null)
                       .map((_, i) => {
                         const dayNum = i + 1;
@@ -593,9 +593,14 @@ export default function StreaksScreen() {
                 <Text style={styles.podiumDays}>76 days</Text>
               </View>
               <View style={[styles.podiumItem, styles.podiumFirst]}>
-                <QueenIcon width={22} height={22} color={Colors.primary} />
+                <QueenIcon
+                  width={22}
+                  height={22}
+                  color={Colors.primary}
+                  style={styles.podiumFirstIcon}
+                />
                 <View style={styles.podiumRank1}>
-                  <Text style={styles.podiumRankText}>1</Text>
+                  <Text style={styles.podiumFirstRankText}>1</Text>
                 </View>
                 <Image
                   source={{ uri: LEADERBOARD[0].avatar }}
@@ -692,16 +697,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: Colors.card,
     borderRadius: 50,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 4,
+    justifyContent: "space-between",
   },
   tabBtn: {
-    flex: 1,
-    height: 36,
+    paddingHorizontal: 26,
+    paddingVertical: 10,
     borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
   tabBtnActive: { backgroundColor: Colors.primary },
   tabBtnText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
@@ -921,8 +924,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   podiumItem: { alignItems: "center", gap: 6 },
-  podiumFirst: { marginBottom: 8 },
-  crown: { fontSize: 24, marginBottom: -4 },
+  podiumFirst: { marginBottom: 0 },
+  crown: { fontSize: 2 },
   podiumAvatar: {
     width: 64,
     height: 64,
@@ -950,7 +953,7 @@ const styles = StyleSheet.create({
   },
   podiumRank1: {
     position: "absolute",
-    bottom: 54,
+    bottom: 37,
     zIndex: 1,
     width: 22,
     height: 22,
@@ -961,27 +964,41 @@ const styles = StyleSheet.create({
   },
   podiumRank2: {
     position: "absolute",
-    bottom: 46,
+    bottom: 37,
     zIndex: 1,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#9B9B9B",
     justifyContent: "center",
     alignItems: "center",
   },
   podiumRank3: {
     position: "absolute",
-    bottom: 46,
+    bottom: 37,
     zIndex: 1,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#FF6B35",
     justifyContent: "center",
     alignItems: "center",
   },
-  podiumRankText: { color: Colors.black, fontSize: 10, fontWeight: "800" },
+  podiumRankText: {
+    color: Colors.white,
+    fontSize: 11,
+  },
+  podiumFirstRankText: {
+    color: Colors.black,
+    fontSize: 12,
+  },
+  podiumFirstIcon: {
+    position: "absolute",
+    top: -12,
+    zIndex: 1,
+    width: 22,
+    height: 22,
+  },
   leaderRow: {
     flexDirection: "row",
     alignItems: "center",

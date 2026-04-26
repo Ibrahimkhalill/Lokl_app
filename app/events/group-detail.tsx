@@ -7,7 +7,7 @@ import {
   ScrollView,
   Image,
   TextInput,
-  Modal,
+  Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,10 +43,14 @@ const POSTS = [
   },
 ];
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const DELETE_MENU_WIDTH = 126;
+const EDGE_GAP = 12;
+
 export default function GroupDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const isAdmin = "true";
+  const isAdmin = params.admin === "true";
   const [joined, setJoined] = useState(isAdmin);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<string | null>(null);
@@ -118,10 +122,7 @@ export default function GroupDetailScreen() {
               </TouchableOpacity>
             </View>
           ) : !joined ? (
-            <TouchableOpacity
-              style={s.joinBtn}
-              onPress={() => setJoined("true")}
-            >
+            <TouchableOpacity style={s.joinBtn} onPress={() => setJoined(true)}>
               <Text style={s.joinBtnText}>Join Group</Text>
             </TouchableOpacity>
           ) : (
@@ -217,9 +218,8 @@ export default function GroupDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Delete modal */}
-      <Modal visible={showDeleteModal} transparent animationType="fade">
-        <View style={s.deleteOverlay}>
+      {showDeleteModal && (
+        <View style={s.deleteOverlay} pointerEvents="box-none">
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             onPress={() => setShowDeleteModal(false)}
@@ -229,8 +229,11 @@ export default function GroupDetailScreen() {
             style={[
               s.deleteSheet,
               {
-                top: menuPos.y + 12,
-                left: Math.max(12, menuPos.x - 126),
+                top: menuPos.y + 17,
+                left: Math.min(
+                  SCREEN_WIDTH - DELETE_MENU_WIDTH - EDGE_GAP,
+                  Math.max(EDGE_GAP, menuPos.x - DELETE_MENU_WIDTH + 18),
+                ),
               },
             ]}
           >
@@ -246,7 +249,7 @@ export default function GroupDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -374,17 +377,14 @@ const s = StyleSheet.create({
   postAction: { flexDirection: "row", alignItems: "center", gap: 6 },
   postActionText: { color: Colors.text, fontSize: 13 },
   deleteOverlay: {
-    flex: 1,
-    // backgroundColor: "rgba(0,0,0,0.5)",
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
   },
   deleteSheet: {
     position: "absolute",
     backgroundColor: Colors.text,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    overflow: "hidden",
-    minWidth: 126,
+    minWidth: DELETE_MENU_WIDTH,
   },
   deleteBtn: {
     paddingVertical: 12,

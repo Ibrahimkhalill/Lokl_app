@@ -5,9 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AccountIcon from "../../assets/icons/account.svg";
-import CameraIcon from "../../assets/icons/camera.svg";
+
 import LockIcon from "../../assets/icons/loack.svg";
 import DeleteIcon from "../../assets/icons/delete.svg";
+import CameraProfileIcon from "../../assets/icons/camera_profile.svg";
 export default function Account() {
   const router = useRouter();
 
@@ -30,7 +31,7 @@ export default function Account() {
       {/* Account Setting banner */}
       <View style={s.bannerCard}>
         <View style={s.bannerIconWrap}>
-          <AccountIcon width={24} height={24} />
+          <AccountIcon width={24} height={24} color={Colors.primary} />
         </View>
         <View>
           <Text style={s.bannerTitle}>ACCOUNT SETTING</Text>
@@ -55,7 +56,7 @@ export default function Account() {
         <View style={s.divider} />
         <TouchableOpacity style={s.row}>
           <Text style={s.rowLabel}>Change Profile Photo</Text>
-          <CameraIcon width={24} height={24} color={Colors.text} />
+          <CameraProfileIcon width={24} height={24} color={Colors.primary} />
         </TouchableOpacity>
         <View style={s.divider} />
         <TouchableOpacity style={s.row}>
@@ -120,7 +121,7 @@ const s = StyleSheet.create({
   bannerIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 22,
     backgroundColor: "#3D4A1A",
     justifyContent: "center",
     alignItems: "center",

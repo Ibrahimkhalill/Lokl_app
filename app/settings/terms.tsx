@@ -27,21 +27,6 @@ const TERMS = [
     title: "User Accounts",
     body: "You must be at least 13 years old to use LOKL. By creating an account, you represent that all information you provide is accurate. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.",
   },
-  {
-    num: "4.",
-    title: "Privacy Policy",
-    body: "Your use of LOKL is also governed by our Privacy Policy, which is incorporated into these Terms of Service by reference. Please review our Privacy Policy to understand our practices regarding the collection and use of your personal information.",
-  },
-  {
-    num: "5.",
-    title: "Prohibited Conduct",
-    body: "You agree not to engage in any conduct that restricts or inhibits anyone's use of LOKL. This includes harassment, hate speech, unauthorized access attempts, or any activity that violates applicable laws or regulations.",
-  },
-  {
-    num: "6.",
-    title: "Intellectual Property",
-    body: "The LOKL platform, including all content, features and functionality, is owned by LOKL and is protected by international copyright, trademark, patent, trade secret and other intellectual property or proprietary rights laws.",
-  },
 ];
 
 export default function TermsScreen() {

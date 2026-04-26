@@ -11,6 +11,7 @@ import PrivacySecurityIcon from "../../assets/icons/security.svg";
 import AppPreferenceCseIcon from "../../assets/icons/app_preference_cse.svg";
 import TermsIcon from "../../assets/icons/terms.svg";
 import LogoutIcon from "../../assets/icons/logout.svg";
+import ArrowForwardIcon from "../../assets/icons/arrow-forward.svg";
 
 const MENU_ITEMS = [
   {
@@ -37,6 +38,7 @@ const MENU_ITEMS = [
     route: "/settings/privacy-security",
     danger: false,
   },
+
   {
     label: "APP PREFERENCE CSE",
     sub: "Auto-play, data, sound",
@@ -49,16 +51,32 @@ const MENU_ITEMS = [
   },
   {
     label: "TERMS & CONDITIONS",
-    sub: "Version, terms, privacy",
+    sub: "Version, terms",
     icon: <TermsIcon width={24} height={24} color={Colors.primary} />,
     iconBg: "#3D4A1A",
     route: "/settings/terms",
     danger: false,
   },
   {
+    label: "PRIVACY POLICY",
+    sub: "How your data is handled",
+    icon: (
+      <Ionicons
+        name="shield-checkmark-outline"
+        size={24}
+        color={Colors.primary}
+      />
+    ),
+    iconBg: "#3D4A1A",
+    route: "/settings/privacy-policy",
+    danger: false,
+  },
+  {
     label: "LOGOUT",
     sub: "Sign out of your account",
-    icon: <LogoutIcon width={24} height={24} color={Colors.primary} />,
+    icon: (
+      <LogoutIcon width={24} height={24} color={"rgba(255, 100, 103, 1)"} />
+    ),
     iconBg: "#4A1A1A",
     route: null,
     danger: true,
@@ -93,7 +111,7 @@ export default function Settings() {
         {MENU_ITEMS.map((item, i) => (
           <TouchableOpacity
             key={i}
-            style={[s.menuItem, item.danger && s.menuItemDanger]}
+            style={[s.menuItem]}
             onPress={() => handlePress(item)}
             activeOpacity={0.75}
           >
@@ -101,15 +119,13 @@ export default function Settings() {
               {item.icon}
             </View>
             <View style={s.menuText}>
-              <Text style={[s.menuLabel, item.danger && s.menuLabelDanger]}>
-                {item.label}
-              </Text>
+              <Text style={[s.menuLabel]}>{item.label}</Text>
               <Text style={s.menuSub}>{item.sub}</Text>
             </View>
             {item.label !== "LOGOUT" && (
-              <Ionicons
-                name="chevron-forward"
-                size={16}
+              <ArrowForwardIcon
+                width={24}
+                height={24}
                 color={item.danger ? "#FF444466" : Colors.textMuted}
               />
             )}
@@ -161,7 +177,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
+  headerTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
   closeBtn: {
     width: 40,
     height: 40,
@@ -190,7 +211,7 @@ const s = StyleSheet.create({
   iconWrap: {
     width: 46,
     height: 46,
-    borderRadius: 13,
+    borderRadius: 23,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -202,7 +223,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: 2,
   },
-  menuLabelDanger: { color: "#FF4444" },
+
   menuSub: { color: Colors.textSecondary, fontSize: 12 },
   // Modal
   modalBg: {

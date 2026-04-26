@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "scheme": "lokl",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/images/ios.png",
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
@@ -13,12 +14,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.lokl.app"
+      "bundleIdentifier": "com.lokl.app",
+      "icon": "./assets/images/ios.png"
     },
     "android": {
       "adaptiveIcon": {
-        "image": "./assets/images/logo.png",
-        "resizeMode": "contain",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#14161A"
       },
       "package": "com.lokl.app",
@@ -27,15 +28,26 @@
         "googleMaps": {
           "apiKey": "AIzaSyDUG5-oxWq1CeJRKcMMJ69AstZhiscurv0"
         }
-  }
+      }
     },
     "web": {
       "bundler": "metro",
       "output": "static"
     },
     "plugins": [
-     
-      "expo-router"
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#232323",
+          "image": "./assets/images/splash-icon.png",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#232323"
+          },
+          "imageWidth": 200
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

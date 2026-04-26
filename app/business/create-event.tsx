@@ -6,17 +6,33 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import ShowerIcon from "../../assets/icons/shower.svg";
+import LockerIcon from "../../assets/icons/loack.svg";
+import WifiIcon from "../../assets/icons/wifi.svg";
 const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Other"];
 const AMENITIES_LIST = [
-  { id: "shower", icon: "water-outline", label: "Shower" },
-  { id: "locker", icon: "lock-closed-outline", label: "Locker" },
-  { id: "wifi", icon: "wifi-outline", label: "WiFi" },
+  {
+    id: "shower",
+    icon: <ShowerIcon width={20} height={20} color={Colors.text} />,
+    label: "Shower",
+  },
+  {
+    id: "locker",
+    icon: <LockerIcon width={20} height={20} color={Colors.primary} />,
+    label: "Locker",
+  },
+  {
+    id: "wifi",
+    icon: <WifiIcon width={20} height={20} color={Colors.text} />,
+    label: "WiFi",
+  },
 ];
 
 export default function CreateEventScreen() {
@@ -40,32 +56,37 @@ export default function CreateEventScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Create event</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={s.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        {/* Media Upload */}
-        <TouchableOpacity
-          style={s.mediaBox}
-          onPress={() => router.push("/events/gallery")}
-          activeOpacity={0.85}
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Create event</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Ionicons
-            name="image-outline"
-            size={36}
-            color={Colors.textSecondary}
-          />
-          <Text style={s.mediaText}>Share a photo or video</Text>
-        </TouchableOpacity>
+          {/* Media Upload */}
+          <TouchableOpacity
+            style={s.mediaBox}
+            onPress={() => router.push("/events/gallery")}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="image-outline"
+              size={36}
+              color={Colors.textSecondary}
+            />
+            <Text style={s.mediaText}>Share a photo or video</Text>
+          </TouchableOpacity>
 
         {/* Event Title */}
         <Text style={s.label}>Event Title*</Text>
@@ -200,11 +221,7 @@ export default function CreateEventScreen() {
                 style={[s.amenityChip, active && s.amenityChipActive]}
                 onPress={() => toggleAmenity(a.id)}
               >
-                <Ionicons
-                  name={a.icon as any}
-                  size={16}
-                  color={active ? Colors.black : Colors.primary}
-                />
+                {a.icon}
                 <Text style={[s.amenityText, active && s.amenityTextActive]}>
                   {a.label}
                 </Text>
@@ -213,20 +230,22 @@ export default function CreateEventScreen() {
           })}
         </View>
 
-        {/* Confirm */}
-        <TouchableOpacity
-          style={s.confirmBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={s.confirmText}>Confirm Event</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Confirm */}
+          <TouchableOpacity
+            style={s.confirmBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Text style={s.confirmText}>Confirm Event</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row",

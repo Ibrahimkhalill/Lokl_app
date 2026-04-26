@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,36 +24,41 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity
-          style={s.closeBtn}
-          onPress={() => router.replace("/(tabs)/profile")}
-        >
-          <Ionicons name="close" size={20} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={s.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        {/* Photo Upload */}
-        <Text style={s.fieldLabel}>Edit Photo</Text>
-        <TouchableOpacity style={s.photoBox}>
-          <Ionicons
-            name="image-outline"
-            size={40}
-            color={Colors.textSecondary}
-          />
-          <Text style={s.photoTitle}>New Photos</Text>
-          <Text style={s.photoSub}>photo</Text>
-        </TouchableOpacity>
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Edit Profile</Text>
+          <TouchableOpacity
+            style={s.closeBtn}
+            onPress={() => router.replace("/(tabs)/profile")}
+          >
+            <Ionicons name="close" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Photo Upload */}
+          <Text style={s.fieldLabel}>Edit Photo</Text>
+          <TouchableOpacity style={s.photoBox}>
+            <Ionicons
+              name="image-outline"
+              size={40}
+              color={Colors.textSecondary}
+            />
+            <Text style={s.photoTitle}>New Photos</Text>
+            <Text style={s.photoSub}>photo</Text>
+          </TouchableOpacity>
 
         {/* Name */}
         <Text style={s.fieldLabel}>Name</Text>
@@ -114,16 +121,18 @@ export default function EditProfileScreen() {
           placeholderTextColor={Colors.textMuted}
         />
 
-        {/* Save */}
-        <TouchableOpacity style={s.saveBtn} onPress={() => router.back()}>
-          <Text style={s.saveBtnText}>Save Profile</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Save */}
+          <TouchableOpacity style={s.saveBtn} onPress={() => router.back()}>
+            <Text style={s.saveBtnText}>Save Profile</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row",

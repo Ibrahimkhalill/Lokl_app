@@ -8,6 +8,8 @@ import {
   FlatList,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PrimaryButton } from "../../components/ui";
@@ -199,12 +201,17 @@ export default function BusinessSignUp() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        <BackButton onPress={() => router.back()} />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <BackButton onPress={() => router.back()} />
 
         {/* Header icon */}
         <View style={styles.iconHeader}>
@@ -374,12 +381,13 @@ export default function BusinessSignUp() {
           onChangeText={setConfirmPassword}
         />
 
-        <PrimaryButton
-          title="Sign Up"
-          onPress={() => router.push("/auth/email-otp-verifications")}
-          style={styles.signupBtn}
-        />
-      </ScrollView>
+          <PrimaryButton
+            title="Sign Up"
+            onPress={() => router.push("/auth/email-otp-verifications")}
+            style={styles.signupBtn}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Business Type Modal */}
       <BottomSheetModal
@@ -455,6 +463,7 @@ export default function BusinessSignUp() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: {
     paddingHorizontal: 24,

@@ -7,6 +7,8 @@ import {
   ScrollView,
   TextInput,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -66,27 +68,32 @@ export default function GroupCreateScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={s.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        {/* Photo Upload */}
-        <Text style={s.photoLabel}>Chose group photo</Text>
-        <TouchableOpacity
-          style={s.photoBox}
-          onPress={() => router.push("/events/gallery")}
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <ImageIcon width={36} height={36} color={Colors.text} />
-          <Text style={s.photoTitle}>Group Photos</Text>
-          <Text style={s.photoSub}>upload a new photo</Text>
-        </TouchableOpacity>
+          {/* Photo Upload */}
+          <Text style={s.photoLabel}>Chose group photo</Text>
+          <TouchableOpacity
+            style={s.photoBox}
+            onPress={() => router.push("/events/gallery")}
+          >
+            <ImageIcon width={36} height={36} color={Colors.text} />
+            <Text style={s.photoTitle}>Group Photos</Text>
+            <Text style={s.photoSub}>upload a new photo</Text>
+          </TouchableOpacity>
 
         {/* Group Name */}
         <Text style={s.fieldLabel}>Group Name</Text>
@@ -151,16 +158,18 @@ export default function GroupCreateScreen() {
           );
         })}
 
-        {/* Create Button */}
-        <TouchableOpacity style={s.createBtn} onPress={() => router.back()}>
-          <Text style={s.createBtnText}>Create Group</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Create Button */}
+          <TouchableOpacity style={s.createBtn} onPress={() => router.back()}>
+            <Text style={s.createBtnText}>Create Group</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 4 },
   backBtn: {

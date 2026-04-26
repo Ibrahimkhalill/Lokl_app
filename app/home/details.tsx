@@ -249,7 +249,7 @@ export default function DetailsScreen() {
           {/* Reviews */}
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionTitle}>REVIEWS (4)</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/events/reviews")}>
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>

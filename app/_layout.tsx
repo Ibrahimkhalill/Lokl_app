@@ -44,7 +44,6 @@ export default function RootLayout() {
         <Stack.Screen name="events/event-details" />
         <Stack.Screen name="events/group-detail" />
         <Stack.Screen name="events/group-create" />
-        <Stack.Screen name="events/chatting" />
         <Stack.Screen name="events/reviews" />
         <Stack.Screen name="events/friends-here" />
         <Stack.Screen name="events/share-event" />

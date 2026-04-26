@@ -13,7 +13,7 @@ const TOGGLES = [
     id: "location",
     label: "Location Sharing",
     sub: "Share your location with friends",
-    icon: <LocationIcon width={24} height={24} color={Colors.text} />,
+    icon: <LocationIcon width={24} height={24} color={Colors.primary} />,
     defaultOn: true,
   },
   {
