@@ -1,16 +1,10 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ReviewListCard } from "../../components/events";
 const REVIEWS = [
   {
     id: "r1",
@@ -67,19 +61,14 @@ export default function ReviewsScreen() {
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <View style={s.card}>
-            <View style={s.cardTop}>
-              <Image source={{ uri: item.avatar }} style={s.avatar} />
-              <View style={s.info}>
-                <Text style={s.name}>{item.name}</Text>
-                <Text style={s.time}>{item.time}</Text>
-                <Text style={s.reviewText}>{item.text}</Text>
-              </View>
-              <View style={s.scoreBadge}>
-                <Text style={s.scoreText}>{item.rating}</Text>
-              </View>
-            </View>
-          </View>
+          <ReviewListCard
+            variant="reviewsList"
+            avatarUri={item.avatar}
+            name={item.name}
+            time={item.time}
+            rating={item.rating}
+            text={item.text}
+          />
         )}
       />
     </SafeAreaView>
@@ -112,29 +101,4 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   list: { padding: 16, gap: 12 },
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 14,
-  },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 10,
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  info: { flex: 1 },
-  name: { color: Colors.text, fontSize: 14, fontWeight: "700" },
-  time: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
-  scoreBadge: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  scoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
-  reviewText: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
 });

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Image,
   TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
+import { AvatarListItem } from "../../components/events";
 
 const MEMBERS = [
   {
@@ -95,20 +95,15 @@ export default function MembersScreen() {
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={s.separator} />}
         renderItem={({ item }) => (
-          <View style={s.row}>
-            <Image source={{ uri: item.avatar }} style={s.avatar} />
-            <View style={s.info}>
-              <Text style={s.name}>{item.name}</Text>
-              <View style={s.locationRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={18}
-                  color={Colors.textSecondary}
-                />
-                <Text style={s.location}>{item.location}</Text>
-              </View>
-            </View>
-          </View>
+          <AvatarListItem
+            avatarUri={item.avatar}
+            title={item.name}
+            subtitle={item.location}
+            subtitleLocationIcon
+            avatarSize={58}
+            titleStyle={s.name}
+            subtitleStyle={s.location}
+          />
         )}
       />
     </SafeAreaView>
@@ -155,17 +150,7 @@ const s = StyleSheet.create({
     marginLeft: 16,
     marginRight: 16,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  avatar: { width: 58, height: 58, borderRadius: 29 },
-  info: { flex: 1 },
   name: { color: Colors.text, fontSize: 21 * 1.0, fontWeight: "700" },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 5 },
   location: { color: Colors.textSecondary, fontSize: 20 / 1.2 },
 });
 

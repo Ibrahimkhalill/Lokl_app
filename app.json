@@ -36,6 +36,14 @@
     },
     "plugins": [
       "expo-router",
+      "expo-system-ui",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow LOKL to access your photos to set your profile, posts, and event images.",
+          "cameraPermission": "Allow LOKL to take photos for your profile, posts, and events."
+        }
+      ],
       [
         "expo-splash-screen",
         {

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { PrimaryButton } from "../../components/ui";
+import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -30,12 +31,13 @@ export default function WhatLookingFor() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <View style={styles.top}>
-          <Text style={styles.title}>WHAT ARE YOU LOOKING FOR?</Text>
-          <Text style={styles.subtitle}>
-            Help us personalize your experience
-          </Text>
-        </View>
+        <AuthHeaderBlock
+          title="WHAT ARE YOU LOOKING FOR?"
+          subtitle="Help us personalize your experience"
+          containerStyle={styles.top}
+          titleStyle={styles.title}
+          subtitleStyle={styles.subtitle}
+        />
 
         <View style={styles.options}>
           {OPTIONS.map((opt) => {

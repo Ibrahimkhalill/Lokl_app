@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
+import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 
 export default function ResetPassword() {
@@ -13,8 +14,12 @@ export default function ResetPassword() {
     <Screen>
       <BackButton onPress={() => router.back()} />
 
-      <Text style={styles.title}>Reset Password</Text>
-      <Text style={styles.subtitle}>Enter you new password here</Text>
+      <AuthHeaderBlock
+        title="Reset Password"
+        subtitle="Enter you new password here"
+        titleStyle={styles.title}
+        subtitleStyle={styles.subtitle}
+      />
 
       <View style={styles.form}>
         <Input

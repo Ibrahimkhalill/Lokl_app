@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PrimaryButton } from "../../components/ui";
+import { SelectRow, InputRow } from "../../components/primitives";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BusinessIcon from "../../assets/icons/bussiness.svg";
@@ -238,29 +239,28 @@ export default function BusinessSignUp() {
         {/* Business Type — dropdown */}
         <View style={styles.fieldWrap}>
           <Text style={styles.label}>Business Type*</Text>
-          <TouchableOpacity
+          <SelectRow
             style={styles.dropdownBtn}
-            onPress={() => setShowTypeModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.fieldIcon}>
-              <BusinessTypeIcon
+            leftSlot={
+              <View style={styles.fieldIcon}>
+                <BusinessTypeIcon
+                  width={18}
+                  height={18}
+                  color={Colors.textSecondary}
+                />
+              </View>
+            }
+            value={businessType || undefined}
+            placeholder="Enter Business type"
+            rightSlot={
+              <ChevronDownIcon
                 width={18}
                 height={18}
                 color={Colors.textSecondary}
               />
-            </View>
-            <Text
-              style={[styles.dropdownText, !businessType && styles.placeholder]}
-            >
-              {businessType || "Enter Business type"}
-            </Text>
-            <ChevronDownIcon
-              width={18}
-              height={18}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
+            }
+            onPress={() => setShowTypeModal(true)}
+          />
         </View>
 
         <Input
@@ -321,37 +321,38 @@ export default function BusinessSignUp() {
         <Text style={styles.label}>Social Media</Text>
         {socialEntries.map((entry, index) => (
           <View key={index} style={styles.socialGroup}>
-            <TouchableOpacity
+            <SelectRow
               style={styles.dropdownBtn}
+              leftSlot={
+                <View style={styles.fieldIcon}>
+                  <SocialPlatformSvg platform={entry.platform} />
+                </View>
+              }
+              value={entry.platform}
+              rightSlot={
+                <ChevronDownIcon
+                  width={18}
+                  height={18}
+                  color={Colors.textSecondary}
+                />
+              }
               onPress={() => openSocialPicker(index)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.fieldIcon}>
-                <SocialPlatformSvg platform={entry.platform} />
-              </View>
-              <Text style={styles.dropdownText}>{entry.platform}</Text>
-              <ChevronDownIcon
-                width={18}
-                height={18}
-                color={Colors.textSecondary}
-              />
-            </TouchableOpacity>
-            <View style={[styles.dropdownBtn, { marginTop: 8 }]}>
-              <View style={styles.fieldIcon}>
-                <LinkIcon width={18} height={18} color={Colors.textSecondary} />
-              </View>
-              <TextInput
-                style={styles.inlineInput}
-                placeholder={`Enter ${entry.platform} link`}
-                placeholderTextColor={Colors.textMuted}
-                value={entry.link}
-                onChangeText={(text) => {
-                  const updated = [...socialEntries];
-                  updated[index].link = text;
-                  setSocialEntries(updated);
-                }}
-              />
-            </View>
+            />
+            <InputRow
+              leftSlot={
+                <View style={styles.fieldIcon}>
+                  <LinkIcon width={18} height={18} color={Colors.textSecondary} />
+                </View>
+              }
+              containerStyle={[styles.dropdownBtn, { marginTop: 8 }]}
+              placeholder={`Enter ${entry.platform} link`}
+              value={entry.link}
+              onChangeText={(text) => {
+                const updated = [...socialEntries];
+                updated[index].link = text;
+                setSocialEntries(updated);
+              }}
+            />
           </View>
         ))}
 

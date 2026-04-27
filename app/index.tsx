@@ -16,27 +16,27 @@ const slides = [
   {
     id: "1",
     title: "Find your\nLokl Gym",
-    image: require("../assets/images/onboarding-3.png"),
+    image: require("../assets/images/onboarding-3.jpg"),
   },
   {
     id: "2",
     title: "Find your\nLokl Course",
-    image: require("../assets/images/onboarding-2.png"),
+    image: require("../assets/images/onboarding-2.jpg"),
   },
   {
     id: "3",
     title: "Find your\nLokl Class",
-    image: require("../assets/images/onboarding-1.png"),
+    image: require("../assets/images/onboarding-1.jpg"),
   },
   {
     id: "4",
     title: "Find your\nLokl Workout",
-    image: require("../assets/images/onboarding-4.png"),
+    image: require("../assets/images/onboarding-4.jpg"),
   },
   {
     id: "5",
     title: "Find your\nLokl Competition",
-    image: require("../assets/images/onboarding-5.png"),
+    image: require("../assets/images/onboarding-5.jpg"),
   },
 ];
 

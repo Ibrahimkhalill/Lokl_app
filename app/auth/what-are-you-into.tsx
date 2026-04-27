@@ -10,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton, Screen } from "../../components/ui";
+import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import FindIcon from "../../assets/icons/find.svg";
 import SearchIcon from "../../assets/icons/search.svg";
@@ -58,10 +59,13 @@ export default function WhatAreYouInto() {
   return (
     <Screen>
       <View style={styles.container}>
-        <View style={styles.top}>
-          <Text style={styles.title}>WHAT ARE YOU INTO?</Text>
-          <Text style={styles.subtitle}>Select all that apply</Text>
-        </View>
+        <AuthHeaderBlock
+          title="WHAT ARE YOU INTO?"
+          subtitle="Select all that apply"
+          containerStyle={styles.top}
+          titleStyle={styles.title}
+          subtitleStyle={styles.subtitle}
+        />
 
         {/* Search */}
         <View style={styles.searchWrap}>

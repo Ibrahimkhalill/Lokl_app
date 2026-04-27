@@ -16,7 +16,7 @@ export default function Location() {
 
           <Text style={styles.title}>FIND VENUES{"\n"}NEAR YOU</Text>
           <Text style={styles.subtitle}>
-            we'll show you the best spots based on your location
+            we&apos;ll show you the best spots based on your location
           </Text>
         </View>
 

@@ -9,6 +9,7 @@ import {
   OrDivider,
   SocialButtons,
 } from "../../components/ui";
+import { AuthHeaderBlock, AuthFooterLinkRow } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 
 export default function SignIn() {
@@ -20,8 +21,7 @@ export default function SignIn() {
     <Screen scrollable>
       <LogoText />
 
-      <Text style={styles.title}>Sign In</Text>
-      <Text style={styles.subtitle}>Hi welcome back</Text>
+      <AuthHeaderBlock title="Sign In" subtitle="Hi welcome back" />
 
       <View>
         <Input
@@ -52,45 +52,20 @@ export default function SignIn() {
       <OrDivider />
       <SocialButtons />
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <TouchableOpacity onPress={() => router.push("/auth/sign-up")}>
-          <Text style={styles.footerLink}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
+      <AuthFooterLinkRow
+        prefixText="Already have an account? "
+        linkText="Sign Up"
+        onPress={() => router.push("/auth/sign-up")}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 32,
-  },
-  // form: { flex: 1 },
   forgotBtn: { alignSelf: "flex-end", marginTop: 4, marginBottom: 8 },
   forgotText: {
     color: Colors.text,
     fontSize: 13,
     textDecorationLine: "underline",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  footerText: { color: Colors.textSecondary, fontSize: 14 },
-  footerLink: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "700",
   },
 });

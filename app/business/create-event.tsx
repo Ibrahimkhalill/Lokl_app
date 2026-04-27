@@ -5,10 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Pressable,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -16,23 +18,47 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ShowerIcon from "../../assets/icons/shower.svg";
 import LockerIcon from "../../assets/icons/loack.svg";
 import WifiIcon from "../../assets/icons/wifi.svg";
+import {
+  MediaPickerCard,
+  FormField,
+  AppTextInput,
+  AppHeader,
+  AppHeaderIconButton,
+} from "../../components/primitives";
+import { useToggleSet } from "../../hooks/useToggleSet";
+import type { SvgProps } from "react-native-svg";
+import { pickCoverImage } from "../../lib/mediaPicker";
+
+function initialEventStart() {
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  d.setHours(d.getHours() + 1);
+  return d;
+}
+
+function mergeDatePart(current: Date, picked: Date) {
+  const next = new Date(current);
+  next.setFullYear(
+    picked.getFullYear(),
+    picked.getMonth(),
+    picked.getDate()
+  );
+  return next;
+}
+
+function mergeTimePart(current: Date, picked: Date) {
+  const next = new Date(current);
+  next.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
+  return next;
+}
+
 const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Other"];
-const AMENITIES_LIST = [
-  {
-    id: "shower",
-    icon: <ShowerIcon width={20} height={20} color={Colors.text} />,
-    label: "Shower",
-  },
-  {
-    id: "locker",
-    icon: <LockerIcon width={20} height={20} color={Colors.primary} />,
-    label: "Locker",
-  },
-  {
-    id: "wifi",
-    icon: <WifiIcon width={20} height={20} color={Colors.text} />,
-    label: "WiFi",
-  },
+type AmenityIcon = React.FC<SvgProps>;
+
+const AMENITIES_LIST: { id: string; Icon: AmenityIcon; label: string }[] = [
+  { id: "shower", Icon: ShowerIcon, label: "Shower" },
+  { id: "locker", Icon: LockerIcon, label: "Locker" },
+  { id: "wifi", Icon: WifiIcon, label: "WiFi" },
 ];
 
 export default function CreateEventScreen() {
@@ -42,17 +68,15 @@ export default function CreateEventScreen() {
   const [eventType, setEventType] = useState("Yoga");
   const [venue, setVenue] = useState("");
   const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [eventStartsAt, setEventStartsAt] = useState(initialEventStart);
+  const [activePicker, setActivePicker] = useState<null | "date" | "time">(
+    null
+  );
   const [maxParticipants, setMaxParticipants] = useState("10");
   const [price, setPrice] = useState("0");
   const [website, setWebsite] = useState("0");
-  const [amenities, setAmenities] = useState<string[]>([]);
-
-  const toggleAmenity = (id: string) =>
-    setAmenities((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
-    );
+  const [coverUri, setCoverUri] = useState<string | null>(null);
+  const { selected: amenities, toggle: toggleAmenity } = useToggleSet([]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -62,11 +86,16 @@ export default function CreateEventScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Create event</Text>
-          <View style={{ width: 40 }} />
+          <AppHeader
+            title="Create event"
+            titleStyle={s.headerTitle}
+            leftSlot={
+              <AppHeaderIconButton onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              </AppHeaderIconButton>
+            }
+            rightSlot={<View style={{ width: 40 }} />}
+          />
         </View>
 
         <ScrollView
@@ -74,42 +103,43 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Media Upload */}
-          <TouchableOpacity
-            style={s.mediaBox}
-            onPress={() => router.push("/events/gallery")}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="image-outline"
-              size={36}
-              color={Colors.textSecondary}
-            />
-            <Text style={s.mediaText}>Share a photo or video</Text>
-          </TouchableOpacity>
+          <MediaPickerCard
+            height={130}
+            previewUri={coverUri}
+            previewKind="image"
+            onPress={async () => {
+              const picked = await pickCoverImage();
+              if (picked) setCoverUri(picked.uri);
+            }}
+            icon={
+              <Ionicons
+                name="image-outline"
+                size={36}
+                color={Colors.textSecondary}
+              />
+            }
+            title="Share a photo or video"
+          />
 
-        {/* Event Title */}
-        <Text style={s.label}>Event Title*</Text>
-        <TextInput
-          style={s.input}
-          placeholder="e.g.. Morning Yoga Session"
-          placeholderTextColor={Colors.textMuted}
-          value={title}
-          onChangeText={setTitle}
-        />
+        <FormField label="Event Title*" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="e.g.. Morning Yoga Session"
+            value={title}
+            onChangeText={setTitle}
+          />
+        </FormField>
 
-        {/* Description */}
-        <Text style={s.label}>Description</Text>
-        <TextInput
-          style={[s.input, s.textArea]}
-          placeholder="Tell people what to expect..."
-          placeholderTextColor={Colors.textMuted}
-          value={desc}
-          onChangeText={setDesc}
-          multiline
-          numberOfLines={5}
-          textAlignVertical="top"
-        />
+        <FormField label="Description" labelStyle={s.label}>
+          <AppTextInput
+            style={s.textArea}
+            placeholder="Tell people what to expect..."
+            value={desc}
+            onChangeText={setDesc}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+          />
+        </FormField>
 
         {/* Event Type */}
         <Text style={s.label}>Event Type*</Text>
@@ -132,96 +162,156 @@ export default function CreateEventScreen() {
           ))}
         </View>
 
-        {/* Venue */}
-        <Text style={s.label}>Venue*</Text>
-        <TextInput
-          style={s.input}
-          placeholder="e.g.. Central Park"
-          placeholderTextColor={Colors.textMuted}
-          value={venue}
-          onChangeText={setVenue}
-        />
+        <FormField label="Venue*" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="e.g.. Central Park"
+            value={venue}
+            onChangeText={setVenue}
+          />
+        </FormField>
 
-        {/* Location */}
-        <Text style={s.label}>Location*</Text>
-        <TextInput
-          style={s.input}
-          placeholder="e.g.. Central Park"
-          placeholderTextColor={Colors.textMuted}
-          value={location}
-          onChangeText={setLocation}
-        />
+        <FormField label="Location*" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="e.g.. Central Park"
+            value={location}
+            onChangeText={setLocation}
+          />
+        </FormField>
 
         {/* Date + Time (side by side) */}
         <View style={s.rowFields}>
           <View style={s.halfField}>
             <Text style={s.label}>Date*</Text>
-            <TextInput
-              style={s.input}
-              placeholder="MM/YY"
-              placeholderTextColor={Colors.textMuted}
-              value={date}
-              onChangeText={setDate}
-            />
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setActivePicker("date")}
+              style={s.pickerField}
+            >
+              <Text style={s.pickerFieldText}>
+                {eventStartsAt.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </TouchableOpacity>
           </View>
           <View style={s.halfField}>
             <Text style={s.label}>Time*</Text>
-            <TextInput
-              style={s.input}
-              placeholder="MM/YY"
-              placeholderTextColor={Colors.textMuted}
-              value={time}
-              onChangeText={setTime}
-            />
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setActivePicker("time")}
+              style={s.pickerField}
+            >
+              <Text style={s.pickerFieldText}>
+                {eventStartsAt.toLocaleTimeString(undefined, {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Max Participants */}
-        <Text style={s.label}>Max Participants*</Text>
-        <TextInput
-          style={s.input}
-          placeholder="10"
-          placeholderTextColor={Colors.textMuted}
-          value={maxParticipants}
-          onChangeText={setMaxParticipants}
-          keyboardType="numeric"
-        />
+        {Platform.OS === "android" && activePicker ? (
+          <DateTimePicker
+            value={eventStartsAt}
+            mode={activePicker}
+            display="default"
+            onChange={(event, selected) => {
+              const mode = activePicker;
+              setActivePicker(null);
+              if (event.type === "set" && selected && mode) {
+                setEventStartsAt((prev) =>
+                  mode === "date"
+                    ? mergeDatePart(prev, selected)
+                    : mergeTimePart(prev, selected)
+                );
+              }
+            }}
+          />
+        ) : null}
 
-        {/* Price per Person */}
-        <Text style={s.label}>Price per Person ($)</Text>
-        <TextInput
-          style={s.input}
-          placeholder="0"
-          placeholderTextColor={Colors.textMuted}
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="decimal-pad"
-        />
+        {Platform.OS === "ios" ? (
+          <Modal
+            visible={activePicker !== null}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setActivePicker(null)}
+          >
+            <Pressable
+              style={s.modalBackdrop}
+              onPress={() => setActivePicker(null)}
+            />
+            <View style={s.modalSheet}>
+              <View style={s.modalBar}>
+                <TouchableOpacity onPress={() => setActivePicker(null)}>
+                  <Text style={s.modalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setActivePicker(null)}>
+                  <Text style={s.modalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              {activePicker ? (
+                <DateTimePicker
+                  value={eventStartsAt}
+                  mode={activePicker}
+                  display="spinner"
+                  onChange={(_, selected) => {
+                    if (!selected || !activePicker) return;
+                    setEventStartsAt((prev) =>
+                      activePicker === "date"
+                        ? mergeDatePart(prev, selected)
+                        : mergeTimePart(prev, selected)
+                    );
+                  }}
+                />
+              ) : null}
+            </View>
+          </Modal>
+        ) : null}
 
-        {/* Website */}
-        <Text style={s.label}>Website (optional)</Text>
-        <TextInput
-          style={s.input}
-          placeholder="0"
-          placeholderTextColor={Colors.textMuted}
-          value={website}
-          onChangeText={setWebsite}
-          autoCapitalize="none"
-          keyboardType="url"
-        />
+        <FormField label="Max Participants*" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="10"
+            value={maxParticipants}
+            onChangeText={setMaxParticipants}
+            keyboardType="numeric"
+          />
+        </FormField>
+
+        <FormField label="Price per Person ($)" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="0"
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="decimal-pad"
+          />
+        </FormField>
+
+        <FormField label="Website (optional)" labelStyle={s.label}>
+          <AppTextInput
+            placeholder="0"
+            value={website}
+            onChangeText={setWebsite}
+            autoCapitalize="none"
+            keyboardType="url"
+          />
+        </FormField>
 
         {/* Amenities */}
         <Text style={s.amenitiesTitle}>AMENITIES</Text>
         <View style={s.amenitiesGrid}>
           {AMENITIES_LIST.map((a) => {
             const active = amenities.includes(a.id);
+            const iconColor = active ? Colors.black : Colors.text;
             return (
               <TouchableOpacity
                 key={a.id}
                 style={[s.amenityChip, active && s.amenityChipActive]}
                 onPress={() => toggleAmenity(a.id)}
               >
-                {a.icon}
+                <a.Icon width={20} height={20} color={iconColor} />
                 <Text style={[s.amenityText, active && s.amenityTextActive]}>
                   {a.label}
                 </Text>
@@ -248,52 +338,16 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
   scroll: { paddingHorizontal: 20, paddingBottom: 40 },
-  mediaBox: {
-    height: 130,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 22,
-  },
-  mediaText: { color: Colors.textSecondary, fontSize: 14 },
   label: {
     color: Colors.text,
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
-  },
-  input: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    height: 52,
-    paddingHorizontal: 16,
-    color: Colors.text,
-    fontSize: 15,
-    marginBottom: 18,
   },
   textArea: { height: 110, paddingTop: 14 },
   typeGrid: {
@@ -317,7 +371,47 @@ const s = StyleSheet.create({
   typeChipText: { color: Colors.text, fontSize: 14, fontWeight: "600" },
   typeChipTextActive: { color: Colors.black, fontWeight: "700" },
   rowFields: { flexDirection: "row", gap: 12 },
-  halfField: { flex: 1 },
+  halfField: { flex: 1, marginBottom: 18 },
+  pickerField: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    paddingVertical: 14,
+  },
+  pickerFieldText: { color: Colors.text, fontSize: 15 },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  modalSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 28,
+  },
+  modalBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+  },
+  modalCancel: { color: Colors.textSecondary, fontSize: 16 },
+  modalDone: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: "700",
+  },
   amenitiesTitle: {
     color: Colors.text,
     fontSize: 14,

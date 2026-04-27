@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, PrimaryButton } from "../../components/ui";
+import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import PersonalIcon from "../../assets/icons/person.svg";
 import BusinessIcon from "../../assets/icons/bussiness.svg";
@@ -54,12 +55,13 @@ export default function ChooseRole() {
 
   return (
     <Screen scrollable>
-      <View style={styles.top}>
-        <Text style={styles.title}>CHOOSE YOUR ROLE</Text>
-        <Text style={styles.subtitle}>
-          Choose your account type to get started
-        </Text>
-      </View>
+      <AuthHeaderBlock
+        title="CHOOSE YOUR ROLE"
+        subtitle="Choose your account type to get started"
+        containerStyle={styles.top}
+        titleStyle={styles.title}
+        subtitleStyle={styles.subtitle}
+      />
 
       <View style={styles.middle}>
         <View style={styles.cards}>

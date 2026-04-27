@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
+import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -13,11 +13,14 @@ export default function ForgotPassword() {
     <Screen>
       <BackButton onPress={() => router.back()} />
 
-      <Text style={styles.title}>Forget Password</Text>
-      <Text style={styles.subtitle}>
-        Enter your address to receive a reset link and regain{"\n"}access to
-        your account.
-      </Text>
+      <AuthHeaderBlock
+        title="Forget Password"
+        subtitle={
+          "Enter your address to receive a reset link and regain\naccess to your account."
+        }
+        titleStyle={styles.title}
+        subtitleStyle={styles.subtitle}
+      />
 
       <View style={styles.form}>
         <Input

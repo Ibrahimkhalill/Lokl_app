@@ -23,7 +23,7 @@ function SvgTabIcon({
   const color = focused ? Colors.black : Colors.white;
   return (
     <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Icon width={22} height={22} color={color} />
+      <Icon width={20} height={20} color={color} />
       {focused ? <Text style={styles.tabLabel}>{label}</Text> : null}
     </View>
   );
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   tabItemActive: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
-    width: 90,
+    width: 80,
   },
   tabLabel: {
     color: Colors.black,

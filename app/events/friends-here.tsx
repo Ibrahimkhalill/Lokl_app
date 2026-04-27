@@ -1,16 +1,10 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AvatarListItem } from "../../components/events";
 
 const FRIENDS = [
   {
@@ -60,11 +54,11 @@ export default function FriendsHereScreen() {
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={s.sep} />}
         renderItem={({ item }) => (
-          <View style={s.row}>
-            <Image source={{ uri: item.avatar }} style={s.avatar} />
-            <Text style={s.name}>{item.name}</Text>
-            <Text style={s.time}>{item.time}</Text>
-          </View>
+          <AvatarListItem
+            avatarUri={item.avatar}
+            title={item.name}
+            rightSlot={<Text style={s.time}>{item.time}</Text>}
+          />
         )}
       />
     </SafeAreaView>
@@ -92,14 +86,5 @@ const s = StyleSheet.create({
   },
   headerTitle: { color: Colors.text, fontSize: 17, fontWeight: "700" },
   sep: { height: 1, backgroundColor: Colors.cardBorder, marginHorizontal: 16 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  avatar: { width: 46, height: 46, borderRadius: 23 },
-  name: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "600" },
   time: { color: Colors.textMuted, fontSize: 13 },
 });

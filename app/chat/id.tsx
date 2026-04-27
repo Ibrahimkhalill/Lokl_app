@@ -15,52 +15,66 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import SendIcon from "../../assets/icons/navigate.svg";
+import { pickPostMedia } from "../../lib/mediaPicker";
 
 const INITIAL_MESSAGES = [
   {
     id: "m1",
     text: "How can I improve my sleep?",
-    sender: "other",
+    sender: "other" as const,
     avatar:
       "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
   },
   {
     id: "m2",
     text: "How can I improve my sleep?",
-    sender: "me",
+    sender: "me" as const,
   },
   {
     id: "m3",
     text: "lorem. sed volutpat lacus ullamcorper Sed hendrerit ullamcorper elit adipiscing urna. Ut ipsum orci libero, consectetur at.",
-    sender: "other",
+    sender: "other" as const,
     avatar:
       "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
   },
 ];
 
-type Message = (typeof INITIAL_MESSAGES)[0];
+type Message = (typeof INITIAL_MESSAGES)[number] & {
+  localImageUri?: string;
+};
 
 export default function ChatDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
 
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
+  const [attachmentDraft, setAttachmentDraft] = useState<{
+    uri: string;
+    kind: "image" | "video";
+  } | null>(null);
   const listRef = useRef<FlatList>(null);
 
   const sendMessage = () => {
-    if (!input.trim()) return;
+    const text = input.trim();
+    const hasAttach = Boolean(attachmentDraft);
+    if (!text && !hasAttach) return;
 
     const newMsg: Message = {
       id: `m${Date.now()}`,
-      text: input.trim(),
+      text:
+        text ||
+        (attachmentDraft?.kind === "video" ? "Sent a video" : ""),
       sender: "me",
+      localImageUri:
+        attachmentDraft?.kind === "image"
+          ? attachmentDraft.uri
+          : undefined,
     };
 
-    // 🔥 important for inverted list
     setMessages((prev) => [newMsg, ...prev]);
-
     setInput("");
+    setAttachmentDraft(null);
 
     setTimeout(() => {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -108,7 +122,25 @@ export default function ChatDetailScreen() {
                     isMe ? styles.bubbleMe : styles.bubbleOther,
                   ]}
                 >
-                  <Text style={styles.bubbleText}>{item.text}</Text>
+                  {"localImageUri" in item && item.localImageUri ? (
+                    <Image
+                      source={{ uri: item.localImageUri }}
+                      style={styles.bubbleImage}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  {item.text ? (
+                    <Text
+                      style={[
+                        styles.bubbleText,
+                        "localImageUri" in item && item.localImageUri
+                          ? styles.bubbleTextBelowImage
+                          : null,
+                      ]}
+                    >
+                      {item.text}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             );
@@ -117,6 +149,26 @@ export default function ChatDetailScreen() {
 
         {/* Input Area */}
         <View style={styles.inputWrapper}>
+          {attachmentDraft ? (
+            <View style={styles.draftAttachRow}>
+              {attachmentDraft.kind === "image" ? (
+                <Image
+                  source={{ uri: attachmentDraft.uri }}
+                  style={styles.draftThumb}
+                />
+              ) : (
+                <View style={styles.draftVideoBadge}>
+                  <Ionicons name="videocam" size={20} color={Colors.primary} />
+                </View>
+              )}
+              <TouchableOpacity
+                onPress={() => setAttachmentDraft(null)}
+                hitSlop={10}
+              >
+                <Text style={styles.draftRemove}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           <View style={styles.inputBar}>
             <View style={styles.inputContainer}>
               <TextInput
@@ -128,7 +180,17 @@ export default function ChatDetailScreen() {
                 multiline
               />
 
-              <TouchableOpacity style={styles.mediaBtn}>
+              <TouchableOpacity
+                style={styles.mediaBtn}
+                onPress={async () => {
+                  const picked = await pickPostMedia();
+                  if (!picked) return;
+                  setAttachmentDraft({
+                    uri: picked.uri,
+                    kind: picked.type === "video" ? "video" : "image",
+                  });
+                }}
+              >
                 <Ionicons name="image-outline" size={24} color={Colors.white} />
               </TouchableOpacity>
             </View>
@@ -217,6 +279,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  bubbleImage: {
+    width: 200,
+    height: 140,
+    borderRadius: 14,
+    marginBottom: 0,
+  },
+  bubbleTextBelowImage: {
+    marginTop: 8,
+  },
+
+  draftAttachRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  draftThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+  },
+  draftVideoBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  draftRemove: { color: Colors.textSecondary, fontSize: 14 },
 
   inputWrapper: {
     paddingHorizontal: 18,

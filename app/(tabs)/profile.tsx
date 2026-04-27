@@ -177,7 +177,7 @@ export default function ProfileScreen() {
         {/* Weekly Activity */}
         <View style={styles.activityHeader}>
           <IncreaseIcon width={18} height={18} color={Colors.primary} />
-          <Text style={styles.activityTitle}>THIS WEEK'S ACTIVITY</Text>
+          <Text style={styles.activityTitle}>THIS WEEK&apos;S ACTIVITY</Text>
         </View>
 
         <View style={styles.chartCard}>

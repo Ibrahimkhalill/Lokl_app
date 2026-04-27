@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ImageIcon from "../../assets/icons/image.svg";
+import { MediaPickerCard, FormField, AppTextInput } from "../../components/primitives";
+import { useToggleSet } from "../../hooks/useToggleSet";
+import { pickCoverImage } from "../../lib/mediaPicker";
 
 const MEMBERS = [
   {
@@ -59,12 +61,12 @@ export default function GroupCreateScreen() {
   const router = useRouter();
   const [groupName, setGroupName] = useState("Sports Club");
   const [bio, setBio] = useState('"Energy, Passion and Sports."');
-  const [selected, setSelected] = useState<string[]>(["m2", "m3", "m4"]);
-
-  const toggleMember = (id: string) =>
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  const [groupPhotoUri, setGroupPhotoUri] = useState<string | null>(null);
+  const { selected, toggle: toggleMember } = useToggleSet([
+    "m2",
+    "m3",
+    "m4",
+  ]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -86,34 +88,37 @@ export default function GroupCreateScreen() {
         >
           {/* Photo Upload */}
           <Text style={s.photoLabel}>Chose group photo</Text>
-          <TouchableOpacity
-            style={s.photoBox}
-            onPress={() => router.push("/events/gallery")}
-          >
-            <ImageIcon width={36} height={36} color={Colors.text} />
-            <Text style={s.photoTitle}>Group Photos</Text>
-            <Text style={s.photoSub}>upload a new photo</Text>
-          </TouchableOpacity>
+          <MediaPickerCard
+            height={150}
+            previewUri={groupPhotoUri}
+            previewKind="image"
+            onPress={async () => {
+              const picked = await pickCoverImage();
+              if (picked) setGroupPhotoUri(picked.uri);
+            }}
+            icon={<ImageIcon width={36} height={36} color={Colors.text} />}
+            title="Group Photos"
+            subtitle="upload a new photo"
+          />
 
-        {/* Group Name */}
-        <Text style={s.fieldLabel}>Group Name</Text>
-        <TextInput
-          style={s.input}
-          value={groupName}
-          onChangeText={setGroupName}
-          placeholderTextColor={Colors.textMuted}
-        />
+        <FormField label="Group Name" labelStyle={s.fieldLabel}>
+          <AppTextInput
+            value={groupName}
+            onChangeText={setGroupName}
+            placeholderTextColor={Colors.textMuted}
+          />
+        </FormField>
 
-        {/* Bio */}
-        <Text style={s.fieldLabel}>Bio</Text>
-        <TextInput
-          style={[s.input, s.bioInput]}
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={3}
-          placeholderTextColor={Colors.textMuted}
-        />
+        <FormField label="Bio" labelStyle={s.fieldLabel}>
+          <AppTextInput
+            style={s.bioInput}
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            numberOfLines={3}
+            placeholderTextColor={Colors.textMuted}
+          />
+        </FormField>
 
         {/* Member Selection */}
         <View style={s.divider} />

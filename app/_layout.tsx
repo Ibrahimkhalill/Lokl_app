@@ -1,8 +1,14 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { Colors } from "../constants/colors";
 
 export default function RootLayout() {
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(Colors.background);
+  }, []);
+
   return (
     <>
       <StatusBar style="light" />

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import type { SvgProps } from "react-native-svg";
 
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,14 +16,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
 import ShareIcon from "../../assets/icons/share.svg";
+import IconYoga from "../../assets/icons/hugeicons_yoga-02.svg";
+import IconClimbing from "../../assets/icons/guidance_climbing-wall.svg";
+import IconPilates from "../../assets/icons/guidance_pilates.svg";
+import IconMedicalPhysio from "../../assets/icons/medical-icon_i-physical-therapy.svg";
+import IconSurfing from "../../assets/icons/material-symbols-light_surfing-rounded.svg";
+import IconCricket from "../../assets/icons/cricket.svg";
 
-const CATEGORIES = [
-  { id: "1", label: "Yoga", icon: "body-outline", active: true },
-  { id: "2", label: "Boxing", icon: "fitness-outline", active: false },
-  { id: "3", label: "Basketball", icon: "basketball-outline", active: false },
-  { id: "4", label: "Gym", icon: "barbell-outline", active: false },
-  { id: "5", label: "Golf", icon: "golf-outline", active: false },
-  { id: "6", label: "Cricket", icon: "baseball-outline", active: false },
+type CategoryIcon = React.FC<SvgProps>;
+
+type CategoryEntry =
+  | { id: string; label: string; kind: "svg"; Icon: CategoryIcon }
+  | {
+      id: string;
+      label: string;
+      kind: "ionicon";
+      name: React.ComponentProps<typeof Ionicons>["name"];
+    };
+
+const CATEGORIES: CategoryEntry[] = [
+  { id: "1", label: "Yoga", kind: "svg", Icon: IconYoga },
+  { id: "2", label: "Boxing", kind: "svg", Icon: IconMedicalPhysio },
+  { id: "3", label: "Basketball", kind: "svg", Icon: IconSurfing },
+  { id: "4", label: "Gym", kind: "svg", Icon: IconClimbing },
+  { id: "5", label: "Golf", kind: "svg", Icon: IconPilates },
+  { id: "6", label: "Cricket", kind: "svg", Icon: IconCricket },
 ];
 
 const RECENTLY_VIEWED = [
@@ -138,6 +156,9 @@ export default function SearchScreen() {
             >
               {CATEGORIES.map((cat) => {
                 const isActive = activeCategory === cat.id;
+                const iconColor = isActive
+                  ? Colors.primary
+                  : Colors.textSecondary;
                 return (
                   <TouchableOpacity
                     key={cat.id}
@@ -151,11 +172,19 @@ export default function SearchScreen() {
                         isActive && styles.categoryIconActive,
                       ]}
                     >
-                      <Ionicons
-                        name={cat.icon as any}
-                        size={22}
-                        color={isActive ? Colors.primary : Colors.textSecondary}
-                      />
+                      {cat.kind === "svg" ? (
+                        <cat.Icon
+                          width={22}
+                          height={22}
+                          color={iconColor}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={cat.name}
+                          size={22}
+                          color={iconColor}
+                        />
+                      )}
                     </View>
                     <Text
                       style={[
@@ -338,9 +367,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  /** Active: lime icon + label; circle keeps subtle border (Figma-style). */
   categoryIconActive: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(209,255,0,0.08)",
+    borderColor: Colors.cardBorder,
+    backgroundColor: "transparent",
   },
   categoryLabel: {
     color: Colors.textSecondary,
@@ -364,7 +394,7 @@ const styles = StyleSheet.create({
   recentItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.secondaryCard,
+    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     borderRadius: 16,
