@@ -76,7 +76,9 @@ export default function PostScreen() {
               setMediaUri(picked.uri);
               setMediaKind(picked.type === "video" ? "video" : "image");
             }}
-            icon={<ImageIcon width={40} height={40} color={Colors.textSecondary} />}
+            icon={
+              <ImageIcon width={40} height={40} color={Colors.textSecondary} />
+            }
             title="Select a image or video"
           />
 
@@ -98,9 +100,7 @@ export default function PostScreen() {
             onPress={() => setShowGroupModal(true)}
           >
             <TagIcon width={16} height={16} color={Colors.textSecondary} />
-            <Text style={styles.dropdownPlaceholder}>
-              Who do you want to share this with?
-            </Text>
+            <Text style={styles.dropdownPlaceholder}>Choose Groups</Text>
             <ChevronDownIcon
               width={16}
               height={16}
@@ -120,7 +120,7 @@ export default function PostScreen() {
                 selectedActivity && { color: Colors.text },
               ]}
             >
-              {selectedActivity || "Tell us what you're doing"}
+              {selectedActivity || "Tag Friends"}
             </Text>
             <Ionicons
               name="chevron-down"
@@ -209,11 +209,11 @@ export default function PostScreen() {
         visible={showGroupModal}
         onClose={() => setShowGroupModal(false)}
         title="Share to Groups"
-        subtitle="Who do you want to share this with?"
+        subtitle=""
       >
         <View style={styles.groupsField}>
           <TagIcon width={16} height={16} color={Colors.textSecondary} />
-          <Text style={styles.groupsFieldText}>Groups</Text>
+          <Text style={styles.groupsFieldText}>Choose Groups</Text>
         </View>
         <ScrollView style={styles.sheetList}>
           {GROUPS.filter((g) => g !== "Public").map((g) => (
@@ -248,12 +248,12 @@ export default function PostScreen() {
       <BottomSheet
         visible={showActivityModal}
         onClose={() => setShowActivityModal(false)}
-        title="Tag Activity"
-        subtitle="What are you doing?"
+        title="Tag a friend"
+        subtitle=""
       >
         <View style={styles.groupsField}>
           <TagIcon width={16} height={16} color={Colors.textSecondary} />
-          <Text style={styles.groupsFieldText}>Friends</Text>
+          <Text style={styles.groupsFieldText}>Tag Friends</Text>
         </View>
         <ScrollView style={styles.sheetList}>
           {ACTIVITIES.map((g) => (

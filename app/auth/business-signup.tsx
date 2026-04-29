@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -55,7 +55,8 @@ function SocialPlatformSvg({ platform }: { platform: string }) {
   return <Icon width={18} height={18} color={Colors.textSecondary} />;
 }
 
-const BUSINESS_TYPES = [
+/** Venues, studios, and legacy types */
+const BUSINESS_TYPES_BASE = [
   "Basketball court",
   "Tennis / pickleball club",
   "Soccer field",
@@ -93,7 +94,47 @@ const BUSINESS_TYPES = [
   "Tanning Salon",
   "Waxing studio",
   "Makeup Studio",
-];
+] as const;
+
+/** Coach / instructor / therapist roles (product list) */
+const BUSINESS_TYPES_PROFESSIONS = [
+  "Strength & conditioning coach",
+  "Weightlifting / powerlifting coach",
+  "Bodybuilding coach",
+  "Cross-training / HIIT coach",
+  "Functional fitness",
+  "Basketball trainer",
+  "Tennis / pickleball coach",
+  "Soccer trainer",
+  "Baseball / softball coach",
+  "Golf instructors",
+  "Running coach",
+  "Cycling coach",
+  "Swimming coach",
+  "Boxing coach",
+  "MMA / martial arts instructor",
+  "Wrestling coach",
+  "Yoga instructor",
+  "Pilates instructor",
+  "Barre instructor",
+  "Dance instructor",
+  "Spin / cycling instructor",
+  "Zumba / cardio dance instructor",
+  "Mobility / flexibility coach",
+  "Stretch therapist",
+  "Breathwork instructor",
+  "Physical therapist (DPTs)",
+  "Chiropractor",
+  "Massage therapist",
+  "Sports massage specialist",
+  "Acupuncturist",
+  "Cupping therapy practitioner",
+  "IV therapy provider",
+] as const;
+
+const BUSINESS_TYPES = Array.from(
+  new Set<string>([...BUSINESS_TYPES_BASE, ...BUSINESS_TYPES_PROFESSIONS])
+);
 
 interface SocialEntry {
   platform: string;
@@ -180,9 +221,40 @@ export default function BusinessSignUp() {
   const [socialModalIndex, setSocialModalIndex] = useState(0);
   const [typeSearch, setTypeSearch] = useState("");
 
-  const filteredTypes = BUSINESS_TYPES.filter((t) =>
-    t.toLowerCase().includes(typeSearch.toLowerCase()),
+  const filteredTypes = useMemo(
+    () =>
+      BUSINESS_TYPES.filter((t) =>
+        t.toLowerCase().includes(typeSearch.toLowerCase()),
+      ),
+    [typeSearch],
   );
+
+  const onSelectBusinessType = useCallback((item: string) => {
+    setBusinessType(item);
+    setShowTypeModal(false);
+    setTypeSearch("");
+  }, []);
+
+  const renderBusinessTypeItem = useCallback(
+    ({ item }: { item: string }) => (
+      <TouchableOpacity
+        style={styles.modalItem}
+        onPress={() => onSelectBusinessType(item)}
+      >
+        <Text
+          style={[
+            styles.modalItemText,
+            businessType === item && styles.modalItemSelected,
+          ]}
+        >
+          {item}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [businessType, onSelectBusinessType],
+  );
+
+  const keyByValue = useCallback((item: string) => item, []);
 
   const addSocialEntry = () => {
     setSocialEntries([...socialEntries, { platform: "Instagram", link: "" }]);
@@ -410,26 +482,14 @@ export default function BusinessSignUp() {
         </View>
         <FlatList
           data={filteredTypes}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.modalItem}
-              onPress={() => {
-                setBusinessType(item);
-                setShowTypeModal(false);
-                setTypeSearch("");
-              }}
-            >
-              <Text
-                style={[
-                  styles.modalItemText,
-                  businessType === item && styles.modalItemSelected,
-                ]}
-              >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
+          keyExtractor={keyByValue}
+          renderItem={renderBusinessTypeItem}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews
         />
       </BottomSheetModal>
 

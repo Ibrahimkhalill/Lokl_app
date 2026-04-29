@@ -41,6 +41,8 @@ export default function RootLayout() {
         <Stack.Screen name="home/search" />
         <Stack.Screen name="home/share-event" />
         <Stack.Screen name="home/friends-think" />
+        <Stack.Screen name="home/post" />
+
         <Stack.Screen name="explore/notifications" />
         <Stack.Screen name="explore/user-profile" />
 

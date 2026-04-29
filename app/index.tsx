@@ -1,82 +1,159 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   ImageBackground,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../constants/colors";
 
-const { width, height } = Dimensions.get("window");
-
-const slides = [
+const CYCLES = [
+  { label: "Gym", image: require("../assets/images/onboarding-3.jpg") },
+  { label: "Course", image: require("../assets/images/onboarding-2.jpg") },
+  { label: "Class", image: require("../assets/images/onboarding-1.jpg") },
+  { label: "Workout", image: require("../assets/images/onboarding-4.jpg") },
   {
-    id: "1",
-    title: "Find your\nLokl Gym",
-    image: require("../assets/images/onboarding-3.jpg"),
-  },
-  {
-    id: "2",
-    title: "Find your\nLokl Course",
-    image: require("../assets/images/onboarding-2.jpg"),
-  },
-  {
-    id: "3",
-    title: "Find your\nLokl Class",
-    image: require("../assets/images/onboarding-1.jpg"),
-  },
-  {
-    id: "4",
-    title: "Find your\nLokl Workout",
-    image: require("../assets/images/onboarding-4.jpg"),
-  },
-  {
-    id: "5",
-    title: "Find your\nLokl Competition",
+    label: "Competitions",
     image: require("../assets/images/onboarding-5.jpg"),
   },
-];
+] as const;
+
+const ROTATE_MS = 4000;
+
+const TEXT_SLIDE_OUT_MS = 420;
+const BG_FADE_OUT_MS = 420;
+const BG_FADE_IN_MS = 520;
+const PAUSE_AFTER_BG_MS = 160;
+const TEXT_SLIDE_IN_MS = 520;
+/** How far the word moves vertically (px) — old up, new from below */
+const LABEL_SLIDE_PX = 52;
 
 export default function SplashScreen() {
   const router = useRouter();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const currentSlide = slides[currentIndex];
+  const [index, setIndex] = useState(0);
+  const imgOpacity = useRef(new Animated.Value(1)).current;
+  const labelOpacity = useRef(new Animated.Value(1)).current;
+  const labelTranslateY = useRef(new Animated.Value(0)).current;
+  const isAnimating = useRef(false);
 
-  const handlePrimaryPress = () => {
-    const isLastSlide = currentIndex === slides.length - 1;
-    if (isLastSlide) {
-      router.push("/auth/choose-role");
-      return;
-    }
-    setCurrentIndex((prev) => prev + 1);
-  };
+  const advance = useCallback(() => {
+    if (isAnimating.current) return;
+    isAnimating.current = true;
+
+    Animated.sequence([
+      // 1) Word slides up + fades (new one will come from below)
+      Animated.parallel([
+        Animated.timing(labelTranslateY, {
+          toValue: -LABEL_SLIDE_PX,
+          duration: TEXT_SLIDE_OUT_MS,
+          useNativeDriver: true,
+        }),
+        Animated.timing(labelOpacity, {
+          toValue: 0,
+          duration: TEXT_SLIDE_OUT_MS,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(imgOpacity, {
+        toValue: 0,
+        duration: BG_FADE_OUT_MS,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (!finished) {
+        isAnimating.current = false;
+        return;
+      }
+
+      setIndex((i) => (i + 1) % CYCLES.length);
+
+      labelOpacity.setValue(0);
+      labelTranslateY.setValue(LABEL_SLIDE_PX);
+      imgOpacity.setValue(0);
+
+      requestAnimationFrame(() => {
+        Animated.sequence([
+          Animated.timing(imgOpacity, {
+            toValue: 1,
+            duration: BG_FADE_IN_MS,
+            useNativeDriver: true,
+          }),
+          Animated.delay(PAUSE_AFTER_BG_MS),
+          // New word: from below → baseline while fading in
+          Animated.parallel([
+            Animated.timing(labelTranslateY, {
+              toValue: 0,
+              duration: TEXT_SLIDE_IN_MS,
+              useNativeDriver: true,
+            }),
+            Animated.timing(labelOpacity, {
+              toValue: 1,
+              duration: TEXT_SLIDE_IN_MS,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start(() => {
+          labelTranslateY.setValue(0);
+          isAnimating.current = false;
+        });
+      });
+    });
+  }, [imgOpacity, labelOpacity, labelTranslateY]);
+
+  useEffect(() => {
+    const id = setInterval(advance, ROTATE_MS);
+    return () => clearInterval(id);
+  }, [advance]);
+
+  const current = CYCLES[index];
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={currentSlide.image}
-        style={styles.slide}
-        resizeMode="cover"
-      >
-        <View style={styles.overlay} />
-        <View style={styles.slideContent}>
-          <Text style={styles.slideTitle}>{currentSlide.title}</Text>
-        </View>
-      </ImageBackground>
+      <View style={styles.stage}>
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, { opacity: imgOpacity }]}
+        >
+          <ImageBackground
+            source={current.image}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
+        </Animated.View>
 
-      {/* Button */}
+        <View style={styles.overlay} pointerEvents="none" />
+
+        <SafeAreaView style={styles.safe} edges={["top"]}>
+          <View style={styles.slideContent}>
+            <Text style={styles.slideTitle}>Find your</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.slideTitle}>Lokl </Text>
+              <Animated.View
+                style={[
+                  styles.labelMotionWrap,
+                  {
+                    opacity: labelOpacity,
+                    transform: [{ translateY: labelTranslateY }],
+                  },
+                ]}
+              >
+                <Text style={styles.slideTitle}>{current.label}</Text>
+              </Animated.View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.button}
-          onPress={handlePrimaryPress}
+          onPress={() => router.push("/auth/choose-role")}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>
-            {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
-          </Text>
+          <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -88,13 +165,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  slide: {
-    width,
-    height,
+  stage: {
+    flex: 1,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  safe: {
+    flex: 1,
   },
   slideContent: {
     flex: 1,
@@ -109,6 +188,15 @@ const styles = StyleSheet.create({
     lineHeight: 48,
     letterSpacing: -0.5,
     textAlign: "left",
+  },
+  titleRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+  },
+  labelMotionWrap: {
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   buttonContainer: {
     position: "absolute",

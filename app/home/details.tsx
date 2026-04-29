@@ -92,7 +92,10 @@ export default function DetailsScreen() {
             >
               <Ionicons name="arrow-back" size={20} color={Colors.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.heroBtn}>
+            <TouchableOpacity
+              style={styles.heroBtn}
+              onPress={() => router.push("/chat/inbox")}
+            >
               <NavigateIcon width={20} height={20} color={Colors.text} />
             </TouchableOpacity>
           </SafeAreaView>
@@ -153,7 +156,10 @@ export default function DetailsScreen() {
               >
                 <Text style={styles.actionBtnText}>Share</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIconBtn}>
+              <TouchableOpacity
+                style={styles.actionIconBtn}
+                onPress={() => router.push("/home/post")}
+              >
                 <PlusIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionIconBtn}>

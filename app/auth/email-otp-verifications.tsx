@@ -7,10 +7,10 @@ export default function EmailOTPVerifications() {
 
   return (
     <OtpVerificationForm
-      title="Email Verification"
-      subtitle="Enter your email verification code here"
+      title="Phone Verification"
+      subtitle="Enter your OTP code here"
       onBack={() => router.back()}
-      onVerify={() => router.push("/auth/what-are-you-into")}
+      onVerify={() => router.push("/(tabs)")}
     />
   );
 }

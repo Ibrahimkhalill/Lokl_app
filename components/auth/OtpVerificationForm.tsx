@@ -26,7 +26,7 @@ export function OtpVerificationForm({
   ctaTitle = "Verify",
   onVerify,
   onBack,
-  resendLinkText = "Resent",
+  resendLinkText = "Resend",
 }: OtpVerificationFormProps) {
   const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
@@ -79,7 +79,9 @@ export function OtpVerificationForm({
         </View>
 
         <View style={styles.resendRow}>
-          <Text style={styles.resendText}>Didn&apos;t you received any code? </Text>
+          <Text style={styles.resendText}>
+            Didn&apos;t you received any code?{" "}
+          </Text>
           <TouchableOpacity>
             <Text style={styles.resendLink}>{resendLinkText}</Text>
           </TouchableOpacity>
