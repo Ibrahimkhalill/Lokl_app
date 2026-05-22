@@ -10,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../constants/colors";
+import { useAuth } from "../context/AuthContext";
 
 const CYCLES = [
   { label: "Gym", image: require("../assets/images/onboarding-3.jpg") },
@@ -34,7 +35,14 @@ const LABEL_SLIDE_PX = 52;
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { isLoggedIn, isLoading } = useAuth();
   const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isLoading && isLoggedIn) {
+      router.replace("/(tabs)");
+    }
+  }, [isLoading]);
   const imgOpacity = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(1)).current;
   const labelTranslateY = useRef(new Animated.Value(0)).current;

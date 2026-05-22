@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { Colors } from "../constants/colors";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -10,7 +11,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -74,6 +75,6 @@ export default function RootLayout() {
         <Stack.Screen name="business/event-detail" />
         <Stack.Screen name="business/profile" />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

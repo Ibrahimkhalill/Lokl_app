@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,65 +8,92 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ImageIcon from "../../assets/icons/image.svg";
+import CheckIcon from "../../assets/icons/check.svg";
 import { MediaPickerCard, FormField, AppTextInput } from "../../components/primitives";
-import { useToggleSet } from "../../hooks/useToggleSet";
 import { pickCoverImage } from "../../lib/mediaPicker";
+import { eventService } from "../../services/eventService";
+import { userService } from "../../services/userService";
+import { getErrorMessage } from "../../lib/api";
 
-const MEMBERS = [
-  {
-    id: "m1",
-    name: "Shane Martinez",
-    status: "On my way home but i needed to stop by books store to...",
-    time: "5 min",
-    unread: 1,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&q=80",
-  },
-  {
-    id: "m2",
-    name: "Katie Keller",
-    status: "I'm watching friends. What are you doing?",
-    time: "15 min",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
-  },
-  {
-    id: "m3",
-    name: "Stephen Mann",
-    status: "I'm working now. I'm marking a deposit for our company.",
-    time: "20 min",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-  },
-  {
-    id: "m4",
-    name: "Melvin Pratt",
-    status: "Great seeing you. i have to go now. I'll talk to you late.",
-    time: "1hour",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&q=80",
-  },
-];
+type Friend = {
+  id: number;
+  name: string;
+  avatar: string | null;
+  bio?: string;
+  role?: string;
+};
 
 export default function GroupCreateScreen() {
   const router = useRouter();
-  const [groupName, setGroupName] = useState("Sports Club");
-  const [bio, setBio] = useState('"Energy, Passion and Sports."');
+  const [groupName, setGroupName] = useState("");
+  const [bio, setBio] = useState("");
   const [groupPhotoUri, setGroupPhotoUri] = useState<string | null>(null);
-  const { selected, toggle: toggleMember } = useToggleSet([
-    "m2",
-    "m3",
-    "m4",
-  ]);
+  const [groupPhotoFile, setGroupPhotoFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoadingFriends(true);
+      try {
+        const res = await userService.getFriends();
+        const data = res.data;
+        console.log("[GroupCreate] friends response:", data);
+        const list = data?.data ?? data;
+        setFriends(Array.isArray(list) ? list : list?.results ?? []);
+      } catch (e) {
+        console.log("[GroupCreate] friends error:", getErrorMessage(e));
+      } finally {
+        setLoadingFriends(false);
+      }
+    })();
+  }, []);
+
+  const toggleFriend = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleCreate = async () => {
+    if (!groupName.trim()) {
+      Alert.alert("Validation", "Group name is required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const form = new FormData();
+      form.append("name", groupName.trim());
+      if (bio.trim()) form.append("bio", bio.trim());
+      if (groupPhotoFile) {
+        form.append("photo", {
+          uri: groupPhotoFile.uri,
+          name: groupPhotoFile.name,
+          type: groupPhotoFile.type,
+        } as any);
+      }
+      selectedIds.forEach((id) => form.append("member_ids", String(id)));
+
+      await eventService.createSocialGroup(form);
+      router.back();
+    } catch (e) {
+      Alert.alert("Error", getErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -79,6 +106,7 @@ export default function GroupCreateScreen() {
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
+          <Text style={s.headerTitle}>Create Group</Text>
         </View>
 
         <ScrollView
@@ -86,86 +114,106 @@ export default function GroupCreateScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Photo Upload */}
-          <Text style={s.photoLabel}>Chose group photo</Text>
+          <Text style={s.photoLabel}>Group Photo</Text>
           <MediaPickerCard
             height={150}
             previewUri={groupPhotoUri}
             previewKind="image"
             onPress={async () => {
               const picked = await pickCoverImage();
-              if (picked) setGroupPhotoUri(picked.uri);
+              if (picked) {
+                setGroupPhotoUri(picked.uri);
+                const ext = picked.uri.split(".").pop() ?? "jpg";
+                setGroupPhotoFile({
+                  uri: picked.uri,
+                  name: `group_${Date.now()}.${ext}`,
+                  type: picked.type === "video" ? "video/mp4" : "image/jpeg",
+                });
+              }
             }}
             icon={<ImageIcon width={36} height={36} color={Colors.text} />}
-            title="Group Photos"
-            subtitle="upload a new photo"
+            title="Group Photo"
+            subtitle="Upload a photo"
           />
 
-        <FormField label="Group Name" labelStyle={s.fieldLabel}>
-          <AppTextInput
-            value={groupName}
-            onChangeText={setGroupName}
-            placeholderTextColor={Colors.textMuted}
-          />
-        </FormField>
+          <FormField label="Group Name" labelStyle={s.fieldLabel}>
+            <AppTextInput
+              value={groupName}
+              onChangeText={setGroupName}
+              placeholder="e.g. Sports Club"
+              placeholderTextColor={Colors.textMuted}
+            />
+          </FormField>
 
-        <FormField label="Bio" labelStyle={s.fieldLabel}>
-          <AppTextInput
-            style={s.bioInput}
-            value={bio}
-            onChangeText={setBio}
-            multiline
-            numberOfLines={3}
-            placeholderTextColor={Colors.textMuted}
-          />
-        </FormField>
+          <FormField label="Bio" labelStyle={s.fieldLabel}>
+            <AppTextInput
+              style={s.bioInput}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="What's this group about?"
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              numberOfLines={3}
+            />
+          </FormField>
 
-        {/* Member Selection */}
-        <View style={s.divider} />
-        {MEMBERS.map((member) => {
-          const isSelected = selected.includes(member.id);
-          return (
-            <TouchableOpacity
-              key={member.id}
-              style={s.memberRow}
-              onPress={() => toggleMember(member.id)}
-              activeOpacity={0.8}
-            >
-              <View style={s.memberAvatarWrap}>
-                <Image source={{ uri: member.avatar }} style={s.memberAvatar} />
-                <View
-                  style={[s.checkOverlay, isSelected && s.checkOverlaySelected]}
+          <View style={s.divider} />
+          <Text style={s.sectionTitle}>Add Friends</Text>
+
+          {loadingFriends ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
+          ) : friends.length === 0 ? (
+            <Text style={s.emptyText}>No friends found</Text>
+          ) : (
+            friends.map((friend) => {
+              const isSelected = selectedIds.includes(friend.id);
+              return (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={s.memberRow}
+                  onPress={() => toggleFriend(friend.id)}
+                  activeOpacity={0.8}
                 >
-                  {isSelected && (
-                    <Ionicons
-                      name="checkmark"
-                      size={14}
-                      color={Colors.primary}
-                    />
-                  )}
-                </View>
-              </View>
-              <View style={s.memberInfo}>
-                <Text style={s.memberName}>{member.name}</Text>
-                <Text style={s.memberStatus} numberOfLines={2}>
-                  {member.status}
-                </Text>
-              </View>
-              <View style={s.memberRight}>
-                <Text style={s.memberTime}>{member.time}</Text>
-                {member.unread > 0 && (
-                  <View style={s.unreadBadge}>
-                    <Text style={s.unreadText}>{member.unread}</Text>
+                  <View style={s.memberAvatarWrap}>
+                    {friend.avatar ? (
+                      <Image source={{ uri: friend.avatar }} style={s.memberAvatar} />
+                    ) : (
+                      <View style={[s.memberAvatar, s.memberAvatarPlaceholder]}>
+                        <Ionicons name="person" size={22} color={Colors.textSecondary} />
+                      </View>
+                    )}
+                    <View style={s.avatarOverlay} />
+                    <View style={s.checkCircleWrap}>
+                      {isSelected ? (
+                        <CheckIcon width={22} height={22} />
+                      ) : (
+                        <View style={s.checkCircle} />
+                      )}
+                    </View>
                   </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+                  <View style={s.memberInfo}>
+                    <Text style={s.memberName}>{friend.name}</Text>
+                    {(friend.bio || friend.role) ? (
+                      <Text style={s.memberBio} numberOfLines={2}>
+                        {friend.bio || friend.role}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
 
-          {/* Create Button */}
-          <TouchableOpacity style={s.createBtn} onPress={() => router.back()}>
-            <Text style={s.createBtnText}>Create Group</Text>
+          <TouchableOpacity
+            style={[s.createBtn, submitting && { opacity: 0.7 }]}
+            onPress={handleCreate}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color={Colors.black} />
+            ) : (
+              <Text style={s.createBtnText}>Create Group</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -176,7 +224,14 @@ export default function GroupCreateScreen() {
 const s = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 4 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -187,6 +242,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
   scroll: { paddingHorizontal: 18, paddingBottom: 40 },
   photoLabel: {
     color: Colors.text,
@@ -195,96 +251,69 @@ const s = StyleSheet.create({
     marginBottom: 10,
     marginTop: 8,
   },
-  photoBox: {
-    height: 150,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 22,
-  },
-  photoTitle: { color: Colors.text, fontSize: 15, fontWeight: "600" },
-  photoSub: { color: Colors.textSecondary, fontSize: 13 },
   fieldLabel: {
     color: Colors.text,
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    height: 52,
-    paddingHorizontal: 16,
-    color: Colors.text,
-    fontSize: 15,
-    marginBottom: 18,
-  },
   bioInput: { height: 80, textAlignVertical: "top", paddingTop: 14 },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.cardBorder,
-    marginVertical: 18,
+  divider: { height: 1, backgroundColor: Colors.cardBorder, marginVertical: 18 },
+  sectionTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    marginBottom: 14,
   },
+  emptyText: { color: Colors.textSecondary, fontSize: 14, textAlign: "center", paddingVertical: 16 },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
   memberAvatarWrap: { position: "relative", width: 50, height: 50 },
   memberAvatar: { width: 50, height: 50, borderRadius: 25 },
-  checkOverlay: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  memberAvatarPlaceholder: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
     justifyContent: "center",
     alignItems: "center",
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 25,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  checkCircleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: Colors.white,
     backgroundColor: "transparent",
-    transform: [{ translateX: -12 }, { translateY: -12 }],
-  },
-  checkOverlaySelected: {
-    borderColor: Colors.primary,
-  },
-  memberInfo: { flex: 1 },
-  memberName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 3,
-  },
-  memberStatus: { color: Colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  memberRight: { alignItems: "flex-end", gap: 6 },
-  memberTime: { color: Colors.textMuted, fontSize: 12 },
-  unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.modalHeader,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 5,
   },
-  unreadText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
+  memberInfo: { flex: 1 },
+  memberName: { color: Colors.text, fontSize: 14, fontWeight: "700", marginBottom: 3 },
+  memberBio: { color: Colors.textSecondary, fontSize: 12, lineHeight: 16 },
   createBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
     height: 56,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 24,
+    marginTop: 28,
   },
   createBtnText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
 });

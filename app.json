@@ -38,6 +38,12 @@
       "expo-router",
       "expo-system-ui",
       [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow LOKL to access your location to show nearby events."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Allow LOKL to access your photos to set your profile, posts, and event images.",

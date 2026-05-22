@@ -9,6 +9,8 @@ import {
   Platform,
   Modal,
   Pressable,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -24,10 +26,14 @@ import {
   AppTextInput,
   AppHeader,
   AppHeaderIconButton,
+  LocationPickerModal,
+  type LocationResult,
 } from "../../components/primitives";
 import { useToggleSet } from "../../hooks/useToggleSet";
 import type { SvgProps } from "react-native-svg";
 import { pickCoverImage } from "../../lib/mediaPicker";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 
 function initialEventStart() {
   const d = new Date();
@@ -38,11 +44,7 @@ function initialEventStart() {
 
 function mergeDatePart(current: Date, picked: Date) {
   const next = new Date(current);
-  next.setFullYear(
-    picked.getFullYear(),
-    picked.getMonth(),
-    picked.getDate()
-  );
+  next.setFullYear(picked.getFullYear(), picked.getMonth(), picked.getDate());
   return next;
 }
 
@@ -50,6 +52,19 @@ function mergeTimePart(current: Date, picked: Date) {
   const next = new Date(current);
   next.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
   return next;
+}
+
+function toDateString(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeString(d: Date) {
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
 }
 
 const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Other"];
@@ -68,15 +83,70 @@ export default function CreateEventScreen() {
   const [eventType, setEventType] = useState("Yoga");
   const [venue, setVenue] = useState("");
   const [location, setLocation] = useState("");
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
   const [eventStartsAt, setEventStartsAt] = useState(initialEventStart);
   const [activePicker, setActivePicker] = useState<null | "date" | "time">(
     null
   );
   const [maxParticipants, setMaxParticipants] = useState("10");
   const [price, setPrice] = useState("0");
-  const [website, setWebsite] = useState("0");
+  const [website, setWebsite] = useState("");
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const { selected: amenities, toggle: toggleAmenity } = useToggleSet([]);
+
+  async function handleSubmit() {
+    if (!title.trim()) {
+      Alert.alert("Validation", "Event title is required.");
+      return;
+    }
+    if (!location.trim()) {
+      Alert.alert("Validation", "Location is required.");
+      return;
+    }
+    if (!maxParticipants || Number(maxParticipants) < 1) {
+      Alert.alert("Validation", "Max participants must be at least 1.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const form = new FormData();
+      form.append("title", title.trim());
+      form.append("description", desc.trim());
+      form.append("event_type", eventType);
+      form.append("venue", venue.trim());
+      form.append("location", location.trim());
+      if (locationCoords) {
+        form.append("latitude", String(locationCoords.lat));
+        form.append("longitude", String(locationCoords.lng));
+      }
+      form.append("date", toDateString(eventStartsAt));
+      form.append("time", toTimeString(eventStartsAt));
+      form.append("max_participants", maxParticipants);
+      form.append("price", price || "0");
+      if (website.trim()) form.append("website", website.trim());
+      if (amenities.length > 0)
+        form.append("amenities", JSON.stringify(amenities));
+
+      if (coverUri) {
+        const filename = coverUri.split("/").pop() ?? "cover.jpg";
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : "image/jpeg";
+        form.append("cover_image", { uri: coverUri, name: filename, type } as any);
+      }
+
+      await businessService.createEvent(form);
+      Alert.alert("Success", "Event created successfully!", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -121,212 +191,244 @@ export default function CreateEventScreen() {
             title="Share a photo or video"
           />
 
-        <FormField label="Event Title*" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="e.g.. Morning Yoga Session"
-            value={title}
-            onChangeText={setTitle}
-          />
-        </FormField>
+          <FormField label="Event Title*" labelStyle={s.label}>
+            <AppTextInput
+              placeholder="e.g. Morning Yoga Session"
+              value={title}
+              onChangeText={setTitle}
+            />
+          </FormField>
 
-        <FormField label="Description" labelStyle={s.label}>
-          <AppTextInput
-            style={s.textArea}
-            placeholder="Tell people what to expect..."
-            value={desc}
-            onChangeText={setDesc}
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-          />
-        </FormField>
+          <FormField label="Description" labelStyle={s.label}>
+            <AppTextInput
+              style={s.textArea}
+              placeholder="Tell people what to expect..."
+              value={desc}
+              onChangeText={setDesc}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+            />
+          </FormField>
 
-        {/* Event Type */}
-        <Text style={s.label}>Event Type*</Text>
-        <View style={s.typeGrid}>
-          {EVENT_TYPES.map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[s.typeChip, eventType === type && s.typeChipActive]}
-              onPress={() => setEventType(type)}
-            >
-              <Text
-                style={[
-                  s.typeChipText,
-                  eventType === type && s.typeChipTextActive,
-                ]}
+          <Text style={s.label}>Event Type*</Text>
+          <View style={s.typeGrid}>
+            {EVENT_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[s.typeChip, eventType === type && s.typeChipActive]}
+                onPress={() => setEventType(type)}
               >
-                {type}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <FormField label="Venue*" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="e.g.. Central Park"
-            value={venue}
-            onChangeText={setVenue}
-          />
-        </FormField>
-
-        <FormField label="Location*" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="e.g.. Central Park"
-            value={location}
-            onChangeText={setLocation}
-          />
-        </FormField>
-
-        {/* Date + Time (side by side) */}
-        <View style={s.rowFields}>
-          <View style={s.halfField}>
-            <Text style={s.label}>Date*</Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setActivePicker("date")}
-              style={s.pickerField}
-            >
-              <Text style={s.pickerFieldText}>
-                {eventStartsAt.toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    s.typeChipText,
+                    eventType === type && s.typeChipTextActive,
+                  ]}
+                >
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View style={s.halfField}>
-            <Text style={s.label}>Time*</Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setActivePicker("time")}
-              style={s.pickerField}
-            >
-              <Text style={s.pickerFieldText}>
-                {eventStartsAt.toLocaleTimeString(undefined, {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {Platform.OS === "android" && activePicker ? (
-          <DateTimePicker
-            value={eventStartsAt}
-            mode={activePicker}
-            display="default"
-            onChange={(event, selected) => {
-              const mode = activePicker;
-              setActivePicker(null);
-              if (event.type === "set" && selected && mode) {
-                setEventStartsAt((prev) =>
-                  mode === "date"
-                    ? mergeDatePart(prev, selected)
-                    : mergeTimePart(prev, selected)
-                );
+          <FormField label="Venue*" labelStyle={s.label}>
+            <AppTextInput
+              placeholder="e.g. Central Park"
+              value={venue}
+              onChangeText={setVenue}
+            />
+          </FormField>
+
+          <Text style={s.label}>Location*</Text>
+          <TouchableOpacity
+            style={[s.pickerField, s.locationField]}
+            onPress={() => setLocationPickerVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={location ? Colors.primary : Colors.textMuted}
+            />
+            <Text
+              style={[
+                s.pickerFieldText,
+                { flex: 1 },
+                !location && { color: Colors.textMuted },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {location || "Search for a location..."}
+            </Text>
+          </TouchableOpacity>
+
+          <LocationPickerModal
+            visible={locationPickerVisible}
+            onClose={() => setLocationPickerVisible(false)}
+            onSelect={(result: LocationResult) => {
+              setLocation(result.address);
+              if (result.latitude !== 0 && result.longitude !== 0) {
+                setLocationCoords({ lat: result.latitude, lng: result.longitude });
               }
             }}
           />
-        ) : null}
 
-        {Platform.OS === "ios" ? (
-          <Modal
-            visible={activePicker !== null}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setActivePicker(null)}
-          >
-            <Pressable
-              style={s.modalBackdrop}
-              onPress={() => setActivePicker(null)}
-            />
-            <View style={s.modalSheet}>
-              <View style={s.modalBar}>
-                <TouchableOpacity onPress={() => setActivePicker(null)}>
-                  <Text style={s.modalCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setActivePicker(null)}>
-                  <Text style={s.modalDone}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              {activePicker ? (
-                <DateTimePicker
-                  value={eventStartsAt}
-                  mode={activePicker}
-                  display="spinner"
-                  onChange={(_, selected) => {
-                    if (!selected || !activePicker) return;
-                    setEventStartsAt((prev) =>
-                      activePicker === "date"
-                        ? mergeDatePart(prev, selected)
-                        : mergeTimePart(prev, selected)
-                    );
-                  }}
-                />
-              ) : null}
-            </View>
-          </Modal>
-        ) : null}
-
-        <FormField label="Max Participants*" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="10"
-            value={maxParticipants}
-            onChangeText={setMaxParticipants}
-            keyboardType="numeric"
-          />
-        </FormField>
-
-        <FormField label="Price per Person ($)" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="0"
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="decimal-pad"
-          />
-        </FormField>
-
-        <FormField label="Website (optional)" labelStyle={s.label}>
-          <AppTextInput
-            placeholder="0"
-            value={website}
-            onChangeText={setWebsite}
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-        </FormField>
-
-        {/* Amenities */}
-        <Text style={s.amenitiesTitle}>AMENITIES</Text>
-        <View style={s.amenitiesGrid}>
-          {AMENITIES_LIST.map((a) => {
-            const active = amenities.includes(a.id);
-            const iconColor = active ? Colors.black : Colors.text;
-            return (
+          <View style={s.rowFields}>
+            <View style={s.halfField}>
+              <Text style={s.label}>Date*</Text>
               <TouchableOpacity
-                key={a.id}
-                style={[s.amenityChip, active && s.amenityChipActive]}
-                onPress={() => toggleAmenity(a.id)}
+                activeOpacity={0.85}
+                onPress={() => setActivePicker("date")}
+                style={s.pickerField}
               >
-                <a.Icon width={20} height={20} color={iconColor} />
-                <Text style={[s.amenityText, active && s.amenityTextActive]}>
-                  {a.label}
+                <Text style={s.pickerFieldText}>
+                  {eventStartsAt.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </Text>
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            </View>
+            <View style={s.halfField}>
+              <Text style={s.label}>Time*</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setActivePicker("time")}
+                style={s.pickerField}
+              >
+                <Text style={s.pickerFieldText}>
+                  {eventStartsAt.toLocaleTimeString(undefined, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-          {/* Confirm */}
+          {Platform.OS === "android" && activePicker ? (
+            <DateTimePicker
+              value={eventStartsAt}
+              mode={activePicker}
+              display="default"
+              minimumDate={activePicker === "date" ? new Date() : undefined}
+              onChange={(event, selected) => {
+                const mode = activePicker;
+                setActivePicker(null);
+                if (event.type === "set" && selected && mode) {
+                  setEventStartsAt((prev) =>
+                    mode === "date"
+                      ? mergeDatePart(prev, selected)
+                      : mergeTimePart(prev, selected)
+                  );
+                }
+              }}
+            />
+          ) : null}
+
+          {Platform.OS === "ios" ? (
+            <Modal
+              visible={activePicker !== null}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setActivePicker(null)}
+            >
+              <Pressable
+                style={s.modalBackdrop}
+                onPress={() => setActivePicker(null)}
+              />
+              <View style={s.modalSheet}>
+                <View style={s.modalBar}>
+                  <TouchableOpacity onPress={() => setActivePicker(null)}>
+                    <Text style={s.modalCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setActivePicker(null)}>
+                    <Text style={s.modalDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                {activePicker ? (
+                  <DateTimePicker
+                    value={eventStartsAt}
+                    mode={activePicker}
+                    display="spinner"
+                    minimumDate={activePicker === "date" ? new Date() : undefined}
+                    onChange={(_, selected) => {
+                      if (!selected || !activePicker) return;
+                      setEventStartsAt((prev) =>
+                        activePicker === "date"
+                          ? mergeDatePart(prev, selected)
+                          : mergeTimePart(prev, selected)
+                      );
+                    }}
+                  />
+                ) : null}
+              </View>
+            </Modal>
+          ) : null}
+
+          <FormField label="Max Participants*" labelStyle={s.label}>
+            <AppTextInput
+              placeholder="10"
+              value={maxParticipants}
+              onChangeText={setMaxParticipants}
+              keyboardType="numeric"
+            />
+          </FormField>
+
+          <FormField label="Price per Person ($)" labelStyle={s.label}>
+            <AppTextInput
+              placeholder="0"
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="decimal-pad"
+            />
+          </FormField>
+
+          <FormField label="Website (optional)" labelStyle={s.label}>
+            <AppTextInput
+              placeholder="https://example.com"
+              value={website}
+              onChangeText={setWebsite}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+          </FormField>
+
+          <Text style={s.amenitiesTitle}>AMENITIES</Text>
+          <View style={s.amenitiesGrid}>
+            {AMENITIES_LIST.map((a) => {
+              const active = amenities.includes(a.id);
+              const iconColor = active ? Colors.black : Colors.text;
+              return (
+                <TouchableOpacity
+                  key={a.id}
+                  style={[s.amenityChip, active && s.amenityChipActive]}
+                  onPress={() => toggleAmenity(a.id)}
+                >
+                  <a.Icon width={20} height={20} color={iconColor} />
+                  <Text
+                    style={[s.amenityText, active && s.amenityTextActive]}
+                  >
+                    {a.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <TouchableOpacity
-            style={s.confirmBtn}
-            onPress={() => router.back()}
+            style={[s.confirmBtn, submitting && s.confirmBtnDisabled]}
+            onPress={handleSubmit}
             activeOpacity={0.85}
+            disabled={submitting}
           >
-            <Text style={s.confirmText}>Confirm Event</Text>
+            {submitting ? (
+              <ActivityIndicator color={Colors.black} />
+            ) : (
+              <Text style={s.confirmText}>Confirm Event</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -379,10 +481,16 @@ const s = StyleSheet.create({
     borderColor: Colors.cardBorder,
     minHeight: 52,
     paddingHorizontal: 16,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     paddingVertical: 14,
   },
   pickerFieldText: { color: Colors.text, fontSize: 15 },
+  locationField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 18,
+  },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -449,5 +557,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  confirmBtnDisabled: { opacity: 0.6 },
   confirmText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
 });

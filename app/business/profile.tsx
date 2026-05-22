@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,83 +23,293 @@ import LocationsIcon from "../../assets/icons/locations.svg";
 import StudentsIcon from "../../assets/icons/students.svg";
 import CourseIcon from "../../assets/icons/course.svg";
 import DollarIcon from "../../assets/icons/dollar.svg";
+import StarIcon from "../../assets/icons/star.svg";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
 
-const BUSINESS_EVENTS = [
-  {
-    id: "e1",
-    title: "Complete Yoga for Beginners",
-    desc: "Build flexibility, posture, and daily movement confidence in 6 weeks.",
-    image:
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80",
-    lessons: 12,
-    weeks: 4,
-    stars: 4,
-    reviews: 89,
-    enrolled: 234,
-    price: 1500,
-  },
-  {
-    id: "e2",
-    title: "Strength and Mobility Program",
-    desc: "A balanced training plan for stamina, mobility, and core strength.",
-    image:
-      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80",
-    lessons: 14,
-    weeks: 6,
-    stars: 5,
-    reviews: 122,
-    enrolled: 310,
-    price: 1800,
-  },
-];
+interface BusinessProfile {
+  business_name: string;
+  business_type: string;
+  owner_name: string;
+  address: string;
+  website: string;
+  bio?: string;
+  profile_photo_url?: string | null;
+  cover_photo_url?: string | null;
+  social_media: { platform: string; link: string }[];
+}
 
-function StarRating({ count }: { count: number }) {
-  return (
-    <View style={styles.starsRow}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Ionicons
-          key={i}
-          name={i < count ? "star" : "star-outline"}
-          size={13}
-          color={Colors.primary}
-        />
-      ))}
-    </View>
-  );
+interface Event {
+  id: number;
+  title: string;
+  event_type: string;
+  date: string;
+  time: string;
+  venue: string;
+  capacity: number;
+  registered: number;
+  status: string;
+  price: string | number;
+  description?: string;
+  cover_image_url?: string | null;
+  average_rating?: number;
+  review_count?: number;
+}
+
+function renderStars(rating: number) {
+  return Array.from({ length: 5 }, (_, i) => {
+    const filled = i + 0.5 < rating || i + 1 <= rating;
+    return (
+      <StarIcon
+        key={i}
+        width={13}
+        height={13}
+        color={filled ? "#D1FF00" : "#2A2A2A"}
+      />
+    );
+  });
+}
+
+function buildMediaForm(field: string, uri: string) {
+  const form = new FormData();
+  const filename = uri.split("/").pop() ?? "photo.jpg";
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : "image/jpeg";
+  form.append(field, { uri, name: filename, type } as any);
+  return form;
 }
 
 export default function BusinessProfileScreen() {
   const router = useRouter();
-  const [tab, setTab] = useState<"about" | "event" | "earning">("about");
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"about" | "event">("about");
+  const [businessProfile, setBusinessProfile] =
+    useState<BusinessProfile | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // local URI overrides (shown immediately after pick, before API confirms)
+  const [localCoverUri, setLocalCoverUri] = useState<string | null>(null);
+  const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // bio edit modal
+  const [bioModalVisible, setBioModalVisible] = useState(false);
+  const [bioInput, setBioInput] = useState("");
+  const [savingBio, setSavingBio] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [bpRes, evRes] = await Promise.all([
+        businessService.getBusinessProfile(),
+        businessService.getMyEvents(),
+      ]);
+      const bpData = bpRes.data?.data ?? bpRes.data;
+      setBusinessProfile(bpData);
+      const evPayload = evRes.data?.data ?? evRes.data;
+      const raw = Array.isArray(evPayload)
+        ? evPayload
+        : Array.isArray(evPayload?.events)
+        ? evPayload.events
+        : Array.isArray(evPayload?.results)
+        ? evPayload.results
+        : [];
+      setEvents(raw);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
+
+  async function handlePickCover() {
+    const picked = await pickCoverImage();
+    if (!picked) return;
+    setLocalCoverUri(picked.uri);
+    setUploadingCover(true);
+    try {
+      const form = buildMediaForm("cover_photo", picked.uri);
+      await businessService.updateProfileMedia(form);
+    } catch (err) {
+      setLocalCoverUri(null);
+      Alert.alert("Upload Failed", getErrorMessage(err));
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  async function handlePickAvatar() {
+    const picked = await pickAvatarImage();
+    if (!picked) return;
+    setLocalAvatarUri(picked.uri);
+    setUploadingAvatar(true);
+    try {
+      const form = buildMediaForm("profile_photo", picked.uri);
+      await businessService.updateProfileMedia(form);
+    } catch (err) {
+      setLocalAvatarUri(null);
+      Alert.alert("Upload Failed", getErrorMessage(err));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  function openBioModal() {
+    const currentBio = businessProfile?.bio || user?.bio || "";
+    setBioInput(currentBio);
+    setBioModalVisible(true);
+  }
+
+  async function handleSaveBio() {
+    setSavingBio(true);
+    try {
+      const form = new FormData();
+      form.append("bio", bioInput.trim());
+      await businessService.updateProfileMedia(form);
+      setBusinessProfile((prev) =>
+        prev ? { ...prev, bio: bioInput.trim() } : prev
+      );
+      setBioModalVisible(false);
+    } catch (err) {
+      Alert.alert("Save Failed", getErrorMessage(err));
+    } finally {
+      setSavingBio(false);
+    }
+  }
+
+  async function handleDeleteEvent(id: number, title: string) {
+    Alert.alert("Delete Event", `Delete "${title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setDeletingId(id);
+          try {
+            await businessService.deleteEvent(id);
+            setEvents((prev) => prev.filter((e) => e.id !== id));
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  const totalStudents = events.reduce(
+    (sum, e) => sum + (e.registered ?? 0),
+    0
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const displayName =
+   
+    businessProfile?.owner_name ||
+    user?.name ||
+    "—";
+  const displayRole = businessProfile?.business_type || "—";
+  const displayBio = businessProfile?.bio || user?.bio || "";
+  const displayAddress = businessProfile?.address || "";
+
+  const coverUri =
+    localCoverUri ?? businessProfile?.cover_photo_url ?? null;
+  const avatarUri =
+    localAvatarUri ??
+    businessProfile?.profile_photo_url ??
+    user?.profile_picture ??
+    null;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.heroBanner}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&q=80",
-            }}
-            style={styles.heroImage}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
           />
-        </View>
+        }
+      >
+        {/* Cover Photo */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handlePickCover}
+          style={styles.heroBanner}
+          disabled={uploadingCover}
+        >
+          {coverUri ? (
+            <Image source={{ uri: coverUri }} style={styles.heroImage} />
+          ) : (
+            <View style={styles.heroPlaceholder} />
+          )}
+          <View style={styles.coverOverlay}>
+            {uploadingCover ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <View style={styles.coverEditBadge}>
+                <Ionicons name="camera" size={16} color={Colors.white} />
+                <Text style={styles.coverEditText}>Edit Cover</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.topSection}>
           <View style={styles.profileRow}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
-              }}
-              style={styles.avatar}
-            />
+            {/* Avatar */}
+            <TouchableOpacity
+              onPress={handlePickAvatar}
+              activeOpacity={0.85}
+              disabled={uploadingAvatar}
+              style={styles.avatarWrap}
+            >
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Ionicons name="person" size={32} color={Colors.textMuted} />
+                </View>
+              )}
+              <View style={styles.avatarEditBadge}>
+                {uploadingAvatar ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Ionicons name="camera" size={12} color={Colors.black} />
+                )}
+              </View>
+            </TouchableOpacity>
+
             <View style={styles.profileInfo}>
-              <Text style={styles.name}>Sarah Johnson</Text>
-              <Text style={styles.role}>
-                Certified Yoga & Fitness Instructor
-              </Text>
+              <Text style={styles.name}>{displayName}</Text>
+              <Text style={styles.role}>{displayRole}</Text>
             </View>
           </View>
 
@@ -100,24 +318,28 @@ export default function BusinessProfileScreen() {
               <View style={styles.statIconCircle}>
                 <StudentsIcon width={16} height={16} color={Colors.primary} />
               </View>
-              <Text style={styles.statValue}>1,247</Text>
+              <Text style={styles.statValue}>
+                {totalStudents > 999
+                  ? `${(totalStudents / 1000).toFixed(1)}k`
+                  : totalStudents}
+              </Text>
               <Text style={styles.statLabel}>Students</Text>
             </View>
             <View style={styles.statItem}>
               <View style={styles.statIconCircle}>
                 <CourseIcon width={16} height={16} color={Colors.primary} />
               </View>
-              <Text style={styles.statValue}>08</Text>
-              <Text style={styles.statLabel}>Course</Text>
+              <Text style={styles.statValue}>
+                {String(events.length).padStart(2, "0")}
+              </Text>
+              <Text style={styles.statLabel}>Events</Text>
             </View>
             <View style={styles.scoreBlock}>
               <View style={styles.coachPill}>
-                <Text style={styles.coachPillText}>Coach</Text>
+                <Text style={styles.coachPillText}>
+                  {businessProfile?.business_type || "Business"}
+                </Text>
               </View>
-              <View style={styles.scorePill}>
-                <Text style={styles.scorePillText}>9.2</Text>
-              </View>
-              <Text style={styles.scoreSub}>287 reviews</Text>
             </View>
           </View>
 
@@ -162,120 +384,190 @@ export default function BusinessProfileScreen() {
         {tab === "about" ? (
           <>
             <View style={styles.aboutCard}>
-              <Text style={styles.aboutTitle}>About</Text>
-              <Text style={styles.aboutBody}>
-                Certified yoga instructor with 8+ years of experience.
-                Passionate about helping people achieve their fitness goals
-                through mindful movement and balanced nutrition. Specialized in
-                Hatha Yoga, Vinyasa Flow, and strength training.
-              </Text>
+              <View style={styles.aboutHeader}>
+                <Text style={styles.aboutTitle}>Bio</Text>
+                <TouchableOpacity onPress={openBioModal} hitSlop={8}>
+                  <Ionicons
+                    name="create-outline"
+                    size={20}
+                    color={Colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+              {displayBio ? (
+                <Text style={styles.aboutBody}>{displayBio}</Text>
+              ) : (
+                <TouchableOpacity onPress={openBioModal}>
+                  <Text style={styles.bioPlaceholder}>
+                    Tap to add a bio...
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={styles.locationCard}>
-              <View style={styles.locationRow}>
-                <LocationsIcon width={16} height={16} color={Colors.primary} />
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationText}>Location</Text>
-                  <Text style={styles.locationValue}>Dhaka, Bangladesh</Text>
+
+            {displayAddress ? (
+              <View style={styles.locationCard}>
+                <View style={styles.locationRow}>
+                  <LocationsIcon
+                    width={16}
+                    height={16}
+                    color={Colors.primary}
+                  />
+                  <View style={styles.locationInfo}>
+                    <Text style={styles.locationText}>Location</Text>
+                    <Text style={styles.locationValue}>{displayAddress}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : null}
           </>
-        ) : tab === "event" ? (
+        ) : (
           <View style={styles.eventsList}>
-            {BUSINESS_EVENTS.map((eventItem) => (
-              <TouchableOpacity
-                key={eventItem.id}
-                style={styles.eventCard}
-                onPress={() => router.push("/business/event-detail")}
-                activeOpacity={0.85}
-              >
-                <View style={styles.eventImageWrap}>
-                  <Image
-                    source={{ uri: eventItem.image }}
-                    style={styles.eventImage}
-                  />
-                  <View style={styles.eventOverlay} />
-                  <View style={styles.publishedBadge}>
-                    <Text style={styles.publishedText}>Published</Text>
-                  </View>
-                  <View style={styles.eventTopMeta}>
-                    <Text style={styles.eventTitle}>{eventItem.title}</Text>
-                    <View style={styles.eventTopMetaRow}>
-                      <Ionicons
-                        name="play-outline"
-                        size={14}
-                        color={Colors.text}
+            {events.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyText}>No events yet.</Text>
+              </View>
+            ) : (
+              events.map((eventItem) => (
+                <TouchableOpacity
+                  key={eventItem.id}
+                  activeOpacity={0.88}
+                  onPress={() => router.push(`/business/event-detail?id=${eventItem.id}`)}
+                >
+                <View style={styles.eventCard}>
+                  {/* Cover image with overlay */}
+                  <View style={styles.eventCoverWrap}>
+                    {eventItem.cover_image_url ? (
+                      <Image
+                        source={{ uri: eventItem.cover_image_url }}
+                        style={styles.eventCoverImage}
+                        resizeMode="cover"
                       />
-                      <Text style={styles.eventTopMetaText}>
-                        {eventItem.lessons} lessons
-                      </Text>
-                      <Ionicons
-                        name="time-outline"
-                        size={15}
-                        color={Colors.text}
-                      />
-                      <Text style={styles.eventTopMetaText}>
-                        {eventItem.weeks} weeks
+                    ) : (
+                      <View style={styles.eventCoverPlaceholder} />
+                    )}
+                    <View style={styles.eventCoverOverlay} />
+                    {/* Status badge top-left */}
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusText}>
+                        {eventItem.status || "Upcoming"}
                       </Text>
                     </View>
+                    {/* Title bottom-left */}
+                    <Text style={styles.eventCoverTitle} numberOfLines={2}>
+                      {eventItem.title}
+                    </Text>
                   </View>
-                </View>
-                <View style={styles.eventBody}>
-                  <Text style={styles.eventDesc} numberOfLines={2}>
-                    {eventItem.desc}
-                  </Text>
-                  <View style={styles.eventMetaRow}>
-                    <View style={styles.starsRow}>
-                      <StarRating count={eventItem.stars} />
-                      <Text style={styles.metaText}>({eventItem.reviews})</Text>
+
+                  {/* Card body */}
+                  <View style={styles.eventBody}>
+                    {/* Description */}
+                    {eventItem.description ? (
+                      <Text style={styles.eventDesc} numberOfLines={3}>
+                        {eventItem.description}
+                      </Text>
+                    ) : null}
+
+                    {/* Row 1: stars + review count  |  enrolled */}
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoLeft}>
+                        <View style={styles.starsRow}>
+                          {renderStars(eventItem.average_rating ?? 0)}
+                        </View>
+                        <Text style={styles.reviewCount}>
+                          ({eventItem.review_count ?? 0})
+                        </Text>
+                      </View>
+                      <View style={styles.enrolledRow}>
+                        <StudentsIcon width={14} height={14} color={Colors.textSecondary} />
+                        <Text style={styles.enrolledText}>{eventItem.registered} enrolled</Text>
+                      </View>
                     </View>
 
-                    <View style={styles.enrolledRow}>
-                      <StudentsIcon
-                        width={16}
-                        height={16}
-                        color={Colors.textSecondary}
-                      />
-                      <Text style={styles.metaText}>
-                        {eventItem.enrolled} enrolled
-                      </Text>
+                    {/* Row 2: price  |  trash */}
+                    <View style={styles.priceRow}>
+                      <View style={styles.priceLeft}>
+                        <DollarIcon width={16} height={16} color={Colors.primary} />
+                        <Text style={styles.priceText}>
+                          {Number(eventItem.price) === 0 ? "Free" : `$${eventItem.price}`}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => handleDeleteEvent(eventItem.id, eventItem.title)}
+                        disabled={deletingId === eventItem.id}
+                      >
+                        {deletingId === eventItem.id ? (
+                          <ActivityIndicator size="small" color="#FF3B30" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                        )}
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                  <View style={styles.priceRow}>
-                    <View style={styles.priceLeft}>
-                      <DollarIcon
-                        width={16}
-                        height={16}
-                        color={Colors.primary}
-                      />
-                      <Text style={styles.priceText}>${eventItem.price}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.deleteBtn}>
-                      <Ionicons
-                        name="trash-outline"
-                        size={16}
-                        color="#FF3B30"
-                      />
-                    </TouchableOpacity>
                   </View>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.earningsCard}>
-            <View style={styles.earningsRow}>
-              <View style={styles.earningsIconWrap}>
-                <DollarIcon width={18} height={18} color={Colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.earningsTitle}>Total Earnings</Text>
-                <Text style={styles.earningsValue}>$12,840</Text>
-              </View>
-            </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         )}
       </ScrollView>
+
+      {/* Bio Edit Modal */}
+      <Modal
+        visible={bioModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setBioModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setBioModalVisible(false)}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalKAV}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Bio</Text>
+              <TouchableOpacity
+                onPress={() => setBioModalVisible(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={22} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.bioTextInput}
+              value={bioInput}
+              onChangeText={setBioInput}
+              multiline
+              placeholder="Tell people about your business..."
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.primary}
+              maxLength={400}
+              textAlignVertical="top"
+            />
+            <Text style={styles.charCount}>{bioInput.length}/400</Text>
+
+            <TouchableOpacity
+              style={[styles.saveBtn, savingBio && styles.saveBtnDisabled]}
+              onPress={handleSaveBio}
+              disabled={savingBio}
+            >
+              {savingBio ? (
+                <ActivityIndicator color={Colors.black} />
+              ) : (
+                <Text style={styles.saveBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -283,17 +575,30 @@ export default function BusinessProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: { paddingBottom: 120 },
-  settingsBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  heroBanner: { height: 200, overflow: "hidden" },
+  heroImage: { width: "100%", height: "100%" },
+  heroPlaceholder: { width: "100%", height: "100%", backgroundColor: Colors.card },
+  coverOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
-  heroBanner: { height: 240, overflow: "hidden" },
-  heroImage: { width: "100%", height: "100%" },
+  coverEditBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  coverEditText: { color: Colors.white, fontSize: 13, fontWeight: "600" },
+
   topSection: {
     backgroundColor: Colors.background,
     marginTop: -2,
@@ -304,28 +609,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: -22,
+    marginTop: -28,
     marginBottom: 16,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
+  avatarWrap: { position: "relative" },
+  avatar: { width: 76, height: 76, borderRadius: 14 },
+  avatarPlaceholder: {
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  profileInfo: { flex: 1, marginTop: 10 },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.background,
+  },
+  profileInfo: { flex: 1, marginTop: 20 },
   name: { color: Colors.text, fontSize: 18, fontWeight: "700" },
   role: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
+
   statsRow: {
     flexDirection: "row",
     gap: 20,
     marginBottom: 18,
     paddingHorizontal: 8,
   },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 6,
-  },
+  statItem: { flex: 1, alignItems: "center", paddingVertical: 6 },
   statIconCircle: {
     width: 29,
     height: 29,
@@ -337,27 +654,15 @@ const styles = StyleSheet.create({
   },
   statValue: { color: Colors.text, fontSize: 16, fontWeight: "800" },
   statLabel: { color: Colors.textSecondary, fontSize: 11, marginTop: 4 },
-  scoreBlock: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
+  scoreBlock: { flex: 1, alignItems: "center", justifyContent: "center" },
   coachPill: {
     backgroundColor: "#248BFF",
     borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  coachPillText: { color: Colors.white, fontSize: 10, fontWeight: "700" },
-  scorePill: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 3,
-  },
-  scorePillText: { color: Colors.black, fontSize: 14, fontWeight: "700" },
-  scoreSub: { color: Colors.textSecondary, fontSize: 10 },
+  coachPillText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
+
   createBtn: {
     height: 52,
     borderRadius: 16,
@@ -369,11 +674,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   createBtnText: { color: Colors.white, fontSize: 14, fontWeight: "700" },
-  tabRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 14,
-  },
+
+  tabRow: { flexDirection: "row", gap: 12, marginBottom: 14 },
   tabBtn: {
     height: 46,
     borderRadius: 16,
@@ -385,6 +687,7 @@ const styles = StyleSheet.create({
   tabBtnActive: { backgroundColor: Colors.primary },
   tabText: { color: Colors.textSecondary, fontSize: 14, fontWeight: "600" },
   tabTextActive: { color: Colors.black, fontWeight: "700" },
+
   aboutCard: {
     marginHorizontal: 20,
     backgroundColor: Colors.secondaryCard,
@@ -394,6 +697,20 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
   },
+  aboutHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  aboutTitle: { color: Colors.text, fontSize: 15, fontWeight: "700" },
+  aboutBody: { color: Colors.text, fontSize: 13, lineHeight: 20 },
+  bioPlaceholder: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontStyle: "italic",
+  },
+
   locationCard: {
     marginHorizontal: 20,
     backgroundColor: Colors.secondaryCard,
@@ -403,108 +720,162 @@ const styles = StyleSheet.create({
     padding: 14,
     justifyContent: "center",
   },
+  locationRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
   locationInfo: { flex: 1, gap: 4 },
-  aboutTitle: { color: Colors.text, fontSize: 15, fontWeight: "700" },
-  aboutBody: {
-    color: Colors.text,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-  },
   locationText: { color: Colors.textSecondary, fontSize: 13 },
   locationValue: { color: Colors.text, fontSize: 13 },
-  eventsList: { gap: 12, paddingHorizontal: 20 },
+
+  emptyWrap: { paddingVertical: 40, alignItems: "center" },
+  emptyText: { color: Colors.textSecondary, fontSize: 14 },
+
+  eventsList: { gap: 14, paddingHorizontal: 20 },
   eventCard: {
     backgroundColor: Colors.secondaryCard,
-    borderRadius: 24,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     overflow: "hidden",
   },
-  eventImageWrap: { position: "relative", height: 190 },
-  eventImage: { width: "100%", height: "100%" },
-  eventOverlay: {
+
+  // cover image area
+  eventCoverWrap: { height: 170, position: "relative" },
+  eventCoverImage: { width: "100%", height: "100%" },
+  eventCoverPlaceholder: { width: "100%", height: "100%", backgroundColor: Colors.card },
+  eventCoverOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
-  publishedBadge: {
+  statusBadge: {
     position: "absolute",
-    top: 14,
-    left: 14,
-    backgroundColor: "rgba(60,63,72,0.95)",
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    top: 12,
+    left: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  publishedText: { color: Colors.text, fontSize: 14, fontWeight: "700" },
-  eventTopMeta: { position: "absolute", left: 14, right: 14, bottom: 14 },
-  eventTopMetaRow: {
+  statusText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
+  eventCoverTitle: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    right: 12,
+    color: Colors.white,
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 23,
+  },
+
+  eventBody: { padding: 14 },
+  eventMetaRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
   },
-  eventTopMetaText: { color: Colors.text, fontSize: 16 },
-  eventBody: { padding: 12 },
-  eventTitle: { color: Colors.text, fontSize: 16, fontWeight: "700" },
   eventDesc: {
     color: Colors.textSecondary,
     fontSize: 13,
-
-    marginTop: 12,
-    marginBottom: 14,
+    lineHeight: 19,
+    marginBottom: 12,
   },
-  eventMetaRow: {
+  infoRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 14,
   },
+  infoLeft: { flexDirection: "row", alignItems: "center", gap: 4, flex: 1 },
+  infoText: { color: Colors.textSecondary, fontSize: 12 },
+  infoDot: { color: Colors.textMuted, fontSize: 12, marginHorizontal: 2 },
   starsRow: { flexDirection: "row", alignItems: "center", gap: 2 },
-  metaText: { color: Colors.textSecondary, fontSize: 13 },
-  enrolledRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  reviewCount: { color: Colors.textSecondary, fontSize: 12, marginLeft: 4 },
+  enrolledText: { color: Colors.textSecondary, fontSize: 12 },
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaText: { color: Colors.textSecondary, fontSize: 12 },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  priceLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  priceLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
   priceText: { color: Colors.text, fontSize: 14, fontWeight: "700" },
+  enrolledRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   deleteBtn: {
-    marginTop: 10,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(90,94,106,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  earningsCard: {
-    marginHorizontal: 20,
-    backgroundColor: Colors.secondaryCard,
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 14,
-  },
-  earningsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  earningsIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(209,255,0,0.12)",
+    backgroundColor: "rgba(255,59,48,0.12)",
     justifyContent: "center",
     alignItems: "center",
   },
-  earningsTitle: { color: Colors.textSecondary, fontSize: 12 },
-  earningsValue: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: 2,
+
+  // Bio Modal
+  modalKAV: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
+  modalSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+    marginBottom: 16,
+  },
+  modalTitle: { color: Colors.text, fontSize: 16, fontWeight: "700" },
+  bioTextInput: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    color: Colors.text,
+    fontSize: 14,
+    lineHeight: 22,
+    padding: 14,
+    minHeight: 120,
+    maxHeight: 200,
+  },
+  charCount: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  saveBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { color: Colors.black, fontSize: 16, fontWeight: "700" },
 });
