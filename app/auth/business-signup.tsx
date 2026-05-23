@@ -36,6 +36,7 @@ import CloseIcon from "../../assets/icons/close.svg";
 import ChevronDownIcon from "../../assets/icons/chevron-down.svg";
 import AddIcon from "../../assets/icons/add.svg";
 import type { SvgProps } from "react-native-svg";
+import { authService } from "@/services/authService";
 
 type SvgIconComponent = React.ComponentType<SvgProps>;
 
@@ -272,6 +273,36 @@ export default function BusinessSignUp() {
     setShowSocialModal(false);
   };
 
+  const [loading, setLoading] = useState(false);
+
+const handleSignUp = async () => {
+  setLoading(true);
+  try {
+    const res = await authService.registerBusiness({
+      business_name: businessName,
+      business_type: businessType,
+      owner_name: ownerName,
+      email,
+      phone,
+      address,
+      website: website || undefined,
+      password,
+      confirm_password: confirmPassword,
+      social_media: socialEntries.filter((e) => e.link.trim() !== ""),
+    });
+    const userId: number = res.data.data.user_id;
+    router.push({
+        pathname: "/auth/email-otp-verifications",
+        params: { user_id: String(userId) },
+      });
+  } catch (error) {
+    console.error("Registration failed:", error);
+    // surface error to user via Alert or a toast
+  } finally {
+    setLoading(false);
+  }
+};
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -455,8 +486,9 @@ export default function BusinessSignUp() {
         />
 
           <PrimaryButton
-            title="Sign Up"
-            onPress={() => router.push("/auth/email-otp-verifications")}
+            title={loading ? "Creating account..." : "Sign Up"}
+            onPress={handleSignUp}
+            disabled={loading}
             style={styles.signupBtn}
           />
         </ScrollView>

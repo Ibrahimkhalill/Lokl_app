@@ -7,6 +7,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  Alert,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -15,16 +16,18 @@ import {
   Screen,
   LogoText,
   Input,
+  PhoneInput,
   PrimaryButton,
   OrDivider,
   SocialButtons,
 } from "../../components/ui";
 import { AuthHeaderBlock, AuthFooterLinkRow } from "../../components/auth";
 import { Colors } from "../../constants/colors";
+import { authService } from "../../services/authService";
+import { getErrorMessage } from "../../lib/api";
 
 function defaultBirthDate() {
   const d = new Date();
-  d.setFullYear(d.getFullYear() - 21);
   d.setHours(12, 0, 0, 0);
   return d;
 }
@@ -36,8 +39,38 @@ export default function SignUp() {
   const [dobDate, setDobDate] = useState(defaultBirthDate);
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [phone, setPhone] = useState("");
+  const [formattedPhone, setFormattedPhone] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignUp() {
+    if (!username.trim() || !fullName.trim() || !formattedPhone || !password.trim()) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const dob = dobDate.toISOString().split("T")[0];
+      const res = await authService.register({
+        username: username.trim(),
+        full_name: fullName.trim(),
+        phone: formattedPhone,
+        password,
+        date_of_birth: dob,
+        remember_me: rememberMe,
+      });
+      const userId: number = res.data.data.user_id;
+      router.push({
+        pathname: "/auth/email-otp-verifications",
+        params: { user_id: String(userId) },
+      });
+    } catch (err) {
+      Alert.alert("Sign Up Failed", getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Screen scrollable>
@@ -132,12 +165,10 @@ export default function SignUp() {
           </View>
         </Modal>
       ) : null}
-      <Input
-        label="Phone Number"
-        placeholder="Phone Number"
-        keyboardType="phone-pad"
+      <PhoneInput
         value={phone}
         onChangeText={setPhone}
+        onChangeFormattedText={setFormattedPhone}
       />
       <Input
         label="Password"
@@ -162,8 +193,9 @@ export default function SignUp() {
       </TouchableOpacity>
 
       <PrimaryButton
-        title="Sign Up"
-        onPress={() => router.push("/auth/email-otp-verifications")}
+        title={loading ? "Creating account..." : "Sign Up"}
+        onPress={handleSignUp}
+        disabled={loading}
       />
 
       <OrDivider />

@@ -1,44 +1,52 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from "react-native";
-import { useRouter } from "expo-router";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AvatarListItem } from "../../components/events";
+import { eventService } from "../../services/eventService";
+import { getErrorMessage } from "../../lib/api";
 
-const FRIENDS = [
-  {
-    id: "f1",
-    name: "Shane Martinez",
-    time: "5 min",
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&q=80",
-  },
-  {
-    id: "f2",
-    name: "Katie Keller",
-    time: "15 min",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
-  },
-  {
-    id: "f3",
-    name: "Stephen Mann",
-    time: "20 min",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-  },
-  {
-    id: "f4",
-    name: "Melvin Pratt",
-    time: "1hour",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&q=80",
-  },
-];
+type Friend = {
+  id: number;
+  name: string;
+  profile_picture: string | null;
+  rating?: string;
+};
 
 export default function FriendsHereScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const eventId = Number(id);
+
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFriends = useCallback(async () => {
+    if (!eventId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const res = await eventService.getFriends(eventId);
+      const payload = res.data?.data ?? res.data;
+      const results: Friend[] = payload?.friends ?? (Array.isArray(payload) ? payload : []);
+      setFriends(results);
+    } catch (e) {
+      console.log("[FriendsHere] error:", getErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [eventId]);
+
+  useEffect(() => { fetchFriends(); }, [fetchFriends]);
+
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
@@ -48,19 +56,35 @@ export default function FriendsHereScreen() {
         <Text style={s.headerTitle}>Friends here</Text>
         <View style={{ width: 40 }} />
       </View>
-      <FlatList
-        data={FRIENDS}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={s.sep} />}
-        renderItem={({ item }) => (
-          <AvatarListItem
-            avatarUri={item.avatar}
-            title={item.name}
-            rightSlot={<Text style={s.time}>{item.time}</Text>}
-          />
-        )}
-      />
+
+      {loading ? (
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={friends}
+          keyExtractor={(item) => String(item.id)}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={s.sep} />}
+          ListEmptyComponent={
+            <View style={s.center}>
+              <Text style={s.emptyText}>No friends attending yet</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <AvatarListItem
+              avatarUri={item.profile_picture || undefined}
+              title={item.name}
+              rightSlot={
+                item.rating ? (
+                  <Text style={s.rating}>{item.rating}</Text>
+                ) : undefined
+              }
+            />
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -86,5 +110,7 @@ const s = StyleSheet.create({
   },
   headerTitle: { color: Colors.text, fontSize: 17, fontWeight: "700" },
   sep: { height: 1, backgroundColor: Colors.cardBorder, marginHorizontal: 16 },
-  time: { color: Colors.textMuted, fontSize: 13 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 80 },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
+  rating: { color: Colors.primary, fontSize: 13, fontWeight: "700" },
 });

@@ -1,13 +1,37 @@
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
+import { Screen, BackButton, PhoneInput, PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
+import { authService } from "../../services/authService";
+import { getErrorMessage } from "../../lib/api";
 
 export default function ForgotPassword() {
   const router = useRouter();
   const [phone, setPhone] = useState("");
+  const [formattedPhone, setFormattedPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleNext() {
+    if (!formattedPhone) {
+      Alert.alert("Error", "Please enter your phone number.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await authService.forgotPassword({ phone: formattedPhone });
+      const userId: number = res.data.data?.user_id;
+      router.push({
+        pathname: "/auth/otp",
+        params: { user_id: String(userId) },
+      });
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Screen>
@@ -23,17 +47,19 @@ export default function ForgotPassword() {
       />
 
       <View style={styles.form}>
-        <Input
-          label="Phone Number"
-          placeholder="Enter Number"
-          keyboardType="phone-pad"
+        <PhoneInput
           value={phone}
           onChangeText={setPhone}
+          onChangeFormattedText={setFormattedPhone}
         />
       </View>
 
       <View style={styles.bottom}>
-        <PrimaryButton title="Next" onPress={() => router.push("/auth/otp")} />
+        <PrimaryButton
+          title={loading ? "Sending..." : "Next"}
+          onPress={handleNext}
+          disabled={loading}
+        />
       </View>
     </Screen>
   );

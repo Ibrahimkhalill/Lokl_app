@@ -14,9 +14,12 @@ export interface OtpVerificationFormProps {
   subtitle: string;
   length?: number;
   ctaTitle?: string;
-  onVerify: () => void;
+  onVerify: (otp: string) => void;
   onBack: () => void;
+  onResend?: () => void;
   resendLinkText?: string;
+  loading?: boolean;
+  error?: string | null;
 }
 
 export function OtpVerificationForm({
@@ -26,7 +29,10 @@ export function OtpVerificationForm({
   ctaTitle = "Verify",
   onVerify,
   onBack,
+  onResend,
   resendLinkText = "Resend",
+  loading = false,
+  error = null,
 }: OtpVerificationFormProps) {
   const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
@@ -74,24 +80,27 @@ export function OtpVerificationForm({
               maxLength={1}
               textAlign="center"
               selectionColor={Colors.primary}
+              editable={!loading}
             />
           ))}
         </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <View style={styles.resendRow}>
           <Text style={styles.resendText}>
             Didn&apos;t you received any code?{" "}
           </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={onResend} disabled={loading}>
             <Text style={styles.resendLink}>{resendLinkText}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.bottom}>
           <PrimaryButton
-            title={ctaTitle}
-            onPress={onVerify}
-            disabled={!isComplete}
+            title={loading ? "Verifying..." : ctaTitle}
+            onPress={() => onVerify(otp.join(""))}
+            disabled={!isComplete || loading}
           />
         </View>
       </View>
@@ -151,6 +160,12 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: "700",
+  },
+  errorText: {
+    color: "#FF4D4F",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 8,
   },
   bottom: {
     marginTop: "auto",

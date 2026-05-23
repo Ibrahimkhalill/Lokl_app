@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,194 +6,25 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import * as Location from "expo-location";
+import { api } from "../../lib/api";
 import FilterIcon from "../../assets/icons/filter.svg";
+
 const { width, height } = Dimensions.get("window");
 
-/** Region that fits all demo pins (padding so edges aren’t clipped) */
-function regionCoveringPins(pins: { lat: number; lng: number }[]): {
-  latitude: number;
-  longitude: number;
-  latitudeDelta: number;
-  longitudeDelta: number;
-} {
-  const lats = pins.map((p) => p.lat);
-  const lngs = pins.map((p) => p.lng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const midLat = (minLat + maxLat) / 2;
-  const midLng = (minLng + maxLng) / 2;
-  const latSpan = Math.max(maxLat - minLat, 0.002);
-  const lngSpan = Math.max(maxLng - minLng, 0.002);
-  return {
-    latitude: midLat,
-    longitude: midLng,
-    latitudeDelta: Math.min(latSpan * 2.4, 0.035),
-    longitudeDelta: Math.min(lngSpan * 2.4, 0.035),
-  };
-}
-
-const MAP_EDGE_PADDING = {
-  top: height * 0.14,
-  right: 28,
-  bottom: height * 0.42,
-  left: 28,
+const MANHATTAN_REGION = {
+  latitude: 40.7831,
+  longitude: -73.9712,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.03,
 };
-
-/** Map pill markers — icon + score; selected pin uses inverted (white) pill */
-const MAP_PINS = [
-  {
-    id: "1",
-    score: "7.6/10",
-    icon: "hand-left-outline",
-    lat: 40.7154,
-    lng: -74.0095,
-    venue: {
-      name: "TITLE BOXING DOWNTOWN",
-      score: "7.6",
-      ratings: "980",
-      type: "Boxing",
-      price: "$$",
-      distance: "0.8 ml",
-      image:
-        "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=80",
-      friends: 1,
-      friendImages: [
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=96&h=96&fit=crop&crop=faces",
-      ],
-    },
-  },
-  {
-    id: "2",
-    score: "2.3/10",
-    icon: "golf-outline",
-    lat: 40.7158,
-    lng: -74.012,
-    venue: {
-      name: "GOLF PARK CLUB",
-      score: "2.3",
-      ratings: "420",
-      type: "Golf",
-      price: "$$$",
-      distance: "1.0 ml",
-      image:
-        "https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=600&q=80",
-      friends: 0,
-    },
-  },
-  {
-    id: "3",
-    score: "8/10",
-    icon: "baseball-outline",
-    lat: 40.7136,
-    lng: -74.0042,
-    venue: {
-      name: "CRICKET GROUNDS NYC",
-      score: "8.0",
-      ratings: "1,100",
-      type: "Cricket",
-      price: "$",
-      distance: "0.6 ml",
-      image:
-        "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=80",
-      friends: 0,
-    },
-  },
-  {
-    id: "4",
-    score: "9.2/10",
-    icon: "body-outline",
-    lat: 40.7128,
-    lng: -74.006,
-    featured: true,
-    venue: {
-      name: "ZEN YOGA STUDIO",
-      score: "9.2",
-      ratings: "3,558",
-      type: "Yoga",
-      price: "$$",
-      distance: "0.2 ml",
-      image:
-        "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&q=80",
-      friends: 2,
-      friendImages: [
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=96&h=96&fit=crop&crop=faces",
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96&h=96&fit=crop&crop=faces",
-      ],
-    },
-  },
-  {
-    id: "5",
-    score: "8.4/10",
-    icon: "basketball-outline",
-    lat: 40.7118,
-    lng: -74.011,
-    venue: {
-      name: "COURT KINGS ARENA",
-      score: "8.4",
-      ratings: "892",
-      type: "Basketball",
-      price: "$",
-      distance: "0.5 ml",
-      image:
-        "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&q=80",
-      friends: 1,
-      friendImages: [
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=96&h=96&fit=crop&crop=faces",
-      ],
-    },
-  },
-  {
-    id: "6",
-    score: "9.8/10",
-    icon: "barbell-outline",
-    lat: 40.7098,
-    lng: -74.007,
-    venue: {
-      name: "IRON BARBELL CLUB",
-      score: "9.8",
-      ratings: "2,200",
-      type: "Gym",
-      price: "$$",
-      distance: "1.1 ml",
-      image:
-        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&q=80",
-      friends: 3,
-      friendImages: [
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=96&h=96&fit=crop&crop=faces",
-        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=96&h=96&fit=crop&crop=faces",
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=96&h=96&fit=crop&crop=faces",
-      ],
-    },
-  },
-  {
-    id: "7",
-    score: "6.8/10",
-    icon: "basketball-outline",
-    lat: 40.7108,
-    lng: -74.001,
-    venue: {
-      name: "DOWNTOWN COURTS",
-      score: "6.8",
-      ratings: "540",
-      type: "Basketball",
-      price: "$",
-      distance: "0.9 ml",
-      image:
-        "https://images.unsplash.com/photo-1519861531473-9200262188bf?w=600&q=80",
-      friends: 0,
-    },
-  },
-];
-
-const MAP_INITIAL_REGION = regionCoveringPins(MAP_PINS);
 
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d1117" }] },
@@ -241,66 +72,147 @@ const DARK_MAP_STYLE = [
   },
 ];
 
+interface VenuePin {
+  id: number;
+  name: string;
+  score: number;
+  score_display: string;
+  icon: string;
+  lat: number;
+  lng: number;
+  type: string;
+  distance: string;
+  cover: string | null;
+  ratings_count: number;
+  price_level: string;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    type?: string;
+    min_rating?: string;
+    price_level?: string;
+    amenities?: string;
+    plan_tier?: string;
+    radius_km?: string;
+  }>();
+
   const mapRef = useRef<MapView>(null);
-  const [selectedPin, setSelectedPin] = useState("4");
+  const [venues, setVenues] = useState<VenuePin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
-  const selectedPinData = MAP_PINS.find((p) => p.id === selectedPin)!;
-  const venue = selectedPinData.venue;
+  // Load venues whenever filter params change
+  useEffect(() => {
+    loadVenues();
+  }, [
+    params.type,
+    params.min_rating,
+    params.price_level,
+    params.amenities,
+    params.plan_tier,
+    params.radius_km,
+  ]);
 
-  const fitMapToPins = useCallback(() => {
-    const coords = MAP_PINS.map((p) => ({
-      latitude: p.lat,
-      longitude: p.lng,
-    }));
-    mapRef.current?.fitToCoordinates(coords, {
-      edgePadding: MAP_EDGE_PADDING,
-      animated: false,
-    });
-  }, []);
+  async function loadVenues() {
+    setLoading(true);
+    try {
+      const queryParams: Record<string, any> = {};
+      if (params.type)        queryParams.type        = params.type;
+      if (params.min_rating)  queryParams.min_rating  = params.min_rating;
+      if (params.price_level) queryParams.price_level = params.price_level;
+      if (params.amenities)   queryParams.amenities   = params.amenities;
+      if (params.plan_tier)   queryParams.plan_tier   = params.plan_tier;
+
+      // Always filter by location — default Manhattan center, 5 km radius.
+      // User can override radius via the Filters screen (radius_km param).
+      queryParams.lat       = MANHATTAN_REGION.latitude;
+      queryParams.lng       = MANHATTAN_REGION.longitude;
+      queryParams.radius_km = params.radius_km ?? "4000";
+
+      const res = await api.get("/venues/", { params: queryParams });
+      // API returns { data: { venues: [...], pagination: {...} } }
+      const all: VenuePin[] = Array.isArray(res.data?.data?.venues)
+        ? res.data.data.venues
+        : [];
+
+      // 1 venue per category — safest for Android (14 categories = 14 markers max)
+      const byType: Record<string, VenuePin> = {};
+      for (const v of all) {
+        if (
+          byType[v.type] === undefined &&
+          v.lat != null && v.lng != null &&
+          !isNaN(parseFloat(String(v.lat))) &&
+          !isNaN(parseFloat(String(v.lng)))
+        ) {
+          byType[v.type] = v;
+        }
+      }
+      const data: VenuePin[] = Object.values(byType).map((v) => ({
+        ...v,
+        lat: parseFloat(String(v.lat)),   // ensure number — API returns strings
+        lng: parseFloat(String(v.lng)),
+      }));
+
+      setVenues(data);
+      if (data.length > 0) setSelectedId(data[0].id);
+    } catch (err) {
+      console.error("[HomeScreen] loadVenues error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // fitMapToVenues removed — fitToCoordinates crashes on Android with custom markers.
+  // Map uses fixed initialRegion (Manhattan) instead.
+  const fitMapToVenues = useCallback(() => {}, []);
+
+  const selectedVenue = venues.find((v) => v.id === selectedId);
 
   return (
     <View style={styles.container}>
-      {/* Real Map — region + fit so all demo pins stay visible (not user GPS) */}
+      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_DEFAULT}
+        provider={PROVIDER_GOOGLE}
         customMapStyle={DARK_MAP_STYLE}
-        initialRegion={MAP_INITIAL_REGION}
-        onMapReady={fitMapToPins}
-        showsUserLocation={false}
+        initialRegion={MANHATTAN_REGION}
+        onMapReady={() => setMapReady(true)}
+        showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
         showsBuildings={false}
         showsTraffic={false}
       >
-        {MAP_PINS.map((pin) => {
-          const isSelected = selectedPin === pin.id;
+        {venues.map((pin) => {
+          const isSelected = selectedId === pin.id;
           return (
             <Marker
-              key={`${pin.id}-${selectedPin}`}
-              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-              onPress={() => setSelectedPin(pin.id)}
-              tracksViewChanges={false}
+              key={String(pin.id)}
+              coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
+              onPress={() => setSelectedId(pin.id)}
+              anchor={{ x: 0.5, y: 0.5 }}
             >
-              <View
-                style={[styles.mapPill, isSelected && styles.mapPillSelected]}
-              >
-                <Ionicons
-                  name={pin.icon as keyof typeof Ionicons.glyphMap}
-                  size={16}
-                  color={isSelected ? Colors.black : Colors.white}
-                />
-                <Text
-                  style={[
-                    styles.mapPillScore,
-                    isSelected && styles.mapPillScoreSelected,
-                  ]}
-                >
-                  {pin.score}
-                </Text>
+              {/* markerOuter has fixed width so Android allocates correct space */}
+              <View collapsable={false} style={styles.markerOuter}>
+                <View style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
+                  <Ionicons
+                    name={pin.icon as keyof typeof Ionicons.glyphMap}
+                    size={14}
+                    color={isSelected ? Colors.black : Colors.white}
+                  />
+                  <Text
+                    style={[
+                      styles.mapPillScore,
+                      isSelected && styles.mapPillScoreSelected,
+                    ]}
+                  >
+                    {pin.score_display}
+                  </Text>
+                </View>
               </View>
             </Marker>
           );
@@ -331,81 +243,110 @@ export default function HomeScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Single Venue Card - changes on pin tap */}
+      {/* Venue Card */}
       <View style={styles.venueSheet}>
-        <View style={styles.venueCard}>
-          <TouchableOpacity activeOpacity={0.95}>
-            <View style={styles.venueImageWrap}>
-              <Image
-                source={{ uri: venue.image }}
-                style={styles.venueImage}
-                resizeMode="cover"
-              />
-              <View style={styles.distanceBadge}>
-                <Ionicons
-                  name="location-outline"
-                  size={12}
-                  color={Colors.text}
-                />
-                <Text style={styles.distanceText}>{venue.distance}</Text>
-              </View>
-            </View>
-
-            <View style={styles.venueInfo}>
-              <Text style={styles.venueName}>{venue.name}</Text>
-              <View style={styles.venueMeta}>
-                <View style={styles.scoreChip}>
-                  <Text style={styles.scoreText}>{venue.score}</Text>
-                </View>
-                <Text style={styles.venueMetaText}>
-                  ({venue.ratings} ratings)
-                </Text>
-                <View style={styles.dot} />
-                <Text style={styles.venueMetaText}>{venue.type}</Text>
-                <View style={styles.dot} />
-                <Text style={styles.venueMetaText}>{venue.price}</Text>
-              </View>
-              {venue.friends > 0 && (venue.friendImages?.length ?? 0) > 0 && (
-                <View style={styles.friendsRow}>
-                  <View style={styles.friendAvatars}>
-                    {venue
-                      .friendImages!.slice(0, venue.friends)
-                      .map((uri, idx) => (
-                        <Image
-                          key={`${uri}-${idx}`}
-                          source={{ uri }}
-                          style={[
-                            styles.friendAvatar,
-                            idx > 0 && styles.friendAvatarOverlap,
-                          ]}
-                        />
-                      ))}
-                  </View>
-                  <Text style={styles.friendsText}>
-                    {venue.friends} Friends here
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.venueActions}>
-            <TouchableOpacity
-              style={styles.detailsBtn}
-              onPress={() => router.push("/home/details")}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.detailsBtnText}>Details</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.reviewBtn}
-              onPress={() => router.push("/home/post")}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.reviewBtnText}>Review</Text>
-            </TouchableOpacity>
+        {loading ? (
+          <View style={[styles.venueCard, styles.centeredCard]}>
+            <ActivityIndicator color={Colors.primary} size="large" />
+            <Text style={styles.loadingText}>Finding venues near you…</Text>
           </View>
-        </View>
+        ) : !selectedVenue ? (
+          <View style={[styles.venueCard, styles.centeredCard]}>
+            <Ionicons name="search-outline" size={32} color={Colors.textSecondary} />
+            <Text style={styles.loadingText}>No venues found</Text>
+          </View>
+        ) : (
+          <View style={styles.venueCard}>
+            <TouchableOpacity
+              activeOpacity={0.95}
+              onPress={() =>
+                router.push(`/home/details?id=${selectedVenue.id}&distance=${encodeURIComponent(selectedVenue.distance ?? "")}`)
+              }
+            >
+              {/* Cover image */}
+              <View style={styles.venueImageWrap}>
+                {selectedVenue.cover ? (
+                  <Image
+                    source={{ uri: selectedVenue.cover }}
+                    style={styles.venueImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.venueImage, styles.noImagePlaceholder]}>
+                    <Ionicons
+                      name={selectedVenue.icon as any}
+                      size={48}
+                      color={Colors.textSecondary}
+                    />
+                  </View>
+                )}
+                {!!selectedVenue.distance && (
+                  <View style={styles.distanceBadge}>
+                    <Ionicons
+                      name="location-outline"
+                      size={12}
+                      color={Colors.text}
+                    />
+                    <Text style={styles.distanceText}>
+                      {selectedVenue.distance}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Info */}
+              <View style={styles.venueInfo}>
+                <Text style={styles.venueName} numberOfLines={1}>
+                  {selectedVenue.name.toUpperCase()}
+                </Text>
+                <View style={styles.venueMeta}>
+                  <View style={styles.scoreChip}>
+                    <Text style={styles.scoreText}>
+                      {Number(selectedVenue.score).toFixed(1)}
+                    </Text>
+                  </View>
+                  {selectedVenue.ratings_count > 0 && (
+                    <Text style={styles.venueMetaText}>
+                      ({selectedVenue.ratings_count.toLocaleString()} ratings)
+                    </Text>
+                  )}
+                  <View style={styles.dot} />
+                  <Text style={styles.venueMetaText}>{selectedVenue.type}</Text>
+                  {!!selectedVenue.price_level && (
+                    <>
+                      <View style={styles.dot} />
+                      <Text style={styles.venueMetaText}>
+                        {selectedVenue.price_level}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Action Buttons */}
+            <View style={styles.venueActions}>
+              <TouchableOpacity
+                style={styles.detailsBtn}
+                onPress={() =>
+                  router.push(`/home/details?id=${selectedVenue.id}&distance=${encodeURIComponent(selectedVenue.distance ?? "")}`)
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.detailsBtnText}>Details</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reviewBtn}
+                onPress={() =>
+                  router.push(`/home/post?venueId=${selectedVenue.id}`)
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.reviewBtnText}>Review</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -414,10 +355,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
 
-  map: {
-    width: width,
-    height: height,
-  },
+  map: { width, height },
 
   topSafe: {
     position: "absolute",
@@ -457,17 +395,23 @@ const styles = StyleSheet.create({
     borderColor: "rgba(187, 198, 224, 1)",
   },
 
-  /** Map marker pill: black bg + white icon/text (matches design); selected = inverted */
   mapPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: Colors.black,
-    borderRadius: 999,
+    borderRadius: 20,          // NOT 999 — Android clips content when radius > height/2
     paddingVertical: 7,
     paddingHorizontal: 11,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
+  },
+  // Fixed-width outer wrapper — Android measures this first, inner pill renders inside it
+  markerOuter: {
+    width: 80,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
   },
   mapPillSelected: {
     backgroundColor: Colors.white,
@@ -479,9 +423,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  mapPillScoreSelected: {
-    color: Colors.black,
-  },
+  mapPillScoreSelected: { color: Colors.black },
 
   venueSheet: {
     position: "absolute",
@@ -489,7 +431,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 450,
-    // backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
@@ -502,12 +443,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
+  centeredCard: {
+    paddingVertical: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loadingText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginTop: 8,
+  },
+
   venueImageWrap: {
     position: "relative",
     height: 160,
     overflow: "hidden",
   },
   venueImage: { width: "100%", height: "100%" },
+  noImagePlaceholder: {
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   distanceBadge: {
     position: "absolute",
     top: 12,
@@ -520,12 +478,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   distanceText: {
     color: "rgba(187, 198, 224, 1)",
     fontSize: 12,
     fontWeight: "600",
   },
+
   venueInfo: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   venueName: {
     color: Colors.text,
@@ -539,6 +499,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginBottom: 10,
+    flexWrap: "wrap",
   },
   scoreChip: {
     backgroundColor: Colors.primary,
@@ -554,18 +515,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: Colors.textSecondary,
   },
-  friendsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  friendAvatars: { flexDirection: "row" },
-  friendAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: Colors.background,
-    backgroundColor: Colors.cardBorder,
-  },
-  friendAvatarOverlap: { marginLeft: -4 },
-  friendsText: { color: Colors.textSecondary, fontSize: 13 },
+
   venueActions: {
     flexDirection: "row",
     gap: 12,

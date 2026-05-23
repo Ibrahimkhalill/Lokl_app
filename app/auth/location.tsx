@@ -1,12 +1,32 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import { PrimaryButton, Screen } from "../../components/ui";
 import { Colors } from "../../constants/colors";
 import LocationIcon from "../../assets/icons/locations.svg";
 
-export default function Location() {
+export default function LocationScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  async function handleEnableLocation() {
+    setLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Location permission is needed to show venues near you. You can enable it later in Settings.",
+          [{ text: "OK", onPress: () => router.replace("/(tabs)") }]
+        );
+        return;
+      }
+      router.replace("/(tabs)");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Screen>
@@ -22,12 +42,13 @@ export default function Location() {
 
         <View style={styles.bottom}>
           <PrimaryButton
-            title="Enable Location"
-            onPress={() => router.push("/(tabs)")}
+            title={loading ? "Requesting..." : "Enable Location"}
+            onPress={handleEnableLocation}
+            disabled={loading}
           />
           <TouchableOpacity
             style={styles.skipBtn}
-            onPress={() => router.push("/(tabs)")}
+            onPress={() => router.replace("/(tabs)")}
           >
             <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>

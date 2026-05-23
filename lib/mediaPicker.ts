@@ -27,13 +27,12 @@ async function ensureLibraryAccess(): Promise<boolean> {
   return false;
 }
 
-/** Event / group cover — crop-friendly landscape ratio. */
+/** Event / group cover — free crop, no fixed ratio. */
 export async function pickCoverImage(): Promise<PickedMedia | null> {
   if (!(await ensureLibraryAccess())) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsEditing: true,
-    aspect: [16, 9],
     quality: 0.85,
   });
   if (result.canceled || !result.assets[0]) return null;

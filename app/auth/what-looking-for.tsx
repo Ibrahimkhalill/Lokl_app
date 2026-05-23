@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { authService } from "../../services/authService";
+import { getErrorMessage } from "../../lib/api";
 
 const OPTIONS = [
   "Classes & Training",
@@ -16,17 +18,32 @@ const OPTIONS = [
 
 export default function WhatLookingFor() {
   const router = useRouter();
-  const [selected, setSelected] = useState<string[]>([
-    "Classes & Training",
-    "Courts & Facilities",
-    "Trainer",
-  ]);
+  const { sports } = useLocalSearchParams<{ sports: string }>();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const toggle = (item: string) => {
     setSelected((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item],
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
     );
   };
+
+  async function handleContinue() {
+    if (selected.length === 0) return;
+    setLoading(true);
+    try {
+      const sportsInterests: string[] = sports ? JSON.parse(sports) : [];
+      await authService.savePreferences({
+        sports_interests: sportsInterests,
+        looking_for: selected,
+      });
+      router.replace("/auth/location");
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -64,9 +81,13 @@ export default function WhatLookingFor() {
 
         <View style={styles.bottom}>
           <PrimaryButton
-            title={`Continue (${selected.length} Selected)`}
-            onPress={() => router.push("/auth/location")}
-            disabled={selected.length === 0}
+            title={
+              loading
+                ? "Saving..."
+                : `Continue (${selected.length} Selected)`
+            }
+            onPress={handleContinue}
+            disabled={selected.length === 0 || loading}
           />
         </View>
       </View>

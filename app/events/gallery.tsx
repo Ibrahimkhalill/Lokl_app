@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,40 +7,58 @@ import {
   FlatList,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { eventService } from "../../services/eventService";
+import { getErrorMessage } from "../../lib/api";
 
 const { width } = Dimensions.get("window");
 const ITEM_SIZE = (width - 4) / 3;
 
-const GALLERY_IMAGES = [
-  "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=300&q=80",
-  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=80",
-  "https://images.unsplash.com/photo-1546519638405-a5f7678bdfae?w=300&q=80",
-  "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=300&q=80",
-  "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?w=300&q=80",
-  "https://images.unsplash.com/photo-1506926953475-b3a91b58e3f7?w=300&q=80",
-  "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=300&q=80",
-  "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=300&q=80",
-  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=300&q=80",
-  "https://images.unsplash.com/photo-1600336153113-d66c79de3e91?w=300&q=80",
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&q=80",
-  "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=300&q=80",
-  "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=300&q=80",
-  "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=300&q=80",
-  "https://images.unsplash.com/photo-1592659762303-90081d34b277?w=300&q=80",
-];
+type GalleryItem = {
+  id: number;
+  image_url: string;
+  uploaded_by?: { id: number; name: string };
+  created_at?: string;
+};
 
 export default function GalleryScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const eventId = Number(id);
+
+  const [images, setImages] = useState<GalleryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<number[]>([]);
+
+  const fetchGallery = useCallback(async () => {
+    if (!eventId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const res = await eventService.getGallery(eventId);
+      const payload = res.data?.data ?? res.data;
+      const results: GalleryItem[] = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.results)
+        ? payload.results
+        : [];
+      setImages(results);
+    } catch (e) {
+      console.log("[Gallery] error:", getErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [eventId]);
+
+  useEffect(() => { fetchGallery(); }, [fetchGallery]);
 
   const toggle = (idx: number) =>
     setSelected((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
 
   return (
@@ -57,34 +75,45 @@ export default function GalleryScreen() {
 
       <Text style={s.sectionLabel}>Gallery</Text>
 
-      <FlatList
-        data={GALLERY_IMAGES}
-        keyExtractor={(_, i) => i.toString()}
-        numColumns={3}
-        contentContainerStyle={s.grid}
-        renderItem={({ item, index }) => {
-          const isSelected = selected.includes(index);
-          const selIdx = selected.indexOf(index);
-          return (
-            <TouchableOpacity
-              style={[s.cell, isSelected && s.cellSelected]}
-              onPress={() => toggle(index)}
-              activeOpacity={0.85}
-            >
-              <Image
-                source={{ uri: item }}
-                style={s.cellImage}
-                resizeMode="cover"
-              />
-              {isSelected && (
-                <View style={s.selBadge}>
-                  <Text style={s.selBadgeText}>{selIdx + 1}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        }}
-      />
+      {loading ? (
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : images.length === 0 ? (
+        <View style={s.center}>
+          <Ionicons name="images-outline" size={48} color={Colors.textMuted} />
+          <Text style={s.emptyText}>No photos yet</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={images}
+          keyExtractor={(item) => String(item.id)}
+          numColumns={3}
+          contentContainerStyle={s.grid}
+          renderItem={({ item, index }) => {
+            const isSelected = selected.includes(index);
+            const selIdx = selected.indexOf(index);
+            return (
+              <TouchableOpacity
+                style={[s.cell, isSelected && s.cellSelected]}
+                onPress={() => toggle(index)}
+                activeOpacity={0.85}
+              >
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={s.cellImage}
+                  resizeMode="cover"
+                />
+                {isSelected && (
+                  <View style={s.selBadge}>
+                    <Text style={s.selBadgeText}>{selIdx + 1}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
 
       <View style={s.footer}>
         <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
@@ -122,7 +151,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 8,
   },
-  grid: { gap: 2, paddingHorizontal: 0 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
+  grid: { gap: 2 },
   cell: { width: ITEM_SIZE, height: ITEM_SIZE, position: "relative" },
   cellSelected: { opacity: 0.85 },
   cellImage: { width: "100%", height: "100%" },

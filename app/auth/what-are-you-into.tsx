@@ -117,7 +117,13 @@ export default function WhatAreYouInto() {
         <View style={styles.bottom}>
           <PrimaryButton
             title={`Continue (${selected.length} Selected)`}
-            onPress={() => router.push("/auth/what-looking-for")}
+            onPress={() =>
+              router.push({
+                pathname: "/auth/what-looking-for",
+                params: { sports: JSON.stringify(selected) },
+              })
+            }
+            disabled={selected.length === 0}
           />
         </View>
       </View>

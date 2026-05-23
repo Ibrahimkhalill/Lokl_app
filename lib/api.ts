@@ -31,7 +31,16 @@ api.interceptors.response.use(
         const res = await axios.get(`${BASE_URL}/auth/refresh-token`, {
           params: { refreshToken },
         });
-        const newToken = res.data.data.accessToken;
+        const d = res.data;
+        const newToken =
+          d?.data?.accessToken ??
+          d?.data?.access_token ??
+          d?.data?.access ??
+          d?.accessToken ??
+          d?.access_token ??
+          d?.access;
+        console.log("[Refresh] response:", JSON.stringify(d));
+        if (!newToken) throw new Error("No token in refresh response");
         await AsyncStorage.setItem("accessToken", newToken);
         original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);

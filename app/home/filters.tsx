@@ -5,94 +5,173 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  PanResponder,
+  Dimensions,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const CATEGORIES = ["Yoga", "Boxing", "Basketball", "Gym", "Golf", "Other"];
-const RATINGS = ["Any", "6+", "7+", "8+", "9+"];
-const PRICES = ["$9", "$99", "$999", "$9999"];
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const SLIDER_WIDTH = SCREEN_WIDTH - 40; // paddingHorizontal: 20 each side
+
+const CATEGORIES = [
+  "Gym", "Yoga", "Boxing", "Basketball", "Tennis",
+  "CrossFit", "Pilates", "Martial Arts", "Swimming",
+  "Climbing", "Cycling", "Golf", "Cricket", "Sports",
+];
+
+const RATINGS: { label: string; value: string }[] = [
+  { label: "Any",  value: "" },
+  { label: "6+",   value: "6" },
+  { label: "7+",   value: "7" },
+  { label: "8+",   value: "8" },
+  { label: "9+",   value: "9" },
+];
+
+const PRICES: { label: string; value: string }[] = [
+  { label: "$",    value: "$" },
+  { label: "$$",   value: "$$" },
+  { label: "$$$",  value: "$$$" },
+  { label: "$$$$", value: "$$$$" },
+];
+
 const AMENITIES = [
-  { icon: "car-outline", label: "Parking" },
-  { icon: "water-outline", label: "Shower" },
-  { icon: "lock-closed-outline", label: "Locker" },
-  { icon: "wifi-outline", label: "Wifi" },
+  { icon: "car-outline",        label: "Parking", value: "parking" },
+  { icon: "water-outline",      label: "Shower",  value: "shower"  },
+  { icon: "lock-closed-outline",label: "Locker",  value: "locker"  },
+  { icon: "wifi-outline",       label: "WiFi",    value: "wifi"    },
 ];
 
 export default function FiltersScreen() {
   const router = useRouter();
-  const [distance, setDistance] = useState(5);
-  const [planTier, setPlanTier] = useState("paid");
-  const [activeCategory, setActiveCategory] = useState("Boxing");
-  const [activeRating, setActiveRating] = useState("8+");
-  const [activePrice, setActivePrice] = useState("$999");
-  const [activeAmenities, setActiveAmenities] = useState<string[]>(["Parking"]);
 
-  const toggleAmenity = (a: string) =>
+  // Read any existing params from home screen (so filters persist)
+  const existing = useLocalSearchParams<{
+    type?: string;
+    min_rating?: string;
+    price_level?: string;
+    amenities?: string;
+    plan_tier?: string;
+    radius_km?: string;
+  }>();
+
+  const [distance,         setDistance]         = useState(Number(existing.radius_km) || 10);
+  const [planTier,         setPlanTier]          = useState(existing.plan_tier ?? "");
+  const [activeCategory,   setActiveCategory]    = useState(existing.type ?? "");
+  const [activeRating,     setActiveRating]      = useState(existing.min_rating ?? "");
+  const [activePrice,      setActivePrice]       = useState(existing.price_level ?? "");
+  const [activeAmenities,  setActiveAmenities]   = useState<string[]>(
+    existing.amenities ? existing.amenities.split(",") : []
+  );
+
+  const toggleAmenity = (val: string) =>
     setActiveAmenities((prev) =>
-      prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a],
+      prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]
     );
+
+  function reset() {
+    setDistance(10);
+    setPlanTier("");
+    setActiveCategory("");
+    setActiveRating("");
+    setActivePrice("");
+    setActiveAmenities([]);
+  }
+
+  function apply() {
+    const params: Record<string, string> = {};
+    if (activeCategory)          params.type        = activeCategory;
+    if (activeRating)            params.min_rating  = activeRating;
+    if (activePrice)             params.price_level = activePrice;
+    if (activeAmenities.length)  params.amenities   = activeAmenities.join(",");
+    if (planTier)                params.plan_tier   = planTier;
+    params.radius_km = String(distance);
+
+    // Navigate to home tab with filter params — home screen reads them via useLocalSearchParams
+    router.push({ pathname: "/(tabs)/", params });
+  }
+
+  // ── Simple drag slider ───────────────────────────────────────────────────
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: (_, gs) => {
+      const ratio = Math.max(0, Math.min(1, gs.moveX / SLIDER_WIDTH));
+      setDistance(Math.round(ratio * 10) || 1);
+    },
+  });
+
+  const thumbLeft = ((distance / 10) * (SLIDER_WIDTH - 20));
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Filters</Text>
-        <View></View>
+        <TouchableOpacity onPress={reset}>
+          <Text style={styles.resetText}>Reset</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Distance */}
+        {/* ── Distance ─────────────────────────────────────────────── */}
         <Text style={styles.label}>
-          Distance: <Text style={styles.highlight}>{distance} Km</Text>
-          <Text style={styles.labelSub}> /10km</Text>
+          Distance:{" "}
+          <Text style={styles.highlight}>{distance} km</Text>
+          <Text style={styles.labelSub}> / 10 km</Text>
         </Text>
-        <View style={styles.sliderTrack}>
+        <View style={styles.sliderTrack} {...panResponder.panHandlers}>
           <View style={[styles.sliderFill, { width: `${distance * 10}%` }]} />
-          <View
-            style={[
-              styles.sliderThumb,
-              { left: `${distance * 10 - 2.5}%` as any },
-            ]}
-          />
+          <View style={[styles.sliderThumb, { left: thumbLeft }]} />
         </View>
 
-        {/* Plan Tiers */}
+        {/* ── Plan Tiers ───────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Plan tiers</Text>
-        {["free", "paid"].map((tier) => (
+        {[
+          { label: "Free",  value: "free" },
+          { label: "Paid",  value: "paid" },
+        ].map((tier) => (
           <TouchableOpacity
-            key={tier}
+            key={tier.value}
             style={styles.radioRow}
-            onPress={() => setPlanTier(tier)}
+            onPress={() =>
+              setPlanTier((prev) => (prev === tier.value ? "" : tier.value))
+            }
           >
             <View
-              style={[styles.radio, planTier === tier && styles.radioActive]}
+              style={[
+                styles.radio,
+                planTier === tier.value && styles.radioActive,
+              ]}
             >
-              {planTier === tier && (
+              {planTier === tier.value && (
                 <Ionicons name="checkmark" size={14} color={Colors.black} />
               )}
             </View>
-            <Text style={styles.radioLabel}>
-              {tier.charAt(0).toUpperCase() + tier.slice(1)}
-            </Text>
+            <Text style={styles.radioLabel}>{tier.label}</Text>
           </TouchableOpacity>
         ))}
 
-        {/* Sport Categories */}
+        {/* ── Sport Categories ─────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Sport Categories</Text>
         <View style={styles.chipGrid}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
               key={cat}
-              style={[styles.chip, activeCategory === cat && styles.chipActive]}
-              onPress={() => setActiveCategory(cat)}
+              style={[
+                styles.chip,
+                activeCategory === cat && styles.chipActive,
+              ]}
+              onPress={() =>
+                setActiveCategory((prev) => (prev === cat ? "" : cat))
+              }
             >
               <Text
                 style={[
@@ -106,91 +185,104 @@ export default function FiltersScreen() {
           ))}
         </View>
 
-        {/* Minimum Rating */}
+        {/* ── Minimum Rating ───────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>
-          Minimum Rating: <Text style={styles.highlight}>{activeRating}</Text>
+          Minimum Rating:{" "}
+          <Text style={styles.highlight}>
+            {activeRating ? `${activeRating}+` : "Any"}
+          </Text>
         </Text>
         <View style={styles.chipRow}>
           {RATINGS.map((r) => (
             <TouchableOpacity
-              key={r}
-              style={[styles.chip, activeRating === r && styles.chipActive]}
-              onPress={() => setActiveRating(r)}
+              key={r.label}
+              style={[
+                styles.chip,
+                activeRating === r.value && styles.chipActive,
+              ]}
+              onPress={() => setActiveRating(r.value)}
             >
               <Text
                 style={[
                   styles.chipText,
-                  activeRating === r && styles.chipTextActive,
+                  activeRating === r.value && styles.chipTextActive,
                 ]}
               >
-                {r}
+                {r.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Price Range */}
+        {/* ── Price Range ──────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Price Range</Text>
         <View style={styles.chipRow}>
           {PRICES.map((p) => (
             <TouchableOpacity
-              key={p}
-              style={[styles.chip, activePrice === p && styles.chipActive]}
-              onPress={() => setActivePrice(p)}
+              key={p.value}
+              style={[
+                styles.chip,
+                activePrice === p.value && styles.chipActive,
+              ]}
+              onPress={() =>
+                setActivePrice((prev) => (prev === p.value ? "" : p.value))
+              }
             >
               <Text
                 style={[
                   styles.chipText,
-                  activePrice === p && styles.chipTextActive,
+                  activePrice === p.value && styles.chipTextActive,
                 ]}
               >
-                {p}
+                {p.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Amenities */}
+        {/* ── Amenities ────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Amenities</Text>
         <View style={styles.chipGrid}>
-          {AMENITIES.map((a) => (
-            <TouchableOpacity
-              key={a.label}
-              style={[
-                styles.amenityChip,
-                activeAmenities.includes(a.label) && styles.chipActive,
-              ]}
-              onPress={() => toggleAmenity(a.label)}
-            >
-              <Ionicons
-                name={a.icon as any}
-                size={16}
-                color={
-                  activeAmenities.includes(a.label)
-                    ? Colors.black
-                    : Colors.textSecondary
-                }
-              />
-              <Text
-                style={[
-                  styles.chipText,
-                  activeAmenities.includes(a.label) && styles.chipTextActive,
-                ]}
+          {AMENITIES.map((a) => {
+            const active = activeAmenities.includes(a.value);
+            return (
+              <TouchableOpacity
+                key={a.value}
+                style={[styles.amenityChip, active && styles.chipActive]}
+                onPress={() => toggleAmenity(a.value)}
               >
-                {a.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons
+                  name={a.icon as any}
+                  size={16}
+                  color={active ? Colors.black : Colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.chipText,
+                    active && styles.chipTextActive,
+                  ]}
+                >
+                  {a.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-
-        {/* Apply */}
       </ScrollView>
+
+      {/* ── Apply Button ─────────────────────────────────────────── */}
+      <View style={styles.applyWrap}>
+        <TouchableOpacity style={styles.applyBtn} onPress={apply} activeOpacity={0.85}>
+          <Text style={styles.applyText}>Apply Filters</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -210,21 +302,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
-  resetText: { color: Colors.primary, fontSize: 14, fontWeight: "600" },
+  resetText:   { color: Colors.primary, fontSize: 14, fontWeight: "600" },
+
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+
   label: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: "600",
     marginBottom: 14,
   },
-  labelSub: { color: Colors.textSecondary, fontWeight: "400" },
+  labelSub:  { color: Colors.textSecondary, fontWeight: "400" },
   highlight: { color: Colors.primary },
+
   sliderTrack: {
     height: 6,
     backgroundColor: Colors.cardBorder,
     borderRadius: 3,
-    marginBottom: 24,
+    marginBottom: 28,
     position: "relative",
   },
   sliderFill: {
@@ -242,12 +337,15 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: Colors.background,
   },
+
   sectionLabel: {
     color: Colors.text,
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 12,
+    marginTop: 4,
   },
+
   radioRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -263,8 +361,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  radioActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  radioActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
   radioLabel: { color: Colors.text, fontSize: 15 },
+
   chipGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -285,9 +387,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     backgroundColor: Colors.card,
   },
-  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  chipText: { color: Colors.text, fontSize: 14, fontWeight: "500" },
+  chipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  chipText:       { color: Colors.text, fontSize: 14, fontWeight: "500" },
   chipTextActive: { color: Colors.black, fontWeight: "700" },
+
   amenityChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -299,13 +405,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     backgroundColor: Colors.card,
   },
+
+  applyWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+    backgroundColor: Colors.background,
+  },
   applyBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 50,
     height: 56,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
   },
   applyText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
 });

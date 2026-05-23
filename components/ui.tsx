@@ -16,6 +16,7 @@ export {
   BackButton,
   Screen,
   Input,
+  PhoneInput,
   FormField,
   AppTextInput,
   AppHeader,
