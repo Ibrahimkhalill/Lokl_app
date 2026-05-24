@@ -19,8 +19,10 @@ export interface MediaPickerCardProps {
   style?: ViewStyle;
   /** Local `file://` or content URI from image picker — shows preview when set. */
   previewUri?: string | null;
-  /** Use `video` when `previewUri` points at a video (no image thumbnail). */
+  /** Use `video` when the picked file is a video. */
   previewKind?: "image" | "video";
+  /** Thumbnail URI for video (generated separately). Shows thumbnail + play overlay. */
+  videoThumbnailUri?: string | null;
 }
 
 export function MediaPickerCard({
@@ -32,17 +34,31 @@ export function MediaPickerCard({
   style,
   previewUri,
   previewKind = "image",
+  videoThumbnailUri,
 }: MediaPickerCardProps) {
   const hasPreview = Boolean(previewUri);
-  const showVideoPreview = hasPreview && previewKind === "video";
+  const isVideo = previewKind === "video";
+  const thumbUri = isVideo ? videoThumbnailUri : null;
 
   const inner = hasPreview ? (
     <View style={v.previewColumn}>
-      {showVideoPreview ? (
-        <View style={[StyleSheet.absoluteFillObject, v.videoPreview]}>
-          <Ionicons name="play-circle" size={48} color={Colors.primary} />
-          <Text style={t.videoPreviewText}>Video selected</Text>
-        </View>
+      {isVideo ? (
+        <>
+          {thumbUri ? (
+            <Image
+              source={{ uri: thumbUri }}
+              style={[StyleSheet.absoluteFillObject, i.previewImage]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFillObject, v.videoPreview]} />
+          )}
+          <View style={[StyleSheet.absoluteFillObject, v.playOverlay]}>
+            <View style={v.playCircle}>
+              <Ionicons name="play" size={24} color={Colors.black} />
+            </View>
+          </View>
+        </>
       ) : (
         <Image
           source={{ uri: previewUri! }}
@@ -110,6 +126,18 @@ const v = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
+  },
+  playOverlay: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
   previewFooter: {
     backgroundColor: "rgba(0,0,0,0.55)",

@@ -51,6 +51,7 @@ type ApiEvent = {
   host_avatar?: string | null;
   latitude?: string;
   longitude?: string;
+  is_registered?: boolean;
   organizer?: {
     id: number;
     name: string;
@@ -128,6 +129,7 @@ export default function EventsScreen() {
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [refreshingEvents, setRefreshingEvents] = useState(false);
+  const [registering, setRegistering] = useState<number | null>(null);
 
   const [groups, setGroups] = useState<ApiGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -215,6 +217,23 @@ export default function EventsScreen() {
     if (!search.trim()) return true;
     return e.title.toLowerCase().includes(search.toLowerCase());
   });
+
+  const handleRegister = async (event: ApiEvent) => {
+    if (registering === event.id) return;
+    setRegistering(event.id);
+    try {
+      if (event.is_registered) {
+        await eventService.cancelRegistration(event.id);
+      } else {
+        await eventService.registerForEvent(event.id);
+      }
+      await fetchEvents();
+    } catch (e) {
+      console.log("[Events] register error:", getErrorMessage(e));
+    } finally {
+      setRegistering(null);
+    }
+  };
 
   const renderEventCard = ({ item: event }: { item: ApiEvent }) => {
     const category = event.sport_type || event.event_type || "";
@@ -308,12 +327,31 @@ export default function EventsScreen() {
           ) : null}
 
           <View style={s.eventActions}>
-            <TouchableOpacity
-              style={s.joinBtn}
-              onPress={() => router.push(`/events/event-details?id=${event.id}`)}
-            >
-              <Text style={s.joinBtnText}>Join Event</Text>
-            </TouchableOpacity>
+            {event.is_registered ? (
+              <TouchableOpacity
+                style={s.leaveBtn}
+                onPress={() => handleRegister(event)}
+                disabled={registering === event.id}
+              >
+                {registering === event.id ? (
+                  <ActivityIndicator size="small" color={Colors.text} />
+                ) : (
+                  <Text style={s.leaveBtnText}>Leave Event</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={s.joinBtn}
+                onPress={() => handleRegister(event)}
+                disabled={registering === event.id}
+              >
+                {registering === event.id ? (
+                  <ActivityIndicator size="small" color={Colors.black} />
+                ) : (
+                  <Text style={s.joinBtnText}>Join Event</Text>
+                )}
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={s.detailsBtn}
               onPress={() => router.push(`/events/event-details?id=${event.id}`)}
@@ -677,6 +715,17 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   joinBtnText: { color: Colors.black, fontSize: 14, fontWeight: "700" },
+  leaveBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 50,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  leaveBtnText: { color: Colors.text, fontSize: 14, fontWeight: "600" },
   detailsBtn: {
     flex: 1,
     height: 44,

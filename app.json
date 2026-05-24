@@ -38,6 +38,15 @@
       "expo-router",
       "expo-system-ui",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/adaptive-icon.png",
+          "color": "#14161A",
+          "androidMode": "default",
+          "iosDisplayInForeground": true
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow LOKL to access your location to show nearby events."

@@ -1,6 +1,15 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Share,
+  Alert,
+} from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,77 +18,110 @@ import WhatsAppIcon from "../../assets/icons/whatsapp.svg";
 import EmailIcon from "../../assets/icons/email.svg";
 import MoreIcon from "../../assets/icons/link.svg";
 
-const SHARE_OPTIONS = [
-  {
-    icon: <MessagesIcon width={20} height={20} color={Colors.text} />,
-    label: "Messages",
-    color: "#34C759",
-  },
-  {
-    icon: <WhatsAppIcon width={20} height={20} color={Colors.text} />,
-    label: "WhatsApp",
-    color: "#25D366",
-  },
-  {
-    icon: <EmailIcon width={20} height={20} color={Colors.text} />,
-    label: "Email",
-    color: "#5AC8FA",
-  },
-  {
-    icon: <MoreIcon width={20} height={20} color={Colors.text} />,
-    label: "More",
-    color: Colors.textSecondary,
-  },
-];
-
-export default function ShareEventScreen() {
+export default function ShareScreen() {
   const router = useRouter();
-  const [copied, setCopied] = React.useState(false);
+  const params = useLocalSearchParams<{
+    title?: string;
+    subtitle?: string;
+    image?: string;
+    link?: string;
+    type?: string;
+  }>();
 
-  const handleCopy = () => {
+  const title = params.title ?? "Check this out on Lokl!";
+  const subtitle = params.subtitle ?? "";
+  const image = params.image ?? null;
+  const link = params.link ?? "https://lokl.app";
+  const type = params.type ?? "event";
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const nativeShare = async (platform?: string) => {
+    try {
+      const message = platform === "whatsapp"
+        ? `${title}\n${link}`
+        : platform === "email"
+        ? link
+        : `${title}\n${subtitle}\n${link}`;
+
+      await Share.share({ message, title });
+    } catch (e: any) {
+      if (e.message !== "The user did not share") {
+        Alert.alert("Error", "Could not open share sheet.");
+      }
+    }
+  };
+
+  const labelForType = type === "post" ? "Post" : type === "venue" ? "Venue" : "Event";
+
+  const shareOptions = [
+    {
+      icon: <MessagesIcon width={24} height={24} color={Colors.text} />,
+      label: "Messages",
+      onPress: () => nativeShare("messages"),
+    },
+    {
+      icon: <WhatsAppIcon width={24} height={24} color={Colors.text} />,
+      label: "WhatsApp",
+      onPress: () => nativeShare("whatsapp"),
+    },
+    {
+      icon: <EmailIcon width={24} height={24} color={Colors.text} />,
+      label: "Email",
+      onPress: () => nativeShare("email"),
+    },
+    {
+      icon: <MoreIcon width={24} height={24} color={Colors.text} />,
+      label: "More",
+      onPress: () => nativeShare(),
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Share</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Event Card */}
-        <View style={styles.eventCard}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=200&q=80",
-            }}
-            style={styles.eventImage}
-          />
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventName}>PICKUP BASKETBALL</Text>
-            <View style={styles.eventMeta}>
-              <Text style={styles.eventMetaText}>Tomorrow</Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.eventMetaText}>Downtown Courts</Text>
+        {/* Preview Card */}
+        <View style={styles.previewCard}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.previewImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.previewImage, styles.previewImagePlaceholder]}>
+              <Ionicons
+                name={type === "post" ? "image-outline" : type === "venue" ? "location-outline" : "calendar-outline"}
+                size={24}
+                color={Colors.textSecondary}
+              />
             </View>
+          )}
+          <View style={styles.previewInfo}>
+            <Text style={styles.previewTitle} numberOfLines={1}>{title.toUpperCase()}</Text>
+            {subtitle ? (
+              <View style={styles.previewMeta}>
+                <Text style={styles.previewMetaText} numberOfLines={1}>{subtitle}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
-        {/* Event Link */}
-        <Text style={styles.label}>Event Link</Text>
+        {/* Link */}
+        <Text style={styles.label}>{labelForType} Link</Text>
         <View style={styles.linkRow}>
-          <Text style={styles.linkText} numberOfLines={1}>
-            https://lokl.app/event/2
-          </Text>
+          <Text style={styles.linkText} numberOfLines={1}>{link}</Text>
           <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
             <Ionicons name="copy-outline" size={16} color={Colors.black} />
             <Text style={styles.copyText}>{copied ? "Copied!" : "Copy"}</Text>
@@ -89,11 +131,12 @@ export default function ShareEventScreen() {
         {/* Share Options */}
         <Text style={styles.label}>Share</Text>
         <View style={styles.shareGrid}>
-          {SHARE_OPTIONS.map((opt) => (
+          {shareOptions.map((opt) => (
             <TouchableOpacity
               key={opt.label}
               style={styles.shareOption}
               activeOpacity={0.8}
+              onPress={opt.onPress}
             >
               <View style={styles.shareIconWrap}>{opt.icon}</View>
               <Text style={styles.shareLabel}>{opt.label}</Text>
@@ -125,7 +168,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
-  eventCard: {
+  previewCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -136,28 +179,17 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 24,
   },
-  eventImage: { width: 52, height: 52, borderRadius: 10 },
-  eventInfo: { flex: 1 },
-  eventName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 4,
+  previewImage: { width: 52, height: 52, borderRadius: 10 },
+  previewImagePlaceholder: {
+    backgroundColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  eventMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
-  eventMetaText: { color: Colors.textSecondary, fontSize: 13 },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.textSecondary,
-  },
-  label: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
+  previewInfo: { flex: 1 },
+  previewTitle: { color: Colors.text, fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  previewMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  previewMetaText: { color: Colors.textSecondary, fontSize: 13 },
+  label: { color: Colors.text, fontSize: 15, fontWeight: "600", marginBottom: 12 },
   linkRow: {
     flexDirection: "row",
     alignItems: "center",

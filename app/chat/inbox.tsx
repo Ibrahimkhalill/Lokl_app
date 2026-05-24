@@ -7,70 +7,29 @@ import {
   FlatList,
   Image,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
+import { useMessages } from "../../context/MessageContext";
 
-const CHATS = [
-  {
-    id: "c1",
-    name: "Shane Martinez",
-    last: "On my way home but i needed to stop by books store to...",
-    time: "5 min",
-    unread: 1,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-    isGroup: false,
-  },
-  {
-    id: "c2",
-    name: "Katie Keller",
-    last: "I'm watching friends. What are you doing?",
-    time: "15 min",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80",
-    isGroup: false,
-  },
-  {
-    id: "c3",
-    name: "Stephen Mann",
-    last: "I'm working now. I'm marking a deposit for our company.",
-    time: "20 min",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80",
-    isGroup: false,
-  },
-  {
-    id: "c4",
-    name: "Melvin Pratt",
-    last: "Great seeing you. i have to go now. I'll talk to you late.",
-    time: "1hour",
-    unread: 0,
-    avatar:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&q=80",
-    isGroup: false,
-  },
-  {
-    id: "c5",
-    name: "Sports Club Group",
-    last: "Great seeing you. i have to go now. I'll talk to you late.",
-    time: "2hour",
-    unread: 1,
-    avatar:
-      "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=100&q=80",
-    isGroup: true,
-  },
-];
-
-type ChatItem = (typeof CHATS)[0];
+function timeLabel(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const { conversations, loading, refreshing, refreshInbox } = useMessages();
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
@@ -82,13 +41,12 @@ export default function MessagesScreen() {
     }
   }, [showSearch]);
 
-  const filtered = CHATS.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase()),
+  const filtered = conversations.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
@@ -105,12 +63,8 @@ export default function MessagesScreen() {
               placeholderTextColor={Colors.textSecondary}
             />
             <TouchableOpacity
-              style={styles.headerSearchClose}
-              onPress={() => {
-                setShowSearch(false);
-                setSearch("");
-              }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => { setShowSearch(false); setSearch(""); }}
             >
               <Ionicons name="close" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -118,60 +72,90 @@ export default function MessagesScreen() {
         ) : (
           <>
             <Text style={styles.headerTitle}>Messages</Text>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() => setShowSearch(true)}
-            >
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
               <SearchIcon width={20} height={20} color={Colors.text} />
             </TouchableOpacity>
           </>
         )}
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }: { item: ChatItem }) => (
-          <TouchableOpacity
-            style={styles.chatRow}
-            activeOpacity={0.8}
-            onPress={() => router.push(`/chat/id`)}
-          >
-            {/* Avatar */}
-            <View style={styles.avatarWrap}>
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={filtered.length === 0 ? styles.centerContent : styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refreshInbox}
+              tintColor={Colors.primary}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons name="chatbubbles-outline" size={48} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>No messages yet</Text>
             </View>
+          }
+          renderItem={({ item }) => {
+            const chatRoute =
+              item.type === "group"
+                ? `/chat/id?group_id=${item.meta.group_id}&name=${encodeURIComponent(item.name)}`
+                : item.type === "event"
+                ? `/chat/id?event_id=${item.meta.event_id}&name=${encodeURIComponent(item.name)}`
+                : `/chat/id?user_id=${item.meta.user_id}&name=${encodeURIComponent(item.name)}`;
 
-            {/* Info */}
-            <View style={styles.chatInfo}>
-              <View style={styles.chatTop}>
-                <Text style={styles.chatName}>{item.name}</Text>
-                <Text style={styles.chatTime}>{item.time}</Text>
-              </View>
-              <View style={styles.chatBottom}>
-                <Text style={styles.chatLast} numberOfLines={2}>
-                  {item.last}
-                </Text>
-                {item.unread > 0 && (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{item.unread}</Text>
+            return (
+              <TouchableOpacity
+                style={styles.chatRow}
+                activeOpacity={0.8}
+                onPress={() => router.push(chatRoute as any)}
+              >
+                <View style={styles.avatarWrap}>
+                  {item.avatar ? (
+                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                      <Ionicons name="person" size={22} color={Colors.textSecondary} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.chatInfo}>
+                  <View style={styles.chatTop}>
+                    <Text style={styles.chatName}>{item.name}</Text>
+                    <Text style={styles.chatTime}>{timeLabel(item.updated_at)}</Text>
                   </View>
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+                  <View style={styles.chatBottom}>
+                    <Text style={styles.chatLast} numberOfLines={2}>
+                      {item.last_message?.body ?? ""}
+                    </Text>
+                    {item.unread_count > 0 && (
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>{item.unread_count}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, paddingTop: 80 },
+  centerContent: { flex: 1, justifyContent: "center", alignItems: "center" },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -188,11 +172,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: {
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-  },
+  headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "700" },
   headerSearchWrap: {
     flex: 1,
     marginLeft: 12,
@@ -206,25 +186,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: Colors.card,
   },
-  headerSearchInput: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  headerSearchClose: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  headerSearchInput: { flex: 1, color: Colors.text, fontSize: 14, paddingVertical: 0 },
   listContent: { paddingBottom: 120 },
-  separator: {
-    height: 1,
-    backgroundColor: Colors.cardBorder,
-    marginLeft: 80,
-  },
+  separator: { height: 1, backgroundColor: Colors.cardBorder, marginLeft: 80 },
   chatRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -233,10 +197,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   avatarWrap: { position: "relative" },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  avatar: { width: 40, height: 40, borderRadius: 27 },
+  avatarPlaceholder: {
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
   },
   chatInfo: { flex: 1 },
   chatTop: {
@@ -245,40 +210,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 5,
   },
-  chatName: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  chatTime: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-  },
+  chatName: { color: Colors.text, fontSize: 15, fontWeight: "700" },
+  chatTime: { color: Colors.textSecondary, fontSize: 12 },
   chatBottom: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 8,
   },
-  chatLast: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 18,
-  },
+  chatLast: { color: Colors.textSecondary, fontSize: 13, flex: 1, lineHeight: 18 },
   unreadBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#4A90E2",
+    backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 5,
     marginTop: 2,
   },
-  unreadText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "800",
-  },
+  unreadText: { color: Colors.black, fontSize: 11, fontWeight: "800" },
 });

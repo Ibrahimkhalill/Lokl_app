@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,16 +18,20 @@ import { useFocusEffect } from "@react-navigation/native";
 import LocationIcon from "../../assets/icons/locations.svg";
 import CommentsIcon from "../../assets/icons/comments.svg";
 import NavigateIcon from "../../assets/icons/navigate.svg";
-import BookmarkIcon from "../../assets/icons/bookmark.svg";
+
+import BookmarkIcon from "../../assets/icons/bookmarks.svg";
+import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
 import MessengerIcon from "../../assets/icons/messenger.svg";
 import NotificationsIcon from "../../assets/icons/notifications.svg";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 
 const { width } = Dimensions.get("window");
 
 type ApiPost = {
   id: number;
+  author_id?: number;
   author_name?: string;
   author_avatar?: string | null;
   type?: string;
@@ -42,17 +46,11 @@ type ApiPost = {
   lokl_score?: string;
   is_liked?: boolean;
   is_saved?: boolean;
+  is_following?: boolean;
   created_at: string;
   tagged_groups?: { id: number; name: string }[];
 };
 
-type ApiGroup = {
-  id: number;
-  name: string;
-  avatar: string | null;
-  members_count?: number;
-  description?: string;
-};
 
 function PostCard({
   item,
@@ -60,17 +58,22 @@ function PostCard({
   onLike,
   onSave,
   onShare,
+  onFollow,
+  onComment,
 }: {
   item: ApiPost;
   router: any;
   onLike: (id: number) => void;
   onSave: (id: number) => void;
   onShare: (id: number) => void;
+  onFollow: (id: number, authorId: number, following: boolean) => void;
+  onComment: (id: number) => void;
 }) {
   const avatarUri = item.author_avatar || undefined;
 
   return (
     <View style={postStyles.card}>
+      {/* Header: avatar + name + follow */}
       <View style={postStyles.header}>
         <TouchableOpacity
           style={postStyles.userRow}
@@ -86,24 +89,49 @@ function PostCard({
           )}
           <Text style={postStyles.userName}>{item.author_name || ""}</Text>
         </TouchableOpacity>
-      </View>
-       {/* Tag + Location + Score */}
-      <View style={postStyles.metaRow}>
-        <Text style={postStyles.tag}>{item.tag}</Text>
-        <LocationIcon width={13} height={13} color={Colors.textSecondary} />
-        <Text style={postStyles.metaText}>{item.location}</Text>
-        <View style={postStyles.scoreBadge}>
-          <Text style={postStyles.scoreText}>{item.lokl_score}</Text>
-        </View>
+        <TouchableOpacity
+          style={[postStyles.followBtn, item.is_following && postStyles.followingBtn]}
+          onPress={() => onFollow(item.id, item.author_id ?? 0, !!item.is_following)}
+        >
+          <Text style={[postStyles.followText, item.is_following && postStyles.followingText]}>
+            {item.is_following ? "Following" : "Follow"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {item.body ? (
-        <Text style={postStyles.content} numberOfLines={2}>
+      {/* Tag + Location + Score */}
+      <View style={postStyles.metaRow}>
+        <View style={postStyles.metaLeft}>
+          {item.tagged_groups && item.tagged_groups.length > 0 && (
+            <>
+              {item.tagged_groups.map((g) => (
+                <TouchableOpacity key={g.id} onPress={() => router.push(`/events/group-detail?id=${g.id}`)}>
+                  <Text style={postStyles.groupTagText}>@{g.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+          {!!item.location && (
+            <View style={postStyles.locationWrap}>
+              <LocationIcon width={13} height={13} color={Colors.textSecondary} />
+              <Text style={postStyles.metaText}>{item.location}</Text>
+            </View>
+          )}
+        </View>
+        {!!item.lokl_score && (
+          <View style={postStyles.scoreBadge}>
+            <Text style={postStyles.scoreText}>{item.lokl_score}</Text>
+          </View>
+        )}
+      </View>
+
+      {!!item.body && (
+        <Text style={postStyles.content} numberOfLines={3}>
           {item.body}
         </Text>
-      ) : null}
+      )}
 
-      {item.image_url ? (
+      {!!item.image_url && (
         <View style={postStyles.imageWrap}>
           <Image
             source={{ uri: item.image_url }}
@@ -111,40 +139,36 @@ function PostCard({
             resizeMode="cover"
           />
         </View>
-      ) : null}
+      )}
 
       <View style={postStyles.actions}>
-        <TouchableOpacity
-          style={postStyles.actionBtn}
-          onPress={() => onLike(item.id)}
-        >
+        <TouchableOpacity style={postStyles.actionBtn} onPress={() => onLike(item.id)}>
           <Ionicons
             name={item.is_liked ? "heart" : "heart-outline"}
             size={20}
             color={item.is_liked ? "#FF4444" : Colors.text}
           />
-          <Text style={postStyles.actionText}>{item.likes ?? 0}</Text>
+          <Text
+            style={postStyles.actionText}
+            onPress={() => router.push(`/explore/post-likes?id=${item.id}`)}
+          >
+            {item.likes ?? 0} likes
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={postStyles.actionBtn}>
+        <TouchableOpacity style={postStyles.actionBtn} onPress={() => onComment(item.id)}>
           <CommentsIcon width={20} height={20} color={Colors.text} />
-          <Text style={postStyles.actionText}>{item.comments ?? 0}</Text>
+          <Text style={postStyles.actionText}>{item.comments ?? 0} comments</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={postStyles.actionBtn}
-          onPress={() => onShare(item.id)}
-        >
+        <TouchableOpacity style={postStyles.actionBtn} onPress={() => onShare(item.id)}>
           <NavigateIcon width={20} height={20} color={Colors.text} />
           <Text style={postStyles.actionText}>{item.shares ?? 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={postStyles.actionBtn}
-          onPress={() => onSave(item.id)}
-        >
-          <BookmarkIcon
-            width={20}
-            height={20}
-            color={item.is_saved ? Colors.primary : Colors.text}
-          />
+        <TouchableOpacity style={postStyles.actionBtn} onPress={() => onSave(item.id)}>
+          {item.is_saved ? (
+            <BookmarkFilledIcon width={20} height={20} color={Colors.primary} />
+          ) : (
+            <BookmarkIcon width={20} height={20} color={Colors.text} />
+          )}
           <Text style={postStyles.actionText}>{item.saves ?? 0}</Text>
         </TouchableOpacity>
       </View>
@@ -152,35 +176,6 @@ function PostCard({
   );
 }
 
-function GroupCard({ item, router }: { item: ApiGroup; router: any }) {
-  return (
-    <TouchableOpacity
-      style={groupStyles.card}
-      activeOpacity={0.8}
-      onPress={() => router.push(`/explore/group/${item.id}`)}
-    >
-      {item.avatar ? (
-        <Image source={{ uri: item.avatar }} style={groupStyles.avatar} />
-      ) : (
-        <View style={[groupStyles.avatar, groupStyles.placeholder]}>
-          <Ionicons name="people" size={28} color={Colors.textSecondary} />
-        </View>
-      )}
-      <View style={groupStyles.info}>
-        <Text style={groupStyles.name}>{item.name}</Text>
-        {item.members_count != null && (
-          <Text style={groupStyles.members}>{item.members_count} members</Text>
-        )}
-        {item.description ? (
-          <Text style={groupStyles.desc} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-    </TouchableOpacity>
-  );
-}
 
 const postStyles = StyleSheet.create({
   card: {
@@ -195,24 +190,24 @@ const postStyles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 10,
   },
-    metaRow: {
+  metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     marginBottom: 10,
-    flexWrap: "wrap",
   },
-  tag: { color: Colors.text, fontSize: 13, fontWeight: "600" },
+  metaLeft: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+  locationWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
+  tag: { color: Colors.textSecondary, fontSize: 13 },
   metaText: { color: Colors.textSecondary, fontSize: 13 },
   scoreBadge: {
     backgroundColor: Colors.primary,
     borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: "auto",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  scoreText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
+  scoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
   userRow: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   avatar: {
     width: 42,
@@ -243,7 +238,7 @@ const postStyles = StyleSheet.create({
   userNameSmall: { color: Colors.textSecondary, fontSize: 12 },
   followBtn: {
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: Colors.white,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 14,
@@ -277,29 +272,25 @@ const postStyles = StyleSheet.create({
   },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
   actionText: { color: Colors.textSecondary, fontSize: 12 },
-});
-
-const groupStyles = StyleSheet.create({
-  card: {
+  taggedGroupsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  groupTag: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-    gap: 12,
+    gap: 4,
+    backgroundColor: "rgba(123,97,255,0.12)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  avatar: { width: 52, height: 52, borderRadius: 12 },
-  placeholder: {
-    backgroundColor: Colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  info: { flex: 1 },
-  name: { color: Colors.text, fontSize: 15, fontWeight: "700", marginBottom: 2 },
-  members: { color: Colors.textSecondary, fontSize: 12, marginBottom: 2 },
-  desc: { color: Colors.textSecondary, fontSize: 13 },
+  groupTagText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
 });
+
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -311,9 +302,11 @@ export default function ExploreScreen() {
   const [refreshingPosts, setRefreshingPosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const [groups, setGroups] = useState<ApiGroup[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
-  const [refreshingGroups, setRefreshingGroups] = useState(false);
+  const [groupPosts, setGroupPosts] = useState<ApiPost[]>([]);
+  const [loadingGroupPosts, setLoadingGroupPosts] = useState(false);
+  const [refreshingGroupPosts, setRefreshingGroupPosts] = useState(false);
+
+  const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
   const fetchingRef = useRef(false);
 
@@ -364,33 +357,37 @@ export default function ExploreScreen() {
     }
   }, [nextUrl, loadingMore]);
 
-  const fetchGroups = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshingGroups(true);
-    else setLoadingGroups(true);
+  const fetchGroupPosts = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshingGroupPosts(true);
+    else setLoadingGroupPosts(true);
     try {
-      const res = await postService.getGroups();
+      const res = await postService.getGroupFeed(1);
       const payload = res.data?.data ?? res.data;
-      const results: ApiGroup[] = Array.isArray(payload)
+      const results: ApiPost[] = Array.isArray(payload)
         ? payload
         : Array.isArray(payload?.results)
         ? payload.results
         : [];
-      setGroups(results);
-
+      setGroupPosts(results);
     } catch (e) {
-      console.log("[Explore] fetchGroups error:", getErrorMessage(e));
+      console.log("[Explore] fetchGroupPosts error:", getErrorMessage(e));
     } finally {
-      setLoadingGroups(false);
-      setRefreshingGroups(false);
+      setLoadingGroupPosts(false);
+      setRefreshingGroupPosts(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
-      fetchGroups();
-    }, [fetchPosts, fetchGroups])
+    }, [fetchPosts])
   );
+
+  useEffect(() => {
+    if (activeTab === "group") {
+      fetchGroupPosts();
+    }
+  }, [activeTab, fetchGroupPosts]);
 
   const handleLike = useCallback(async (id: number) => {
     setPosts((prev) =>
@@ -447,24 +444,40 @@ export default function ExploreScreen() {
     }
   }, []);
 
+  const handleComment = useCallback((id: number) => {
+    setCommentPostId(id);
+  }, []);
+
+  const handleFollow = useCallback(async (id: number, _authorId: number, isFollowing: boolean) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, is_following: !isFollowing } : p))
+    );
+    try {
+      if (isFollowing) {
+        await postService.unfollowUser(_authorId);
+      } else {
+        await postService.followUser(_authorId);
+      }
+    } catch (e) {
+      setPosts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_following: isFollowing } : p))
+      );
+    }
+  }, []);
+
   const renderPost = useCallback(
     ({ item }: { item: ApiPost }) => (
       <PostCard
         item={item}
-        // isGroup={activeTab === "group"}
         router={router}
         onLike={handleLike}
         onSave={handleSave}
         onShare={handleShare}
-        // onFollow={handleFollow}
+        onFollow={handleFollow}
+        onComment={handleComment}
       />
     ),
-    [activeTab, router, handleLike, handleSave, handleShare]
-  );
-
-  const renderGroup = useCallback(
-    ({ item }: { item: ApiGroup }) => <GroupCard item={item} router={router} />,
-    [router]
+    [router, handleLike, handleSave, handleShare, handleFollow, handleComment]
   );
 
   const renderFooter = () => {
@@ -547,21 +560,36 @@ export default function ExploreScreen() {
           }
         />
       ) : (
-        <FlatList<ApiGroup>
-          data={groups}
+        <FlatList<ApiPost>
+          data={groupPosts}
           keyExtractor={(item) => String(item.id)}
-          renderItem={renderGroup}
+          renderItem={renderPost}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={() => renderEmpty(loadingGroups)}
+          ListEmptyComponent={() => renderEmpty(loadingGroupPosts)}
           refreshControl={
             <RefreshControl
-              refreshing={refreshingGroups}
-              onRefresh={() => fetchGroups(true)}
+              refreshing={refreshingGroupPosts}
+              onRefresh={() => fetchGroupPosts(true)}
               tintColor={Colors.primary}
             />
           }
         />
       )}
+
+      <CommentsSheet
+        visible={commentPostId !== null}
+        postId={commentPostId ?? 0}
+        onClose={() => setCommentPostId(null)}
+        onCommentAdded={() =>
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === commentPostId
+                ? { ...p, comments: (p.comments ?? 0) + 1 }
+                : p
+            )
+          )
+        }
+      />
     </SafeAreaView>
   );
 }

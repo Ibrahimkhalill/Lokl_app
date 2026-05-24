@@ -1,8 +1,18 @@
 import { api } from "../lib/api";
 
 export const postService = {
+  createPost(form: FormData) {
+    return api.post("/posts/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+
   getFeed(page = 1) {
     return api.get("/posts/", { params: { page } });
+  },
+
+  getGroupFeed(page = 1) {
+    return api.get("/posts/", { params: { my_groups: true, page } });
   },
 
   getFeedByUrl(url: string) {
@@ -31,5 +41,20 @@ export const postService = {
 
   unfollowUser(id: number) {
     return api.delete(`/users/${id}/follow/`);
+  },
+
+  getLikes(id: number) {
+    return api.get(`/posts/${id}/likes/`);
+  },
+
+  getComments(id: number) {
+    return api.get(`/posts/${id}/comments/`);
+  },
+
+  postComment(id: number, body: string, parentId?: number) {
+    return api.post(`/posts/${id}/comments/`, {
+      body,
+      ...(parentId ? { parent_id: parentId } : {}),
+    });
   },
 };

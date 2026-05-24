@@ -11,6 +11,7 @@ export interface ReviewListCardProps {
   time: string;
   rating: string;
   text: string;
+  imageUri?: string | null;
 }
 
 /** Avatar + review body + score — styles match each screen (no design drift). */
@@ -21,6 +22,7 @@ export function ReviewListCard({
   time,
   rating,
   text,
+  imageUri,
 }: ReviewListCardProps) {
   const v = variant === "eventDetail" ? eventStyles : reviewsStyles;
   return (
@@ -31,11 +33,19 @@ export function ReviewListCard({
           <Text style={v.name}>{name}</Text>
           <Text style={v.time}>{time}</Text>
           <Text style={v.reviewText}>{text}</Text>
+          {imageUri ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={sharedStyles.reviewImage}
+          resizeMode="cover"
+        />
+      ) : null}
         </View>
         <View style={v.scoreBadge}>
           <Text style={v.scoreText}>{rating}</Text>
         </View>
       </View>
+      
     </View>
   );
 }
@@ -95,4 +105,13 @@ const reviewsStyles = StyleSheet.create({
     paddingVertical: 4,
   },
   scoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
+});
+
+const sharedStyles = StyleSheet.create({
+  reviewImage: {
+    width: "100%",
+    height: 100,
+    borderRadius: 10,
+    marginTop: 10,
+  },
 });

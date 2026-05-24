@@ -55,6 +55,10 @@ export const eventService = {
     return api.get("/groups/");
   },
 
+  getMyGroups() {
+    return api.get("/groups/", { params: { member: "me" } });
+  },
+
   createSocialGroup(form: FormData) {
     return api.post("/groups/", form, {
       headers: { "Content-Type": "multipart/form-data" },

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import * as Location from "expo-location";
 import {
   View,
   Text,
@@ -6,8 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import DollarIcon from "../../assets/icons/dollar.svg";
@@ -20,254 +23,413 @@ import LockerIcon from "../../assets/icons/loack.svg";
 import WifiIcon from "../../assets/icons/wifi.svg";
 import VenueIcon from "../../assets/icons/venue.svg";
 import { ReviewListCard } from "../events";
-const REVIEWS = [
-  {
-    id: "r1",
-    name: "Sarah, Mike",
-    time: "2 days ago",
-    rating: "9.2",
-    text: "Amazing instructors and peaceful atmosphere! The morning classes are perfect.",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
-  },
-  {
-    id: "r2",
-    name: "Mike Rodriguez",
-    time: "1 week ago",
-    rating: "9.2",
-    text: "Great facilities, very clean. Would love more evening class options.",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-  },
-];
+import PlusIcon from "../../assets/icons/plus.svg";
+import { eventService } from "../../services/eventService";
+import { getErrorMessage } from "../../lib/api";
 
-const AMENITIES = [
-  {
-    icon: <ShowerIcon width={20} height={20} color={Colors.primary} />,
-    label: "Shower",
-  },
-  {
-    icon: <LockerIcon width={20} height={20} color={Colors.primary} />,
-    label: "Locker",
-  },
-  {
-    icon: <WifiIcon width={20} height={20} color={Colors.primary} />,
-    label: "WiFi",
-  },
-];
+type Participant = { id: number; name: string; avatar: string | null };
+type Review = {
+  id: number;
+  user_name: string;
+  user_avatar: string | null;
+  rating: number;
+  comment: string;
+  image_url: string | null;
+  created_at: string;
+};
+type EventDetail = {
+  id: number;
+  title: string;
+  host_display: string;
+  host_avatar: string | null;
+  venue: string;
+  date: string;
+  time: string;
+  capacity: number;
+  registered: number;
+  is_registered: boolean;
+  status: string;
+  description: string;
+  location: string;
+  phone?: string;
+  website?: string;
+  amenities: string[];
+  event_type: string;
+  price: string;
+  cover_image_url: string | null;
+  latitude?: string;
+  longitude?: string;
+  average_rating: number;
+  review_count: number;
+  reviews: Review[];
+  participants: Participant[];
+};
+
+function formatDate(dateStr: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatTime(timeStr: string) {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":").map(Number);
+  if (isNaN(h)) return timeStr;
+  const period = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function amenityIcon(key: string) {
+  switch (key.toLowerCase()) {
+    case "shower": return <ShowerIcon width={20} height={20} color={Colors.primary} />;
+    case "locker": return <LockerIcon width={20} height={20} color={Colors.primary} />;
+    case "wifi":   return <WifiIcon width={20} height={20} color={Colors.primary} />;
+    default:       return <Ionicons name="checkmark-circle-outline" size={20} color={Colors.primary} />;
+  }
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function priceTier(price: string) {
+  const n = parseFloat(price);
+  if (!n || n === 0) return "Free";
+  if (n < 100) return "$";
+  if (n < 500) return "$$";
+  return "$$$";
+}
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function EventDetailsScreen() {
   const router = useRouter();
-  const [joined, setJoined] = useState(false);
-  const [imgIdx] = useState(0);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [event, setEvent] = useState<EventDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
+  const [distanceStr, setDistanceStr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+    })();
+  }, []);
+
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  useEffect(() => {
+    if (!userCoords || !event?.latitude || !event?.longitude) return;
+    const km = haversineKm(userCoords.lat, userCoords.lon, Number(event.latitude), Number(event.longitude));
+    setDistanceStr(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
+  }, [userCoords, event]);
+
+  const fetchEvent = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const res = await eventService.getEvent(Number(id));
+      const data = res.data?.data ?? res.data;
+      setEvent(data);
+    } catch (e) {
+      console.log("[EventDetails] error:", getErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useFocusEffect(useCallback(() => { fetchEvent(); }, [fetchEvent]));
+
+  const handleRegister = async () => {
+    if (!event || registering) return;
+    setRegistering(true);
+    try {
+      if (event.is_registered) {
+        await eventService.cancelRegistration(event.id);
+      } else {
+        await eventService.registerForEvent(event.id);
+      }
+      await fetchEvent();
+    } catch (e) {
+      console.log("[EventDetails] register error:", getErrorMessage(e));
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[s.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!event) {
+    return (
+      <View style={[s.container, { justifyContent: "center", alignItems: "center" }]}>
+        <Text style={{ color: Colors.textSecondary }}>Event not found</Text>
+      </View>
+    );
+  }
+
+  const infoCards = [
+    {
+      icon: <VenueIcon width={20} height={20} color={Colors.primary} />,
+      label: "Venue",
+      value: event.venue,
+    },
+    {
+      icon: <LocationIcon width={20} height={20} color={Colors.primary} />,
+      label: "Location",
+      value: event.location,
+    },
+    {
+      icon: <TimeIcon width={20} height={20} color={Colors.primary} />,
+      label: "Time & Date",
+      value: [formatDate(event.date), formatTime(event.time)].filter(Boolean).join("  ·  "),
+    },
+    {
+      icon: <FriendsIcon width={20} height={20} color={Colors.primary} />,
+      label: "Max Participants",
+      value: `${event.registered} / ${event.capacity}`,
+    },
+    ...(event.website
+      ? [{
+          icon: <GlobeIcon width={20} height={20} color={Colors.primary} />,
+          label: "Website",
+          value: event.website,
+          link: true,
+        }]
+      : []),
+  ].filter((c) => c.value);
 
   return (
     <View style={s.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={s.hero}>
-          <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&q=80",
-            }}
-            style={s.heroImage}
-            resizeMode="cover"
-          />
+          {event.cover_image_url ? (
+            <Image source={{ uri: event.cover_image_url }} style={s.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={[s.heroImage, { backgroundColor: Colors.cardBorder, justifyContent: "center", alignItems: "center" }]}>
+              <Ionicons name="calendar-outline" size={60} color={Colors.textMuted} />
+            </View>
+          )}
           <View style={s.heroOverlay}>
-            <TouchableOpacity
-              style={s.heroBackBtn}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={s.heroBackBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={20} color={Colors.text} />
             </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={[s.slideBtn, { left: 20 }]}>
-            <Ionicons name="chevron-back" size={18} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.slideBtn, { right: 20 }]}>
-            <Ionicons name="chevron-forward" size={18} color={Colors.text} />
-          </TouchableOpacity>
-          <View style={s.heroDots}>
-            {[0, 1, 2].map((i) => (
-              <View
-                key={i}
-                style={[s.heroDot, i === imgIdx && s.heroDotActive]}
-              />
-            ))}
           </View>
         </View>
 
         <View style={s.content}>
-          {/* Join / Joined state */}
-          {!joined ? (
-            <TouchableOpacity style={s.joinBtn} onPress={() => setJoined(true)}>
-              <Text style={s.joinBtnText}>Join Event</Text>
+          {/* Join / Joined */}
+          {!event.is_registered ? (
+            <TouchableOpacity style={s.joinBtn} onPress={handleRegister} disabled={registering}>
+              {registering
+                ? <ActivityIndicator size="small" color={Colors.black} />
+                : <Text style={s.joinBtnText}>Join Event</Text>
+              }
             </TouchableOpacity>
           ) : (
-            <View style={s.joinedActions}>
-              <View style={s.openNowBadge}>
-                <Ionicons name="time-outline" size={20} color="#05DF72" />
-                <Text style={s.openNowText}>Open Now</Text>
+           ""
+          )}
+
+          {/* Title */}
+          <Text style={s.title}>{event.title.toUpperCase()}</Text>
+
+          {/* Meta row: [9.2]  (N ratings) • Yoga • $$ • price */}
+          <View style={s.metaRow}>
+             {event.event_type ? (
+              <>
+                <View style={s.metaTypeView} >
+                <Text style={s.metaText}>{event.event_type}</Text>
+                </View>
+              </>
+            ) : null}
+            <View style={s.scoreChip}>
+              <Text style={s.scoreChipText}>
+                {event.average_rating > 0 ? event.average_rating.toFixed(1) : "0.0"}
+              </Text>
+            </View>
+            {/* {event.review_count > 0 && (
+              <Text style={s.metaText}>({event.review_count})</Text>
+            )} */}
+           
+            {event.price ? (
+              <>
+                <Text style={s.metaText}>{priceTier(event.price)}</Text>
+              </>
+            ) : null}
+            {distanceStr ? (
+              <>
+                <View style={s.metaDot} />
+                <Text style={s.metaText}>{distanceStr}</Text>
+              </>
+            ) : null}
+            <View style={{ flex: 1 }} />
+            {event.price && parseFloat(event.price) > 0 ? (
+              <View style={s.priceRow}>
+                <DollarIcon width={14} height={14} color={Colors.primary} />
+                <Text style={s.priceText}>{Math.round(parseFloat(event.price) * 100) / 100}</Text>
               </View>
+            ) : null}
+          </View>
+           {event.is_registered && (
+             <View style={s.joinedActions}>
+               <View style={s.openNowBadge}>
+                 <Ionicons name="time-outline" size={20} color="#05DF72" />
+                 <Text style={s.openNowText}>{event.status}</Text>
+               </View>
               <TouchableOpacity
                 style={s.actionOutlineBtn}
-                onPress={() => router.push("/events/share-event")}
+                onPress={() =>
+                  router.push(
+                    `/events/share-event?title=${encodeURIComponent(event.title)}&subtitle=${encodeURIComponent(event.location)}&image=${encodeURIComponent(event.cover_image_url ?? "")}&link=${encodeURIComponent(`https://lokl.app/event/${event.id}`)}&type=event`
+                  )
+                }
               >
                 <Text style={s.actionOutlineBtnText}>Share</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={s.actionOutlineBtn}
-                onPress={() => router.push("/chat/id?id=1")}
+                style={s.actionCircleBtn}
+                onPress={() => router.push(`/chat/id?event_id=${event.id}&name=${encodeURIComponent(event.title)}`)}
               >
                 <Text style={s.actionOutlineBtnText}>Message</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={s.actionCircleBtn}
+                onPress={() => router.push(`/(tabs)/post?event_id=${event.id}`)}
+              >
+                <PlusIcon width={20} height={20} color={Colors.text} />
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Title */}
-          <Text style={s.title}>BOXING FUNDAMENTALS</Text>
-          <View style={s.metaRow}>
-            <View style={s.tagChip}>
-              <Text style={s.tagChipText}>Yoga</Text>
-            </View>
-            <View style={s.scoreChip}>
-              <Text style={s.scoreChipText}>9.2</Text>
-            </View>
-            <DollarIcon width={14} height={14} color={Colors.textSecondary} />
-
-            <View style={s.metaDot} />
-            <Text style={s.metaText}>1.2 mi</Text>
-            <View style={{ flex: 1 }} />
-            <DollarIcon width={14} height={14} color={Colors.primary} />
-            <Text style={s.priceText}>$2500</Text>
-          </View>
+           )}
 
           {/* Description */}
-          <Text style={s.description}>
-            Experience the tranquility of Zen Yoga Studio, where ancient
-            practices meet modern wellness. Our expert instructors guide you
-            through transformative sessions in our serene, state-of-the-art
-            facilities.
-          </Text>
+          <Text style={s.description}>{event.description}</Text>
 
           {/* Hosted By */}
           <Text style={s.sectionTitle}>Hosted By</Text>
           <View style={s.hostRow}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-              }}
-              style={s.hostAvatar}
-            />
-            <Text style={s.hostName}>Mike Rodriguez</Text>
+            {event.host_avatar ? (
+              <Image source={{ uri: event.host_avatar }} style={s.hostAvatar} />
+            ) : (
+              <View style={[s.hostAvatar, { backgroundColor: Colors.card, justifyContent: "center", alignItems: "center" }]}>
+                <Ionicons name="person" size={20} color={Colors.textSecondary} />
+              </View>
+            )}
+            <Text style={s.hostName}>{event.host_display}</Text>
           </View>
 
-          {/* Friends Here */}
-          <TouchableOpacity
-            style={s.friendsCard}
-            onPress={() => router.push("/events/friends-here")}
-          >
-            <View style={s.friendsHeader}>
-              <FriendsIcon width={18} height={18} color={Colors.primary} />
-              <Text style={s.friendsTitle}>FRIENDS HERE</Text>
-            </View>
-            <View style={s.friendRow}>
-              <View style={s.friendAvatars}>
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80",
-                  }}
-                  style={s.friendAvatar}
-                />
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80",
-                  }}
-                  style={[s.friendAvatar, s.friendAvatarOverlap]}
-                />
+          {/* Participants (Friends Here card) */}
+          {event.participants.length > 0 && (
+            <TouchableOpacity
+              style={s.friendsCard}
+              onPress={() => router.push(`/events/friends-here?id=${event.id}`)}
+            >
+              <View style={s.friendsHeader}>
+                <FriendsIcon width={18} height={18} color={Colors.primary} />
+                <Text style={s.friendsTitle}>FRIENDS HERE</Text>
               </View>
-              <View>
-                <Text style={s.friendName}>Sarah, Mike</Text>
-                <Text style={s.friendStatus}>are here now</Text>
+              <View style={s.friendRow}>
+                <View style={s.friendAvatars}>
+                  {event.participants.slice(0, 3).map((p, i) =>
+                    p.avatar ? (
+                      <Image
+                        key={p.id}
+                        source={{ uri: p.avatar }}
+                        style={[s.friendAvatar, i > 0 && s.friendAvatarOverlap]}
+                      />
+                    ) : (
+                      <View
+                        key={p.id}
+                        style={[s.friendAvatar, i > 0 && s.friendAvatarOverlap, { backgroundColor: Colors.card, justifyContent: "center", alignItems: "center" }]}
+                      >
+                        <Ionicons name="person" size={14} color={Colors.textSecondary} />
+                      </View>
+                    )
+                  )}
+                </View>
+                <View>
+                  <Text style={s.friendName}>
+                    {event.participants.slice(0, 2).map((p) => p.name.split(" ")[0]).join(", ")}
+                    {event.participants.length > 2 ? ` +${event.participants.length - 2}` : ""}
+                  </Text>
+                  <Text style={s.friendStatus}>are here now</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
 
           {/* Info Cards */}
-          {[
-            {
-              icon: <VenueIcon width={20} height={20} color={Colors.primary} />,
-              label: "Venue",
-              value: "Central Park",
-            },
-            {
-              icon: (
-                <LocationIcon width={20} height={20} color={Colors.primary} />
-              ),
-              label: "Location",
-              value: "New York",
-            },
-            {
-              icon: <TimeIcon width={20} height={20} color={Colors.primary} />,
-              label: "Time & Date",
-              value: "Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-AM",
-            },
-            {
-              icon: (
-                <FriendsIcon width={20} height={20} color={Colors.primary} />
-              ),
-              label: "Max Participants",
-              value: "120",
-            },
-            {
-              icon: <GlobeIcon width={20} height={20} color={Colors.primary} />,
-              label: "Website",
-              value: "Zenyogastudio.com",
-              link: true,
-            },
-          ].map((info, i) => (
+          {infoCards.map((info, i) => (
             <View key={i} style={s.infoCard}>
               {info.icon}
               <View style={s.infoText}>
                 <Text style={s.infoLabel}>{info.label}</Text>
-                <Text style={[s.infoValue, (info as any).link && s.infoLink]}>
-                  {info.value}
-                </Text>
+                <Text style={[s.infoValue, (info as any).link && s.infoLink]}>{info.value}</Text>
               </View>
             </View>
           ))}
 
           {/* Amenities */}
-          <Text style={s.sectionTitle}>AMENITIES</Text>
-          <View style={s.amenitiesGrid}>
-            {AMENITIES.map((a, i) => (
-              <View key={i} style={s.amenityChip}>
-                {a.icon}
-                <Text style={s.amenityText}>{a.label}</Text>
+          {event.amenities.length > 0 && (
+            <>
+              <Text style={s.sectionTitle}>AMENITIES</Text>
+              <View style={s.amenitiesGrid}>
+                {event.amenities.map((a, i) => (
+                  <View key={i} style={s.amenityChip}>
+                    {amenityIcon(a)}
+                    <Text style={s.amenityText}>{a.charAt(0).toUpperCase() + a.slice(1)}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          )}
 
           {/* Reviews */}
           <View style={s.reviewsHeader}>
-            <Text style={s.sectionTitle}>REVIEWS ({joined ? 4 : 2})</Text>
-            {joined && (
-              <TouchableOpacity onPress={() => router.push("/events/reviews")}>
+            <Text style={s.sectionTitle}>REVIEWS ({event.review_count})</Text>
+            {event.is_registered && (
+              <TouchableOpacity onPress={() => router.push(`/events/reviews?id=${event.id}`)}>
                 <Text style={s.seeAll}>See all</Text>
               </TouchableOpacity>
             )}
           </View>
-          {REVIEWS.map((rev) => (
+          {event.reviews.slice(0, 2).map((rev) => (
             <ReviewListCard
               key={rev.id}
               variant="eventDetail"
-              avatarUri={rev.avatar}
-              name={rev.name}
-              time={rev.time}
-              rating={rev.rating}
-              text={rev.text}
+              avatarUri={rev.user_avatar ?? ""}
+              name={rev.user_name}
+              time={timeAgo(rev.created_at)}
+              rating={String(rev.rating)}
+              text={rev.comment}
+              imageUri={rev.image_url}
             />
           ))}
+          {event.reviews.length === 0 && (
+            <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>No reviews yet.</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -294,30 +456,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  slideBtn: {
-    position: "absolute",
-    top: "55%",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(20,22,26,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  heroDots: {
-    position: "absolute",
-    bottom: 12,
-    alignSelf: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  heroDot: {
-    width: 8,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.35)",
-  },
-  heroDotActive: { width: 22, backgroundColor: Colors.primary },
   content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 40 },
   joinBtn: {
     backgroundColor: Colors.primary,
@@ -343,15 +481,24 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     backgroundColor: "#103A25",
   },
-  openNowText: { color: "#05DF72", fontSize: 13, fontWeight: "600" },
+  openNowText: { color: "#05DF72", fontSize: 12, fontWeight: "600" },
+  actionCircleBtn: {
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   actionOutlineBtn: {
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 50,
+    borderColor: Colors.white,
+    borderRadius: 15,
     paddingVertical: 9,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
   },
-  actionOutlineBtnText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
+  actionOutlineBtnText: { color: Colors.text, fontSize: 12, fontWeight: "600" },
   title: {
     color: Colors.text,
     fontSize: 22,
@@ -362,9 +509,14 @@ const s = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 14,
     flexWrap: "wrap",
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
   tagChip: {
     borderWidth: 1,
@@ -376,19 +528,15 @@ const s = StyleSheet.create({
   tagChipText: { color: Colors.text, fontSize: 12 },
   scoreChip: {
     backgroundColor: Colors.primary,
-    borderRadius: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
   },
   scoreChipText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
+  metaDot: { width: 5, height: 5, borderRadius: 2, backgroundColor: Colors.textSecondary },
+  metaTypeView: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: Colors.cardBorder },
   metaText: { color: Colors.textSecondary, fontSize: 13 },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.textSecondary,
-  },
-  priceText: { color: Colors.text, fontSize: 14, fontWeight: "700" },
+  priceText: { color: Colors.text, fontSize: 16, fontWeight: "700" },
   description: {
     color: Colors.textSecondary,
     fontSize: 14,
@@ -403,12 +551,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
     marginTop: 6,
   },
-  hostRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 14,
-  },
+  hostRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   hostAvatar: { width: 42, height: 42, borderRadius: 21 },
   hostName: { color: Colors.text, fontSize: 15, fontWeight: "600" },
   friendsCard: {
@@ -419,6 +562,14 @@ const s = StyleSheet.create({
     padding: 18,
     marginBottom: 14,
   },
+  friendsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  friendsTitle: { color: Colors.text, fontSize: 14, fontWeight: "800", letterSpacing: 0.4 },
+  friendRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  friendAvatars: { flexDirection: "row" },
+  friendAvatar: { width: 32, height: 32, borderRadius: 21, borderWidth: 1.5, borderColor: Colors.background },
+  friendAvatarOverlap: { marginLeft: -10 },
+  friendName: { color: Colors.text, fontSize: 14, fontWeight: "500" },
+  friendStatus: { color: Colors.textSecondary, fontSize: 15, marginTop: 2 },
   infoCard: {
     backgroundColor: Colors.card,
     borderRadius: 26,
@@ -431,40 +582,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 14,
   },
-  friendsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  friendsTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  friendRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  friendAvatars: { flexDirection: "row" },
-  friendAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    borderColor: Colors.background,
-  },
-  friendAvatarOverlap: { marginLeft: -10 },
-  friendName: { color: Colors.text, fontSize: 14, fontWeight: "500" },
-  friendStatus: { color: Colors.textSecondary, fontSize: 15, marginTop: 2 },
   infoText: { flex: 1, paddingTop: 1 },
   infoLabel: { color: Colors.textSecondary, fontSize: 16.5, marginBottom: 4 },
-  infoValue: { color: Colors.text, fontSize: 32 / 2, lineHeight: 31 },
+  infoValue: { color: Colors.text, fontSize: 32 / 2, lineHeight: 20 },
   infoLink: { color: Colors.primary },
-  amenitiesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 8,
-  },
+  amenitiesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 },
   amenityChip: {
     flexDirection: "row",
     alignItems: "center",

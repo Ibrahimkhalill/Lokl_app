@@ -17,9 +17,11 @@ import { getErrorMessage } from "../../lib/api";
 
 type Review = {
   id: number;
-  user: { id: number; name: string; profile_picture: string | null };
+  user_name: string;
+  user_avatar: string | null;
   rating: number | string;
   comment: string;
+  image_url: string | null;
   created_at: string;
 };
 
@@ -95,11 +97,12 @@ export default function ReviewsScreen() {
           renderItem={({ item }) => (
             <ReviewListCard
               variant="reviewsList"
-              avatarUri={item.user.profile_picture || undefined}
-              name={item.user.name}
+              avatarUri={item.user_avatar ?? ""}
+              name={item.user_name}
               time={timeAgo(item.created_at)}
               rating={String(item.rating)}
               text={item.comment}
+              imageUri={item.image_url}
             />
           )}
         />
