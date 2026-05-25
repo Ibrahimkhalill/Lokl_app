@@ -1,327 +1,205 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Image,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import CommentIcon from "../../assets/icons/comments.svg";
-import ShareIcon from "../../assets/icons/share.svg";
-import BookmarkIcon from "../../assets/icons/bookmark.svg";
+import { useFocusEffect } from "@react-navigation/native";
+import { userService } from "../../services/userService";
+import { postService } from "../../services/postService";
+import { getErrorMessage } from "../../lib/api";
+import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
+import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 
-const POSTS = [
-  {
-    id: "1",
-    username: "Pixcraft_132",
-    tag: "@FIFA World Cup",
-    text: "Football is the world's most popular sport, played on a field with a ball between two teams of 11 players. The game requires physical strength, technique, and team coordination, where points are scored by scoring goals by getting the ball into the goalposts. Billions of people around the world enjoy various football tournaments, including the FIFA World Cup, with passion and enthusiasm.",
-    image: null,
-    likes: 6,
-    comments: 18,
-    shares: "2K",
-    saves: 35,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-  },
-  {
-    id: "2",
-    username: "Pixcraft_132",
-    tag: "@FIFA World Cup",
-    text: null,
-    image:
-      "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&q=80",
-    distance: "1.2 mi",
-    likes: 6,
-    comments: 18,
-    shares: "2K",
-    saves: 35,
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-  },
-];
+type Tab = "posts" | "saved";
 
-export default function PostsScreen() {
+export default function UserPostsScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: Tab }>();
+  const [activeTab, setActiveTab] = useState<Tab>(tab ?? "posts");
+
+  const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [savedPosts, setSavedPosts] = useState<ApiPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [commentPostId, setCommentPostId] = useState<number | null>(null);
+
+  const fetchMe = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const res = await userService.getMe();
+      const d = res.data?.data ?? res.data;
+      setPosts(d.posts ?? []);
+      setSavedPosts(d.saved_posts ?? []);
+    } catch (e) {
+      console.log("[Posts] error:", getErrorMessage(e));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { fetchMe(); }, [fetchMe]));
+
+  const updatePosts = useCallback((id: number, updater: (p: ApiPost) => ApiPost) => {
+    setPosts((prev) => prev.map((p) => p.id === id ? updater(p) : p));
+    setSavedPosts((prev) => prev.map((p) => p.id === id ? updater(p) : p));
+  }, []);
+
+  const handleLike = useCallback((id: number) => {
+    updatePosts(id, (p) => ({ ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) }));
+    postService.likePost(id).catch(() =>
+      updatePosts(id, (p) => ({ ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) }))
+    );
+  }, [updatePosts]);
+
+  const handleSave = useCallback((id: number) => {
+    updatePosts(id, (p) => ({ ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) }));
+    postService.savePost(id).catch(() =>
+      updatePosts(id, (p) => ({ ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) }))
+    );
+  }, [updatePosts]);
+
+  const handleShare = useCallback((id: number) => {
+    postService.sharePost(id).catch(() => {});
+  }, []);
+
+  const handleComment = useCallback((id: number) => setCommentPostId(id), []);
+
+  const displayPosts = activeTab === "posts" ? posts : savedPosts;
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.push("/profile")}
-        >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate("/(tabs)/profile")}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
-        <View style={styles.profileRow}>
-          <LinearGradient
-            colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatarBorder}
-          >
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-              }}
-              style={styles.avatar}
-            />
-          </LinearGradient>
-          <View style={styles.profileInfo}>
-            <Text style={styles.username}>pixcraft_132</Text>
-            <View style={styles.statsRow}>
-              <TouchableOpacity style={styles.statItem}>
-                <View style={styles.statActive}>
-                  <Text style={styles.statNumActive}>2,644</Text>
-                  <Text style={styles.statLabelActive}>posts</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push("/profile/follow?type=followers")}
-              >
-                <Text style={styles.statNum}>6,401</Text>
-                <Text style={styles.statLabel}>followers</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push("/profile/follow?type=following")}
-              >
-                <Text style={styles.statNum}>2</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>
+          {activeTab === "posts" ? "My Posts" : "Saved Posts"}
+        </Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {POSTS.map((post) => (
-          <View key={post.id} style={styles.postCard}>
-            {/* Post Header */}
-            <View style={styles.postHeader}>
-              <LinearGradient
-                colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.postAvatarBorder}
-              >
-                <Image
-                  source={{ uri: post.avatar }}
-                  style={styles.postAvatar}
-                />
-              </LinearGradient>
-              <View style={styles.postMeta}>
-                <Text style={styles.postUsername}>{post.username}</Text>
-                <Text style={styles.postTag}>{post.tag}</Text>
-              </View>
-              <TouchableOpacity>
-                <Ionicons
-                  name="ellipsis-vertical"
-                  size={18}
-                  color={Colors.text}
-                />
-              </TouchableOpacity>
-            </View>
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === "posts" && styles.tabBtnActive]}
+          onPress={() => setActiveTab("posts")}
+        >
+          <Text style={[styles.tabBtnText, activeTab === "posts" && styles.tabBtnTextActive]}>Posts</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === "saved" && styles.tabBtnActive]}
+          onPress={() => setActiveTab("saved")}
+        >
+          <Text style={[styles.tabBtnText, activeTab === "saved" && styles.tabBtnTextActive]}>Saved</Text>
+        </TouchableOpacity>
+      </View>
 
-            {/* Post Content */}
-            {post.text && <Text style={styles.postText}>{post.text}</Text>}
-            {post.image && (
-              <View style={styles.postImageWrap}>
-                <Image
-                  source={{ uri: post.image }}
-                  style={styles.postImage}
-                  resizeMode="cover"
-                />
-                {post.distance && (
-                  <View style={styles.distanceBadge}>
-                    <Ionicons
-                      name="location-outline"
-                      size={11}
-                      color={Colors.text}
-                    />
-                    <Text style={styles.distanceText}>{post.distance}</Text>
-                  </View>
-                )}
-                <TouchableOpacity style={styles.playBtn}>
-                  <Ionicons name="play" size={22} color={Colors.text} />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Actions */}
-            <View style={styles.postActions}>
-              <TouchableOpacity style={styles.actionItem}>
-                <Ionicons name="heart-outline" size={20} color={Colors.text} />
-                <Text style={styles.actionText}>{post.likes} likes</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionItem}>
-                <CommentIcon width={20} height={20} color={Colors.text} />
-                <Text style={styles.actionText}>{post.comments} comments</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionItem}>
-                <ShareIcon width={20} height={20} color={Colors.text} />
-                <Text style={styles.actionText}>{post.shares}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionItem}>
-                <BookmarkIcon
-                  width={20}
-                  height={20}
-                  color={Colors.textSecondary}
-                />
-                <Text style={styles.actionText}>{post.saves}</Text>
-              </TouchableOpacity>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={displayPosts}
+          keyExtractor={(item) => String(item.id)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchMe(true)} tintColor={Colors.primary} />
+          }
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons
+                name={activeTab === "posts" ? "images-outline" : "bookmark-outline"}
+                size={42}
+                color={Colors.textSecondary}
+              />
+              <Text style={styles.emptyText}>
+                {activeTab === "posts" ? "No posts yet" : "No saved posts"}
+              </Text>
             </View>
-          </View>
-        ))}
-      </ScrollView>
+          }
+          renderItem={({ item }) => (
+            <PostCard
+              item={item}
+              router={router}
+              onLike={handleLike}
+              onSave={handleSave}
+              onShare={handleShare}
+              onFollow={() => {}}
+              onComment={handleComment}
+              hideFollowBtn
+            />
+          )}
+        />
+      )}
+
+      <CommentsSheet
+        visible={commentPostId !== null}
+        postId={commentPostId ?? 0}
+        onClose={() => setCommentPostId(null)}
+        onCommentAdded={() =>
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === commentPostId ? { ...p, comments: (p.comments ?? 0) + 1 } : p
+            )
+          )
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  profileHeader: {
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, paddingTop: 60 },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
+  listContent: { paddingBottom: 80 },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+    justifyContent: "center", alignItems: "center",
   },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatarBorder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    padding: 2,
+  headerTitle: {
+    color: Colors.text, fontSize: 17, fontWeight: "700",
   },
-  avatar: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 30,
-    backgroundColor: Colors.background,
-  },
-  profileInfo: { flex: 1 },
-  username: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  statsRow: { flexDirection: "row", gap: 12 },
-  statItem: {},
-  statActive: {
-    backgroundColor: "#4A90E2",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: "center",
-  },
-  statNumActive: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  statLabelActive: { color: "#fff", fontSize: 10 },
-  statNum: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  statLabel: { color: Colors.textSecondary, fontSize: 10, textAlign: "center" },
 
-  postCard: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-    paddingBottom: 16,
-    marginBottom: 4,
-  },
-  postHeader: {
+  tabRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  postAvatarBorder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    padding: 2,
-  },
-  postAvatar: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 18,
-    backgroundColor: Colors.background,
-  },
-  postMeta: { flex: 1 },
-  postUsername: { color: Colors.text, fontSize: 15, fontWeight: "700" },
-  postTag: { color: Colors.textSecondary, fontSize: 13 },
-  postText: {
-    color: Colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  postImageWrap: {
     marginHorizontal: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-    height: 200,
-    marginBottom: 12,
-    position: "relative",
+    marginVertical: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 50,
+    padding: 4,
   },
-  postImage: { width: "100%", height: "100%" },
-  distanceBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(20,22,26,0.85)",
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+  tabBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 50,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: Colors.cardBorder,
   },
-  distanceText: { color: Colors.text, fontSize: 11, fontWeight: "600" },
-  playBtn: {
-    position: "absolute",
-    bottom: 10,
-    left: "50%",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: -20,
-  },
-  postActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    gap: 20,
-  },
-  actionItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  actionText: { color: Colors.textSecondary, fontSize: 13 },
+  tabBtnActive: { backgroundColor: Colors.primary },
+  tabBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  tabBtnTextActive: { color: Colors.black },
 });

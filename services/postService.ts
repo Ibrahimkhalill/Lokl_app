@@ -4,6 +4,7 @@ export const postService = {
   createPost(form: FormData) {
     return api.post("/posts/", form, {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000, // 2 min — video uploads can be slow
     });
   },
 
@@ -29,6 +30,10 @@ export const postService = {
 
   savePost(id: number) {
     return api.post(`/posts/${id}/save/`);
+  },
+
+  deletePost(id: number) {
+    return api.post(`/posts/${id}/delete/`);
   },
 
   sharePost(id: number) {

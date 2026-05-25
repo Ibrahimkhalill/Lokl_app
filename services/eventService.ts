@@ -68,6 +68,11 @@ export const eventService = {
   getSocialGroup(id: number) {
     return api.get(`/groups/${id}/`);
   },
+  
+
+   getSocialGroupPost(id: number) {
+    return api.get(`/groups/${id}/posts/`);
+  },
 
   getGroupMembers(id: number) {
     return api.get(`/groups/${id}/members/`);

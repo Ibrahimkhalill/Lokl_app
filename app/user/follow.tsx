@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
   Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -12,148 +13,202 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
+import { userService } from "../../services/userService";
+import { postService } from "../../services/postService";
+import { getErrorMessage } from "../../lib/api";
 
-const FOLLOWERS = Array(8)
-  .fill(null)
-  .map((_, i) => ({
-    id: `f${i}`,
-    name: "Villa_266",
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-    isFollowing: false,
-  }));
+type Tab = "followers" | "following";
 
-const FOLLOWING = [
-  {
-    id: "f1",
-    name: "Villa_266",
-    avatar:
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
-    isFollowing: true,
-  },
-  {
-    id: "f2",
-    name: "Villa_266",
-    avatar:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&q=80",
-    isFollowing: true,
-  },
-];
+type FollowUser = {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar: string | null;
+};
+
+type MeData = {
+  profile: { id: number; name: string; username: string | null; avatar: string | null };
+  stats: { posts: number; followers: number; following: number };
+  followers: FollowUser[];
+  following: FollowUser[];
+};
+
+function UserAvatar({ uri, size }: { uri: string | null; size: number }) {
+  return (
+    <LinearGradient
+      colors={["#0077FF", "#F635DD"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{ width: size + 4, height: size + 4, borderRadius: (size + 4) / 2, padding: 2 }}
+    >
+      <View style={{
+        width: size, height: size, borderRadius: size / 2,
+        overflow: "hidden", backgroundColor: Colors.card,
+        justifyContent: "center", alignItems: "center",
+      }}>
+        {uri
+          ? <Image source={{ uri }} style={{ width: size, height: size }} />
+          : <Ionicons name="person" size={size * 0.45} color={Colors.textSecondary} />
+        }
+      </View>
+    </LinearGradient>
+  );
+}
 
 export default function FollowScreen() {
   const router = useRouter();
-  const { type } = useLocalSearchParams<{ type: string }>();
-  const isFollowers = type !== "following";
-  const data = isFollowers ? FOLLOWERS : FOLLOWING;
+  const { tab } = useLocalSearchParams<{ tab?: Tab }>();
+  const [activeTab, setActiveTab] = useState<Tab>(tab === "following" ? "following" : "followers");
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.push("/profile")}
-        >
-          <Ionicons name="arrow-back" size={20} color={Colors.text} />
-        </TouchableOpacity>
-        <View style={styles.profileRow}>
-          <LinearGradient
-            colors={["rgba(0, 119, 255, 1)", "rgba(246, 53, 221, 1)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatarBorder}
-          >
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80",
-              }}
-              style={styles.avatar}
-            />
-          </LinearGradient>
-          <View style={styles.profileInfo}>
-            <Text style={styles.username}>pixcraft_132</Text>
-            <View style={styles.statsRow}>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push("/profile/posts")}
-              >
-                <Text style={styles.statNum}>2,644</Text>
+  const [meData, setMeData] = useState<MeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+
+  const fetchMe = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await userService.getMe();
+      const d = res.data?.data ?? res.data;
+      setMeData(d);
+      const ids = new Set<number>((d.following ?? []).map((u: FollowUser) => u.id));
+      setFollowingIds(ids);
+    } catch (e) {
+      console.log("[Follow] error:", getErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { fetchMe(); }, [fetchMe]));
+
+  const handleToggleFollow = useCallback(async (userId: number) => {
+    const alreadyFollowing = followingIds.has(userId);
+    setFollowingIds((prev) => {
+      const next = new Set(prev);
+      if (alreadyFollowing) next.delete(userId); else next.add(userId);
+      return next;
+    });
+    if (activeTab === "following" && alreadyFollowing) {
+      setMeData((prev) =>
+        prev ? { ...prev, following: prev.following.filter((u) => u.id !== userId) } : prev
+      );
+    }
+    try {
+      if (alreadyFollowing) await postService.unfollowUser(userId);
+      else await postService.followUser(userId);
+    } catch {
+      setFollowingIds((prev) => {
+        const next = new Set(prev);
+        if (alreadyFollowing) next.add(userId); else next.delete(userId);
+        return next;
+      });
+      if (activeTab === "following" && alreadyFollowing) fetchMe();
+    }
+  }, [followingIds, activeTab, fetchMe]);
+
+  function getFollowBtnLabel(userId: number): string {
+    if (activeTab === "followers") return followingIds.has(userId) ? "Following" : "Follow Back";
+    return "Unfollow";
+  }
+
+  const profile = meData?.profile;
+  const stats = meData?.stats;
+
+  const renderHeader = () => (
+    <View style={styles.profileHeader}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate("/(tabs)/profile")}>
+        <Ionicons name="arrow-back" size={20} color={Colors.text} />
+      </TouchableOpacity>
+
+      <View style={styles.profileRow}>
+        <UserAvatar uri={profile?.avatar ?? null} size={60} />
+        <View style={styles.profileInfo}>
+          <Text style={styles.username}>{profile?.username ?? profile?.name ?? ""}</Text>
+          <View style={styles.statsRow}>
+            <TouchableOpacity onPress={() => router.push("/user/posts?tab=posts")}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNum}>{stats?.posts ?? 0}</Text>
                 <Text style={styles.statLabel}>posts</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push("/profile/follow?type=followers")}
-              >
-                <View
-                  style={[
-                    styles.statBox,
-                    !isFollowers && null,
-                    isFollowers && styles.statBoxActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statNum,
-                      isFollowers && styles.statNumActiveColor,
-                    ]}
-                  >
-                    6,401
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      isFollowers && styles.statNumActiveColor,
-                    ]}
-                  >
-                    followers
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                onPress={() => router.push("/profile/follow?type=following")}
-              >
-                <View
-                  style={[styles.statBox, !isFollowers && styles.statBoxActive]}
-                >
-                  <Text
-                    style={[
-                      styles.statNum,
-                      !isFollowers && styles.statNumActiveColor,
-                    ]}
-                  >
-                    2
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      !isFollowers && styles.statNumActiveColor,
-                    ]}
-                  >
-                    Following
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setActiveTab("followers")}>
+              <View style={[styles.statBox, activeTab === "followers" && styles.statBoxActive]}>
+                <Text style={[styles.statNum, activeTab === "followers" && styles.statNumActive]}>
+                  {stats?.followers ?? 0}
+                </Text>
+                <Text style={[styles.statLabel, activeTab === "followers" && styles.statNumActive]}>
+                  followers
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setActiveTab("following")}>
+              <View style={[styles.statBox, activeTab === "following" && styles.statBoxActive]}>
+                <Text style={[styles.statNum, activeTab === "following" && styles.statNumActive]}>
+                  {stats?.following ?? 0}
+                </Text>
+                <Text style={[styles.statLabel, activeTab === "following" && styles.statNumActive]}>
+                  Following
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
+    </View>
+  );
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        {renderHeader()}
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const listData: FollowUser[] =
+    activeTab === "followers" ? (meData?.followers ?? []) : (meData?.following ?? []);
+
+  return (
+    <SafeAreaView style={styles.safe}>
       <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
-        renderItem={({ item }) => (
-          <View style={styles.userRow}>
-            <Image source={{ uri: item.avatar }} style={styles.userAvatar} />
-            <Text style={styles.userName}>{item.name}</Text>
-            <TouchableOpacity style={styles.actionBtn}>
-              <Text style={styles.actionBtnText}>
-                {isFollowers ? "Follow Back" : "Unfollow"}
-              </Text>
-            </TouchableOpacity>
+        data={listData}
+        keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Ionicons name="people-outline" size={42} color={Colors.textSecondary} />
+            <Text style={styles.emptyText}>
+              {activeTab === "followers" ? "No followers yet" : "Not following anyone"}
+            </Text>
           </View>
-        )}
+        }
+        renderItem={({ item }) => {
+          const isOutline = activeTab === "followers" ? followingIds.has(item.id) : true;
+          return (
+            <View style={styles.userRow}>
+              <UserAvatar uri={item.avatar} size={46} />
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{item.name}</Text>
+                {!!item.username && <Text style={styles.userHandle}>@{item.username}</Text>}
+              </View>
+              <TouchableOpacity
+                style={[styles.actionBtn, isOutline && styles.actionBtnOutline]}
+                onPress={() => handleToggleFollow(item.id)}
+              >
+                <Text style={[styles.actionBtnText, isOutline && styles.actionBtnTextOutline]}>
+                  {getFollowBtnLabel(item.id)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
       />
     </SafeAreaView>
   );
@@ -161,6 +216,9 @@ export default function FollowScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  center: { alignItems: "center", gap: 12, paddingTop: 60 },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
+
   profileHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -168,69 +226,43 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
-  avatar: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 30,
-    backgroundColor: Colors.background,
-  },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+    justifyContent: "center", alignItems: "center",
     marginBottom: 14,
   },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-
-  avatarBorder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    padding: 2,
-  },
   profileInfo: { flex: 1 },
-  username: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  statsRow: { flexDirection: "row", gap: 8 },
-  statItem: {},
-  statBox: {
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: "center",
-  },
-  statBoxActive: { backgroundColor: "#4A90E2" },
-  statNum: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  statNumActiveColor: { color: "#fff" },
-  statLabel: { color: Colors.textSecondary, fontSize: 10, textAlign: "center" },
+  username: { color: Colors.text, fontSize: 15, fontWeight: "700", marginBottom: 8 },
 
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+  statsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statBox: {
+    borderRadius: 8, paddingVertical: 4,
+    alignItems: "center", borderWidth: 1,
+    borderColor: Colors.cardBorder, width: 68,
   },
-  userAvatar: { width: 48, height: 48, borderRadius: 24 },
-  userName: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "600" },
+  statBoxActive: { backgroundColor: "#4A90E2", borderColor: "#4A90E2" },
+  statNum: { color: Colors.text, fontSize: 13, fontWeight: "800", textAlign: "center" },
+  statNumActive: { color: "#fff" },
+  statLabel: { color: Colors.textSecondary, fontSize: 9, textAlign: "center" },
+
+  listContent: { paddingBottom: 80 },
+  userRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 10, gap: 12,
+  },
+  userInfo: { flex: 1 },
+  userName: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+  userHandle: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+
   actionBtn: {
-    backgroundColor: "#4A90E2",
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    backgroundColor: "#4A90E2", borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 9,
+  },
+  actionBtnOutline: {
+    backgroundColor: "transparent", borderWidth: 1, borderColor: Colors.cardBorder,
   },
   actionBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  actionBtnTextOutline: { color: Colors.text },
 });

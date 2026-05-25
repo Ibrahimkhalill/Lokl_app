@@ -72,6 +72,55 @@ const DARK_MAP_STYLE = [
   },
 ];
 
+const TYPE_ICON: Record<string, string> = {
+  // Sports & Fitness
+  cricket:    "baseball-outline",
+  football:   "american-football-outline",
+  soccer:     "football-outline",
+  basketball: "basketball-outline",
+  tennis:     "tennisball-outline",
+  baseball:   "baseball-outline",
+  gym:        "barbell-outline",
+  fitness:    "fitness-outline",
+  yoga:       "body-outline",
+  sports:     "trophy-outline",
+  // Food & Drink
+  restaurant: "restaurant-outline",
+  bar:        "wine-outline",
+  cafe:       "cafe-outline",
+  coffee:     "cafe-outline",
+  pizza:      "pizza-outline",
+  food:       "fast-food-outline",
+  bakery:     "storefront-outline",
+  // Entertainment
+  museum:     "business-outline",
+  art:        "color-palette-outline",
+  gallery:    "color-palette-outline",
+  theater:    "film-outline",
+  cinema:     "film-outline",
+  music:      "musical-notes-outline",
+  club:       "musical-note-outline",
+  // Nature & Outdoors
+  park:       "leaf-outline",
+  zoo:        "paw-outline",
+  beach:      "umbrella-outline",
+  garden:     "flower-outline",
+  // Shopping & Services
+  shopping:   "bag-outline",
+  market:     "storefront-outline",
+  spa:        "sparkles-outline",
+  hotel:      "bed-outline",
+};
+
+function getVenueIcon(type: string, fallback: string): string {
+  if (!type) return fallback || "location-outline";
+  const key = type.toLowerCase().replace(/[^a-z]/g, "");
+  for (const [k, icon] of Object.entries(TYPE_ICON)) {
+    if (key.includes(k) || k.includes(key)) return icon;
+  }
+  return fallback || "location-outline";
+}
+
 interface VenuePin {
   id: number;
   name: string;
@@ -103,6 +152,15 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [tracksChanges, setTracksChanges] = useState(false);
+  const tracksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectVenue = useCallback((id: number) => {
+    if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
+    setTracksChanges(true);
+    setSelectedId(id);
+    tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 400);
+  }, []);
 
   // Load venues whenever filter params change
   useEffect(() => {
@@ -133,9 +191,16 @@ export default function HomeScreen() {
       queryParams.radius_km = params.radius_km ?? "4000";
 
       const res = await api.get("/venues/", { params: queryParams });
-      // API returns { data: { venues: [...], pagination: {...} } }
-      const all: VenuePin[] = Array.isArray(res.data?.data?.venues)
-        ? res.data.data.venues
+      const raw = res.data;
+      console.log("[HomeScreen] venues raw keys:", JSON.stringify(Object.keys(raw ?? {})));
+      // Handle multiple API response shapes
+      const payload = raw?.data ?? raw;
+      const all: VenuePin[] = Array.isArray(payload?.venues)
+        ? payload.venues
+        : Array.isArray(payload?.results)
+        ? payload.results
+        : Array.isArray(payload)
+        ? payload
         : [];
 
       // 1 venue per category — safest for Android (14 categories = 14 markers max)
@@ -157,7 +222,11 @@ export default function HomeScreen() {
       }));
 
       setVenues(data);
-      if (data.length > 0) setSelectedId(data[0].id);
+      if (data.length > 0) {
+        setTracksChanges(true);
+        setSelectedId(data[0].id);
+        setTimeout(() => setTracksChanges(false), 400);
+      }
     } catch (err) {
       console.error("[HomeScreen] loadVenues error:", err);
     } finally {
@@ -193,10 +262,10 @@ export default function HomeScreen() {
             <Marker
               key={String(pin.id)}
               coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
-              onPress={() => setSelectedId(pin.id)}
+              onPress={() => selectVenue(pin.id)}
               anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={tracksChanges}
             >
-              {/* markerOuter has fixed width so Android allocates correct space */}
               <View collapsable={false} style={styles.markerOuter}>
                 <View style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
                   <Ionicons
@@ -396,20 +465,20 @@ const styles = StyleSheet.create({
   },
 
   mapPill: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     gap: 6,
     backgroundColor: Colors.black,
-    borderRadius: 20,          // NOT 999 — Android clips content when radius > height/2
-    paddingVertical: 7,
+    borderRadius: 10,          // NOT 999 — Android clips content when radius > height/2
+    paddingVertical: 4,
     paddingHorizontal: 11,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
   },
-  // Fixed-width outer wrapper — Android measures this first, inner pill renders inside it
+  // Fixed-size outer wrapper — Android measures this first; give extra room so pill never clips
   markerOuter: {
-    width: 80,
-    height: 34,
+    // width: 100,
+    // height: 40,
     alignItems: "center",
     justifyContent: "center",
   },

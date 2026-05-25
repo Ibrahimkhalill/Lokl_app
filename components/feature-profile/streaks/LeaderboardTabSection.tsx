@@ -1,183 +1,200 @@
 import React from "react";
-import { View, Text, StyleSheet, Image } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Colors } from "../../../constants/colors";
 import FireIcon from "../../../assets/icons/fire.svg";
 import QueenIcon from "../../../assets/icons/king.svg";
-import { LEADERBOARD } from "./streaksData";
+import { Avatar } from "../../primitives/Avatar";
 
-export function LeaderboardTabSection() {
+export type ApiLeaderboardEntry = {
+  rank: number;
+  user_id: number;
+  name: string;
+  username: string;
+  profile_picture: string | null;
+  fire_score: number;
+  locations_visited: number;
+};
+
+export type ApiLeaderboardData = {
+  current_user_id: number;
+  results: ApiLeaderboardEntry[];
+};
+
+function PodiumAvatar({
+  entry,
+  size,
+  rank,
+  rankColor,
+  isFirst,
+}: {
+  entry: ApiLeaderboardEntry;
+  size: number;
+  rank: number;
+  rankColor: string;
+  isFirst?: boolean;
+}) {
+  return (
+    <View style={styles.podiumItem}>
+      {isFirst && (
+        <QueenIcon width={24} height={24} color={Colors.primary} style={styles.crownIcon} />
+      )}
+      <View style={styles.avatarWrap}>
+        <Avatar uri={entry.profile_picture} size={size} borderWidth={isFirst ? 3 : 2} />
+        <View style={[styles.rankDot, { backgroundColor: rankColor }]}>
+          <Text style={[styles.rankDotText, isFirst && { color: Colors.black }]}>{rank}</Text>
+        </View>
+      </View>
+      <Text style={styles.podiumName} numberOfLines={1}>{entry.name}</Text>
+      <Text style={[styles.podiumSub, isFirst && { color: Colors.primary }]}>
+        {entry.locations_visited} visited
+      </Text>
+    </View>
+  );
+}
+
+export function LeaderboardTabSection({
+  data,
+  loading,
+}: {
+  data: ApiLeaderboardData | null;
+  loading?: boolean;
+}) {
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!data || !data.results.length) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyText}>No leaderboard data</Text>
+      </View>
+    );
+  }
+
+  const top3 = data.results.slice(0, 3);
+  const hasFullPodium = top3.length === 3;
+  const [first, second, third] = top3;
+
   return (
     <>
       <Text style={styles.legendTitle}>LOKL LEGENDS</Text>
-      <View style={styles.podium}>
-        <View style={styles.podiumItem}>
-          <View style={styles.podiumRank2}>
-            <Text style={styles.podiumRankText}>2</Text>
-          </View>
-          <Image
-            source={{ uri: LEADERBOARD[1].avatar }}
-            style={styles.podiumAvatar}
-          />
-          <Text style={styles.podiumName}>{LEADERBOARD[1].name}</Text>
-          <Text style={styles.podiumDays}>76 days</Text>
-        </View>
-        <View style={[styles.podiumItem, styles.podiumFirst]}>
-          <QueenIcon
-            width={22}
-            height={22}
-            color={Colors.primary}
-            style={styles.podiumFirstIcon}
-          />
-          <View style={styles.podiumRank1}>
-            <Text style={styles.podiumFirstRankText}>1</Text>
-          </View>
-          <Image
-            source={{ uri: LEADERBOARD[0].avatar }}
-            style={[styles.podiumAvatar, styles.podiumAvatarFirst]}
-          />
-          <Text style={styles.podiumName}>{LEADERBOARD[0].name}</Text>
-          <Text style={[styles.podiumDays, { color: Colors.primary }]}>
-            {LEADERBOARD[0].days}
-          </Text>
-        </View>
-        <View style={styles.podiumItem}>
-          <View style={styles.podiumRank3}>
-            <Text style={styles.podiumRankText}>3</Text>
-          </View>
-          <Image
-            source={{ uri: LEADERBOARD[2].avatar }}
-            style={styles.podiumAvatar}
-          />
-          <Text style={styles.podiumName}>Emma Davis</Text>
-          <Text style={styles.podiumDays}>65 days</Text>
-        </View>
-      </View>
 
-      {LEADERBOARD.map((entry) => (
-        <View key={entry.id} style={styles.leaderRow}>
-          <View
-            style={[
-              styles.rankBadge,
-              entry.rank === 1 && styles.rankBadge1,
-              entry.rank === 2 && styles.rankBadge2,
-              entry.rank === 3 && styles.rankBadge3,
-            ]}
-          >
-            <Text
-              style={[
-                styles.rankText,
-                entry.rank > 3 && { color: Colors.text },
-              ]}
-            >
-              {entry.rank}
-            </Text>
+      {hasFullPodium && (
+        <View style={styles.podium}>
+          {/* 2nd place — left, aligned to bottom */}
+          <PodiumAvatar entry={second} size={64} rank={2} rankColor="#9B9B9B" />
+
+          {/* 1st place — center, elevated */}
+          <View style={styles.podiumFirstWrap}>
+            <PodiumAvatar entry={first} size={76} rank={1} rankColor={Colors.primary} isFirst />
           </View>
-          <Image source={{ uri: entry.avatar }} style={styles.leaderAvatar} />
-          <Text style={styles.leaderName}>{entry.name}</Text>
-          <View style={styles.leaderScore}>
-            <FireIcon
-              width={16}
-              height={16}
-              color={"rgba(255, 105, 0, 1)"}
-            />
-            <Text style={styles.leaderScoreNum}>{entry.score}</Text>
-          </View>
+
+          {/* 3rd place — right, aligned to bottom */}
+          <PodiumAvatar entry={third} size={64} rank={3} rankColor="#FF6B35" />
         </View>
-      ))}
+      )}
+
+      {data.results.map((entry) => {
+        const isSelf = entry.user_id === data.current_user_id;
+        const rankBg =
+          entry.rank === 1 ? Colors.primary :
+          entry.rank === 2 ? "#9B9B9B" :
+          entry.rank === 3 ? "#FF6B35" :
+          Colors.cardBorder;
+        const rankTextColor = entry.rank <= 3 ? Colors.black : Colors.text;
+
+        return (
+          <View
+            key={entry.user_id}
+            style={[styles.leaderRow, isSelf && styles.leaderRowSelf]}
+          >
+            <View style={[styles.rankBadge, { backgroundColor: rankBg }]}>
+              <Text style={[styles.rankText, { color: rankTextColor }]}>{entry.rank}</Text>
+            </View>
+            <Avatar uri={entry.profile_picture} size={46} borderWidth={1} />
+            <View style={styles.leaderInfo}>
+              <Text style={styles.leaderName}>
+                {isSelf ? "You" : entry.name}
+              </Text>
+              <Text style={styles.leaderSub}>{entry.locations_visited} locations visited</Text>
+            </View>
+            <View style={styles.leaderScore}>
+              <FireIcon width={16} height={16} color="rgba(255,105,0,1)" />
+              <Text style={styles.leaderScoreNum}>{entry.fire_score}</Text>
+            </View>
+          </View>
+        );
+      })}
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  center: { paddingVertical: 60, alignItems: "center" },
+  emptyText: { color: Colors.textSecondary, fontSize: 15 },
+
   legendTitle: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: "800",
     letterSpacing: 0.5,
-    marginBottom: 20,
+    marginBottom: 24,
   },
+
   podium: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "center",
-    gap: 12,
-    marginBottom: 24,
+    gap: 16,
+    marginBottom: 28,
   },
-  podiumItem: { alignItems: "center", gap: 6 },
-  podiumFirst: { marginBottom: 0 },
-  podiumAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  podiumFirstWrap: {
+    marginBottom: 20,
+  },
+  podiumItem: {
+    alignItems: "center",
+    gap: 6,
+  },
+  crownIcon: {
+    marginBottom: 4,
+  },
+  avatarWrap: {
+    position: "relative",
+  },
+  rankDot: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: Colors.cardBorder,
+    borderColor: Colors.background,
   },
-  podiumAvatarFirst: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 3,
-    borderColor: Colors.primary,
+  rankDotText: {
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: "800",
   },
   podiumName: {
     color: Colors.text,
     fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
+    maxWidth: 80,
   },
-  podiumDays: {
+  podiumSub: {
     color: Colors.textSecondary,
     fontSize: 11,
     textAlign: "center",
   },
-  podiumRank1: {
-    position: "absolute",
-    bottom: 37,
-    zIndex: 1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  podiumRank2: {
-    position: "absolute",
-    bottom: 37,
-    zIndex: 1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#9B9B9B",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  podiumRank3: {
-    position: "absolute",
-    bottom: 37,
-    zIndex: 1,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#FF6B35",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  podiumRankText: {
-    color: Colors.white,
-    fontSize: 11,
-  },
-  podiumFirstRankText: {
-    color: Colors.black,
-    fontSize: 12,
-  },
-  podiumFirstIcon: {
-    position: "absolute",
-    top: -12,
-    zIndex: 1,
-    width: 22,
-    height: 22,
-  },
+
   leaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -189,20 +206,24 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  leaderRowSelf: {
+    borderColor: Colors.primary,
+    backgroundColor: "rgba(123,97,255,0.08)",
+  },
   rankBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.cardBorder,
     justifyContent: "center",
     alignItems: "center",
   },
-  rankBadge1: { backgroundColor: Colors.primary },
-  rankBadge2: { backgroundColor: "#9B9B9B" },
-  rankBadge3: { backgroundColor: "#FF6B35" },
-  rankText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
-  leaderAvatar: { width: 46, height: 46, borderRadius: 23 },
-  leaderName: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "600" },
+  rankText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  leaderInfo: { flex: 1 },
+  leaderName: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+  leaderSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
   leaderScore: { flexDirection: "row", alignItems: "center", gap: 6 },
   leaderScoreNum: { color: Colors.text, fontSize: 18, fontWeight: "800" },
 });

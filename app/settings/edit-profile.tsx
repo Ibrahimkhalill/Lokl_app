@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// app/profile/edit-profile.tsx
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,8 +8,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,15 +23,139 @@ import {
   AppHeaderIconButton,
 } from "../../components/primitives";
 import { pickAvatarImage } from "../../lib/mediaPicker";
+import { userService } from "../../services/userService";
+import { getErrorMessage } from "../../lib/api";
+import { settingService } from "@/services/settingServices";
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
-  const [currentPass, setCurrentPass] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Solution 1: Use useFocusEffect instead of useEffect
+  useFocusEffect(
+    useCallback(() => {
+      console.log("🔵 EditProfileScreen focused, fetching profile...");
+      fetchUserProfile();
+      
+      // Cleanup function (optional)
+      return () => {
+        console.log("🟠 EditProfileScreen unfocused");
+      };
+    }, [])
+  );
+
+  // Solution 2: Keep useEffect as backup
+  useEffect(() => {
+    console.log("🔵 useEffect running on mount");
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    console.log("🟡 fetchUserProfile called");
+    setLoading(true);
+    try {
+      console.log("🟣 Calling settingService.getOwnProfile()...");
+      const response = await settingService.getOwnProfile();
+      console.log("✅ API Response received:", response);
+      
+      const data = response.data?.data || response.data;
+      console.log("📦 Parsed data:", data);
+      
+      setName(data.name || "");
+      setBio(data.bio || "");
+      setPhone(data.phone || "");
+      setDateOfBirth(data.date_of_birth || "");
+      setOriginalAvatarUrl(data.avatar_url || null);
+      setAvatarUri(data.avatar_url || null);
+      
+      console.log("✅ Profile loaded successfully");
+    } catch (error) {
+      console.error("❌ Error fetching profile:", error);
+      Alert.alert("Error", getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    console.log("🟡 handleUpdateProfile called");
+    
+    if (!name.trim()) {
+      Alert.alert("Error", "Name is required");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      console.log("🟣 Preparing form data...");
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("bio", bio);
+      formData.append("phone", phone);
+      formData.append("date_of_birth", dateOfBirth);
+
+      if (avatarUri && avatarUri !== originalAvatarUrl) {
+        console.log("🟠 Avatar changed, preparing upload...");
+        const ext = avatarUri.split(".").pop() ?? "jpg";
+        formData.append("avatar", {
+          uri: avatarUri,
+          name: `avatar_${Date.now()}.${ext}`,
+          type: "image/jpeg",
+        } as any);
+        console.log("✅ Avatar file added to formData");
+      }
+
+      console.log("🟣 Calling settingService.updateProfile()...");
+      const response = await settingService.updateProfile(formData);
+      console.log("✅ Update response:", response);
+      
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      Alert.alert("Error", getErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Add a timeout to force re-render if needed
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log("⚠️ Loading timeout - forcing re-render");
+        setLoading(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={s.loadingText}>Loading profile...</Text>
+          {/* <TouchableOpacity 
+            onPress={() => {
+              console.log("🔄 Manual retry pressed");
+              fetchUserProfile();
+            }}
+            style={s.retryBtn}
+          >
+            <Text style={s.retryText}>Retry</Text>
+          </TouchableOpacity> */}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -61,14 +188,20 @@ export default function EditProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={s.fieldLabel}>Edit Photo</Text>
+          <Text style={s.fieldLabel}>Profile Photo</Text>
           <MediaPickerCard
             height={150}
             previewUri={avatarUri}
             previewKind="image"
             onPress={async () => {
+              console.log("🟠 Media picker pressed");
               const picked = await pickAvatarImage();
-              if (picked) setAvatarUri(picked.uri);
+              if (picked) {
+                console.log("✅ Image picked:", picked.uri);
+                setAvatarUri(picked.uri);
+              } else {
+                console.log("⚠️ No image picked");
+              }
             }}
             icon={
               <Ionicons
@@ -77,22 +210,31 @@ export default function EditProfileScreen() {
                 color={Colors.textSecondary}
               />
             }
-            title="New Photos"
-            subtitle="photo"
+            title="Change Photo"
+            subtitle="tap to update"
           />
 
           <FormField label="Name" labelStyle={s.fieldLabel}>
             <AppTextInput
-              placeholder="Name"
+              placeholder="Enter your name"
               value={name}
               onChangeText={setName}
+            />
+          </FormField>
+
+          <FormField label="Phone" labelStyle={s.fieldLabel}>
+            <AppTextInput
+              placeholder="Enter phone number"
+              value={phone}
+              readOnly
+              keyboardType="phone-pad"
             />
           </FormField>
 
           <FormField label="Bio" labelStyle={s.fieldLabel}>
             <AppTextInput
               style={s.bioInput}
-              placeholder="Name"
+              placeholder="Tell something about yourself"
               value={bio}
               onChangeText={setBio}
               multiline
@@ -101,41 +243,24 @@ export default function EditProfileScreen() {
             />
           </FormField>
 
-          <View style={s.divider} />
-
-          <FormField label="Current Passwords" labelStyle={s.fieldLabel}>
+          {/* <FormField label="Date of Birth" labelStyle={s.fieldLabel}>
             <AppTextInput
-              value={currentPass}
-              onChangeText={setCurrentPass}
-              secureTextEntry
-              placeholder="••••••••••••••"
+              placeholder="YYYY-MM-DD"
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
             />
-          </FormField>
+          </FormField> */}
 
-          <View style={s.divider} />
-
-          <Text style={s.changePwdTitle}>Change your password</Text>
-
-          <FormField label="New Password" labelStyle={s.fieldLabel}>
-            <AppTextInput
-              value={newPass}
-              onChangeText={setNewPass}
-              secureTextEntry
-              placeholder="000000000"
-            />
-          </FormField>
-
-          <FormField label="Confirm Password" labelStyle={s.fieldLabel}>
-            <AppTextInput
-              value={confirmPass}
-              onChangeText={setConfirmPass}
-              secureTextEntry
-              placeholder="000000000"
-            />
-          </FormField>
-
-          <TouchableOpacity style={s.saveBtn} onPress={() => router.back()}>
-            <Text style={s.saveBtnText}>Save Profile</Text>
+          <TouchableOpacity 
+            style={[s.saveBtn, saving && s.disabledBtn]} 
+            onPress={handleUpdateProfile}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color={Colors.black} />
+            ) : (
+              <Text style={s.saveBtnText}>Save Profile</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -146,6 +271,28 @@ export default function EditProfileScreen() {
 const s = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  loadingText: { 
+    color: Colors.textSecondary, 
+    marginTop: 12, 
+    fontSize: 14 
+  },
+  retryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: Colors.black,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -172,7 +319,8 @@ const s = StyleSheet.create({
     height: 56,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 24,
   },
   saveBtnText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
+  disabledBtn: { opacity: 0.6 },
 });

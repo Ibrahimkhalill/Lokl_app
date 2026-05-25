@@ -455,9 +455,9 @@ export default function EventsScreen() {
           </Text>
         </View>
         <View style={s.headerActions}>
-          <TouchableOpacity style={s.iconBtn}>
+          {/* <TouchableOpacity style={s.iconBtn}>
             <SearchIcon width={22} height={22} color={Colors.text} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             style={s.createBtn}
             onPress={() => router.push("/events/group-create")}

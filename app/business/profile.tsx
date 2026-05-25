@@ -521,14 +521,15 @@ export default function BusinessProfileScreen() {
         statusBarTranslucent
         onRequestClose={() => setBioModalVisible(false)}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setBioModalVisible(false)}
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalKAV}
-        >
+        <View style={{ flex: 1 }}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setBioModalVisible(false)}
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+          >
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -566,7 +567,8 @@ export default function BusinessProfileScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -819,11 +821,6 @@ const styles = StyleSheet.create({
   },
 
   // Bio Modal
-  modalKAV: { position: "absolute", bottom: 0, left: 0, right: 0 },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
   modalSheet: {
     backgroundColor: Colors.card,
     borderTopLeftRadius: 20,

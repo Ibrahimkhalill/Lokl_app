@@ -8,7 +8,6 @@ import {
   Image,
   ActivityIndicator,
   Linking,
-  Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,7 +26,6 @@ import WifiIcon from "../../assets/icons/wifi.svg";
 import NavigateIcon from "../../assets/icons/navigate.svg";
 import FriendsIcon from "../../assets/icons/friends.svg";
 
-const { width } = Dimensions.get("window");
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,19 +59,16 @@ interface VenueDetail {
   bookings: number;
   revenue: string;
   trend: string;
-}
-
-interface ReviewUser {
-  id: number;
-  name: string;
-  profile_picture: string | null;
+  reviews?: Review[];
 }
 
 interface Review {
   id: number;
-  user: ReviewUser;
-  rating: string;
+  user_name: string;
+  user_avatar: string | null;
+  rating: number;
   comment: string;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -96,14 +91,6 @@ function timeAgo(dateStr: string): string {
   return "Just now";
 }
 
-function getTodayHours(hours: string[]): string | null {
-  if (!hours || hours.length === 0) return null;
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
-  const entry = hours.find((h) => h.startsWith(today));
-  if (!entry) return null;
-  const parts = entry.split(": ");
-  return parts[1] ?? null;
-}
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
   shower:  <ShowerIcon width={20} height={20} color={Colors.primary} />,
@@ -176,27 +163,22 @@ export default function DetailsScreen() {
   async function fetchAll(venueId: string) {
     setLoading(true);
     try {
-      const [venueRes, reviewsRes, friendsRes] = await Promise.allSettled([
+      const [venueRes, friendsRes] = await Promise.allSettled([
         api.get(`/venues/${venueId}/`),
-        api.get(`/venues/${venueId}/reviews/`),
         api.get(`/venues/${venueId}/friends/`),
       ]);
 
       if (venueRes.status === "fulfilled") {
-        const v = venueRes.value.data?.data ?? null;
-        // Inject distance from navigation param — detail endpoint doesn't calculate it
+        const v = venueRes.value.data?.data ?? venueRes.value.data ?? null;
         if (v && distanceParam) v.distance = decodeURIComponent(distanceParam);
         setVenue(v);
-      }
-      if (reviewsRes.status === "fulfilled") {
-        const rd = reviewsRes.value.data?.data;
-        // Backend returns { count, results } or just an array
-        const list = Array.isArray(rd) ? rd : (rd?.results ?? rd?.reviews ?? []);
-        setReviews(list);
+        // Reviews are now embedded in the venue response
+        const reviewList = Array.isArray(v?.reviews) ? v.reviews : [];
+        setReviews(reviewList);
       }
       if (friendsRes.status === "fulfilled") {
-        const fd = friendsRes.value.data?.data;
-        setFriends(fd?.friends ?? []);
+        const fd = friendsRes.value.data?.data ?? friendsRes.value.data;
+        setFriends(Array.isArray(fd?.friends) ? fd.friends : Array.isArray(fd) ? fd : []);
       }
     } catch (err) {
       console.error("[DetailsScreen] fetchAll error:", err);
@@ -240,7 +222,9 @@ export default function DetailsScreen() {
     : [];
 
   // Today's hours
-  const todayHours = getTodayHours(venue.hours);
+  const allHours = Array.isArray(venue.hours) && venue.hours.length > 0
+    ? venue.hours.join(", ")
+    : null;
 
   return (
     <View style={styles.container}>
@@ -353,32 +337,24 @@ export default function DetailsScreen() {
             style={styles.actionsScroll}
           >
             <View style={styles.actionsRow}>
-              {/* Open/Closed badge */}
-              {venue.is_open_now !== null && (
-                <View
-                  style={[
-                    styles.openBadge,
-                    !venue.is_open_now && styles.closedBadge,
-                  ]}
-                >
-                  <Ionicons
-                    name="time-outline"
-                    size={14}
-                    color={venue.is_open_now ? "rgba(5, 223, 114, 1)" : "#f87171"}
-                  />
-                  <Text
-                    style={[
-                      styles.openText,
-                      !venue.is_open_now && styles.closedText,
-                    ]}
-                  >
-                    {venue.is_open_now ? "Open Now" : "Closed"}
-                  </Text>
-                </View>
-              )}
+              {/* Open/Closed badge — always shown */}
+              <View style={[styles.openBadge, !venue.is_open_now && styles.closedBadge]}>
+                <Ionicons
+                  name="time-outline"
+                  size={14}
+                  color={venue.is_open_now ? "rgba(5, 223, 114, 1)" : "#f87171"}
+                />
+                <Text style={[styles.openText, !venue.is_open_now && styles.closedText]}>
+                  {venue.is_open_now ? "Open Now" : "Closed"}
+                </Text>
+              </View>
               <TouchableOpacity
                 style={styles.actionBtn}
-                onPress={() => router.push("/home/share-event")}
+                onPress={() =>
+                  router.push(
+                    `/events/share-event?title=${encodeURIComponent(venue.name)}&subtitle=${encodeURIComponent(venue.address ?? "")}&image=${encodeURIComponent(venue.cover ?? "")}&link=${encodeURIComponent(venue.website ?? "")}&type=venue`
+                  )
+                }
               >
                 <Text style={styles.actionBtnText}>Share</Text>
               </TouchableOpacity>
@@ -449,12 +425,12 @@ export default function DetailsScreen() {
           )}
 
           {/* Info Cards */}
-          {todayHours && (
+          {!!allHours && (
             <View style={styles.infoCard}>
               <TimeIcon width={24} height={24} color={Colors.primary} />
               <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Hours Today</Text>
-                <Text style={styles.infoValue}>{todayHours}</Text>
+                <Text style={styles.infoLabel}>Hours</Text>
+                <Text style={styles.infoValue}>{allHours}</Text>
               </View>
             </View>
           )}
@@ -537,26 +513,28 @@ export default function DetailsScreen() {
             reviews.slice(0, 3).map((review) => (
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.reviewTop}>
-                  {review.user.profile_picture ? (
-                    <Image
-                      source={{ uri: review.user.profile_picture }}
-                      style={styles.reviewAvatar}
-                    />
+                  {review.user_avatar ? (
+                    <Image source={{ uri: review.user_avatar }} style={styles.reviewAvatar} />
                   ) : (
                     <View style={[styles.reviewAvatar, styles.avatarPlaceholder]}>
                       <Ionicons name="person" size={18} color={Colors.textSecondary} />
                     </View>
                   )}
                   <View style={styles.reviewInfo}>
-                    <Text style={styles.reviewName}>{review.user.name}</Text>
-                    <Text style={styles.reviewTime}>
-                      {timeAgo(review.created_at)}
-                    </Text>
+                    <Text style={styles.reviewName}>{review.user_name ?? "Anonymous"}</Text>
+                    <Text style={styles.reviewTime}>{timeAgo(review.created_at)}</Text>
                     {!!review.comment && (
                       <Text style={styles.reviewText}>{review.comment}</Text>
                     )}
+                    {!!review.image_url && (
+                      <Image source={{ uri: review.image_url }} style={styles.reviewImage} resizeMode="cover" />
+                    )}
                   </View>
-                  <Text style={styles.reviewRating}>{review.rating}/10</Text>
+                  <View style={styles.reviewRatingBadge}>
+                    <Text style={styles.reviewRatingText}>
+                      {Number(review.rating).toFixed(1)}
+                    </Text>
+                  </View>
                 </View>
               </View>
             ))
@@ -819,11 +797,26 @@ const styles = StyleSheet.create({
   reviewText: {
     color: Colors.textSecondary,
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 10,
   },
-  reviewRating: {
-    color: Colors.textSecondary,
+  reviewRatingBadge: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 48,
+  },
+  reviewRatingText: {
+    color: Colors.black,
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
+  },
+  reviewImage: {
+    width: "100%",
+    height: 160,
+    borderRadius: 10,
+    marginTop: 8,
   },
 });

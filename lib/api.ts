@@ -75,6 +75,13 @@ function extractMessage(data: any): string | null {
   return null;
 }
 
+const SERVER_HOST = BASE_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, ""); // e.g. "10.10.12.8:8004"
+
+export function fixMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return url.replace(/localhost(:\d+)?/, SERVER_HOST);
+}
+
 export function getErrorMessage(error: unknown): string {
   // fetch-based errors (from fetchMultipart)
   if (error instanceof Error && (error as any).response) {

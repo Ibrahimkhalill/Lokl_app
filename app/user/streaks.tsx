@@ -1,20 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   StreaksTabSection,
   AchievementsTabSection,
   LeaderboardTabSection,
 } from "../../components/feature-profile/streaks";
+import type { ApiStreak, ApiAchievementsData, ApiLeaderboardData } from "../../components/feature-profile/streaks";
+import { userService } from "../../services/userService";
+import { getErrorMessage } from "../../lib/api";
 
 type Tab = "streaks" | "achievements" | "leaderboard";
 
@@ -23,6 +28,56 @@ const TABS: Tab[] = ["streaks", "achievements", "leaderboard"];
 export default function StreaksScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("streaks");
+
+  const [streaks, setStreaks] = useState<ApiStreak[]>([]);
+  const [achievements, setAchievements] = useState<ApiAchievementsData | null>(null);
+  const [leaderboard, setLeaderboard] = useState<ApiLeaderboardData | null>(null);
+
+  const [loadingStreaks, setLoadingStreaks] = useState(false);
+  const [loadingAchievements, setLoadingAchievements] = useState(false);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAll = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    setLoadingStreaks(true);
+    setLoadingAchievements(true);
+    setLoadingLeaderboard(true);
+
+    const [streaksRes, achievementsRes, leaderboardRes] = await Promise.allSettled([
+      userService.getStreaks(),
+      userService.getAchievements(),
+      userService.getLeaderboard(),
+    ]);
+
+    if (streaksRes.status === "fulfilled") {
+      const d = streaksRes.value.data?.data ?? streaksRes.value.data;
+      setStreaks(Array.isArray(d) ? d : []);
+    } else {
+      console.log("[Streaks] error:", getErrorMessage(streaksRes.reason));
+    }
+
+    if (achievementsRes.status === "fulfilled") {
+      const d = achievementsRes.value.data?.data ?? achievementsRes.value.data;
+      setAchievements(d);
+    } else {
+      console.log("[Achievements] error:", getErrorMessage(achievementsRes.reason));
+    }
+
+    if (leaderboardRes.status === "fulfilled") {
+      const d = leaderboardRes.value.data?.data ?? leaderboardRes.value.data;
+      setLeaderboard(d);
+    } else {
+      console.log("[Leaderboard] error:", getErrorMessage(leaderboardRes.reason));
+    }
+
+    setLoadingStreaks(false);
+    setLoadingAchievements(false);
+    setLoadingLeaderboard(false);
+    setRefreshing(false);
+  }, []);
+
+  useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -41,12 +96,7 @@ export default function StreaksScreen() {
             style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text
-              style={[
-                styles.tabBtnText,
-                activeTab === tab && styles.tabBtnTextActive,
-              ]}
-            >
+            <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
@@ -56,10 +106,19 @@ export default function StreaksScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true)} tintColor={Colors.primary} />
+        }
       >
-        {activeTab === "streaks" && <StreaksTabSection />}
-        {activeTab === "achievements" && <AchievementsTabSection />}
-        {activeTab === "leaderboard" && <LeaderboardTabSection />}
+        {activeTab === "streaks" && (
+          <StreaksTabSection streaks={streaks} loading={loadingStreaks} />
+        )}
+        {activeTab === "achievements" && (
+          <AchievementsTabSection data={achievements} loading={loadingAchievements} />
+        )}
+        {activeTab === "leaderboard" && (
+          <LeaderboardTabSection data={leaderboard} loading={loadingLeaderboard} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -83,26 +142,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: {
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
+  headerTitle: { color: Colors.text, fontSize: 18, fontWeight: "800", letterSpacing: 0.5 },
   tabRow: {
     flexDirection: "row",
     marginHorizontal: 16,
     marginBottom: 16,
     backgroundColor: Colors.card,
     borderRadius: 50,
-    justifyContent: "space-between",
+    padding: 4,
   },
   tabBtn: {
-    paddingHorizontal: 26,
+    flex: 1,
     paddingVertical: 10,
     borderRadius: 50,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabBtnActive: { backgroundColor: Colors.primary },
   tabBtnText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },

@@ -20,7 +20,7 @@ import SendIcon from "../../assets/icons/navigate.svg";
 import ImageIcon from "../../assets/icons/image.svg";
 import { pickPostMedia } from "../../lib/mediaPicker";
 import { messageService } from "../../services/messageService";
-import { BASE_URL, getErrorMessage } from "../../lib/api";
+import { BASE_URL, fixMediaUrl, getErrorMessage } from "../../lib/api";
 
 const WS_BASE = BASE_URL.replace(/^https?/, "ws").replace("/api", "");
 
@@ -82,7 +82,7 @@ export default function ChatDetailScreen() {
       id: m.id,
       sender_id: m.sender_id,
       sender_name: m.sender_name ?? "",
-      sender_avatar: m.sender_avatar ?? m.avatar ?? null,
+      sender_avatar: fixMediaUrl(m.sender_avatar ?? m.avatar),
       content: m.content ?? m.body ?? "",
       created_at: m.created_at,
     })).reverse(),
@@ -142,7 +142,7 @@ export default function ChatDetailScreen() {
               id: data.id ?? Date.now(),
               sender_id: data.sender_id,
               sender_name: data.sender_name ?? "",
-              sender_avatar: data.avatar ?? data.sender_avatar ?? null,
+              sender_avatar: fixMediaUrl(data.avatar ?? data.sender_avatar),
               content: data.content ?? "",
               created_at: data.created_at ?? new Date().toISOString(),
             };

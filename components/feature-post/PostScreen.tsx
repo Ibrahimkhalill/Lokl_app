@@ -28,7 +28,7 @@ import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
 import * as Location from "expo-location";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
 
 type ApiGroup = {
@@ -66,8 +66,9 @@ const SLIDER_MAX = 10;
 const THUMB_SIZE = 34;
 
 export default function PostScreen() {
-  const { event_id } = useLocalSearchParams<{ event_id?: string }>();
-  const isReview = !!event_id;
+  const router = useRouter();
+  const { event_id, venueId } = useLocalSearchParams<{ event_id?: string; venueId?: string }>();
+  const isReview = !!(event_id || venueId);
 
   const [caption, setCaption] = useState("");
 
@@ -153,16 +154,20 @@ export default function PostScreen() {
       if (locationName) form.append("location", locationName);
       if (mediaUri) {
         const ext = mediaUri.split(".").pop() ?? "jpg";
-        const mime = mediaKind === "video" ? `video/${ext}` : `image/${ext}`;
-        form.append("image", { uri: mediaUri, name: `media.${ext}`, type: mime } as any);
+        if (mediaKind === "video") {
+          form.append("video", { uri: mediaUri, name: `video.${ext}`, type: `video/${ext}` } as any);
+        } else {
+          form.append("image", { uri: mediaUri, name: `image.${ext}`, type: `image/${ext}` } as any);
+        }
       }
       selectedGroupIds.forEach((id) => form.append("tagged_group_ids", id));
       selectedFriendIds.forEach((id) => form.append("tagged_user_ids", id));
       postToGroupIds.forEach((id) => form.append("post_target_ids", id));
       if (event_id) form.append("event_id", event_id);
+      if (venueId) form.append("venue_id", venueId);
       await postService.createPost(form);
       resetForm();
-      Alert.alert("Success", isReview ? "Review posted!" : "Your post has been shared!");
+      Alert.alert("Success", venueId ? "Venue review posted!" : event_id ? "Event review posted!" : "Your post has been shared!");
     } catch (e) {
       Alert.alert("Error", getErrorMessage(e) || "Failed to share post.");
     } finally {
@@ -182,8 +187,8 @@ export default function PostScreen() {
       }
     })();
 
-    console.log("[PostScreen] event_id:", event_id, "isReview:", isReview);
-  }, []);
+    console.log("[PostScreen] event_id:", event_id, "venueId:", venueId, "isReview:", isReview);
+  }, [event_id, venueId, isReview]);
 
   useEffect(() => {
     eventService
@@ -226,8 +231,11 @@ export default function PostScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>{isReview ? "Write a Review" : "Share Your Content"}</Text>
-          <Text style={styles.subtitle}>{isReview ? "Share your experience about this event" : "Share Your Moments With The World"}</Text>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Share Your Content</Text>
+          <Text style={styles.subtitle}>Share Your Moments With The World</Text>
 
           <MediaPickerCard
             height={140}
@@ -562,6 +570,12 @@ export default function PostScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 120 },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+    justifyContent: "center", alignItems: "center",
+    marginBottom: 16,
+  },
 
   title: { color: Colors.text, fontSize: 24, fontWeight: "700", marginBottom: 4 },
   subtitle: { color: Colors.textSecondary, fontSize: 13, marginBottom: 22 },
