@@ -20,7 +20,7 @@ import { postService } from "@/services/postService";
 
 export default function CreatePostScreen() {
   const router = useRouter();
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName?: string }>();
   const [text, setText] = useState("");
   const [media, setMedia] = useState<{ uri: string; kind: "image" | "video" } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,6 +117,17 @@ export default function CreatePostScreen() {
           <Ionicons name="image-outline" size={24} color={Colors.primary} />
           <Text style={styles.addMediaText}>Add Photo or Video</Text>
         </TouchableOpacity>
+
+        {!!groupName && (
+          <View style={styles.whereToPost}>
+            <Text style={styles.whereLabel}>Where to post</Text>
+            <View style={styles.groupRow}>
+              <Ionicons name="people-outline" size={18} color={Colors.textSecondary} />
+              <Text style={styles.groupRowName} numberOfLines={1}>{groupName}</Text>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -194,5 +205,34 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 14,
     fontWeight: "500",
+  },
+  whereToPost: {
+    marginTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+    paddingTop: 16,
+  },
+  whereLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  groupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  groupRowName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

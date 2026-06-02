@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
+import * as ExpoLocation from "expo-location";
 import { Colors } from "../../constants/colors";
+import { userService } from "../../services/userService";
 import HomeIcon from "../../assets/icons/home.svg";
 import ExploreIcon from "../../assets/icons/explore.svg";
 import PostIcon from "../../assets/icons/posts.svg";
@@ -30,6 +32,21 @@ function SvgTabIcon({
 }
 
 export default function TabsLayout() {
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const loc = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+        const { latitude, longitude } = loc.coords;
+        const geo = await ExpoLocation.reverseGeocodeAsync({ latitude, longitude });
+        const place = geo[0];
+        const location_name = [place?.city, place?.region, place?.country].filter(Boolean).join(", ");
+        userService.updateLocation({ latitude, longitude, location_name }).catch(() => {});
+      } catch {}
+    })();
+  }, []);
+
   return (
     <Tabs
       screenOptions={{

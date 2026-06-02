@@ -10,18 +10,17 @@ import {
   Alert,
   TextInput,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import MemberIcon from "../../assets/icons/member.svg";
+import LocationsIcon from "../../assets/icons/locations.svg";
 import ImageIcon from "../../assets/icons/image.svg";
 import { GroupPostCard, type GroupPostItem } from "../events";
 import { ContextMenuDropdown, capturePressAnchor } from "../overlays";
-import { pickPostMedia, pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
+import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
@@ -36,6 +35,7 @@ type GroupDetail = {
   is_member?: boolean;
   is_admin?: boolean;
   recent_members?: { id: number; name: string; profile_picture: string | null }[];
+  meetup?: { name?: string; address?: string; latitude?: number; longitude?: number } | null;
 };
 
 type ApiPost = {
@@ -119,14 +119,10 @@ export default function GroupDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [localCoverUri, setLocalCoverUri] = useState<string | null>(null);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
-  const [postModalVisible, setPostModalVisible] = useState(false);
-  const [postModalText, setPostModalText] = useState("");
-  const [postModalMedia, setPostModalMedia] = useState<{ uri: string; ext: string } | null>(null);
   const [selectedPost, setSelectedPost] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [posts, setPosts] = useState<GroupPostItem[]>([]);
-  const [creatingPost, setCreatingPost] = useState(false);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
 
@@ -153,6 +149,7 @@ export default function GroupDetailScreen() {
       const apiPosts = data?.posts || [];
       const convertedPosts = apiPosts.map(convertApiPostToGroupPost);
       setPosts(convertedPosts);
+      console.log("[GroupDetail] fetched posts:", convertedPosts);
     } catch (e) {
       console.log("[GroupDetail] Posts fetch error:", getErrorMessage(e));
       setPosts([]);
@@ -218,32 +215,6 @@ export default function GroupDetailScreen() {
     }
   };
 
-  const handleSubmitGroupPost = async () => {
-    if (!postModalText.trim() && !postModalMedia) return;
-    setCreatingPost(true);
-    try {
-      const form = new FormData();
-      form.append("body", postModalText.trim());
-      form.append("post_target", String(groupId));
-      if (postModalMedia) {
-        form.append("image", {
-          uri: postModalMedia.uri,
-          name: `post_${Date.now()}.${postModalMedia.ext}`,
-          type: "image/jpeg",
-        } as any);
-      }
-      await postService.createPost(form);
-      setPostModalVisible(false);
-      setPostModalText("");
-      setPostModalMedia(null);
-      await fetchGroupPosts();
-    } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
-    } finally {
-      setCreatingPost(false);
-    }
-  };
-
   const handleLike = useCallback(async (postId: string) => {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
@@ -298,20 +269,7 @@ export default function GroupDetailScreen() {
     }
   }, [posts]);
 
-  const handleShare = useCallback(async (postId: string) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, shares: (p.shares ?? 0) + 1 } : p))
-    );
-    
-    try {
-      await postService.sharePost(parseInt(postId));
-    } catch (e) {
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, shares: (p.shares ?? 0) - 1 } : p))
-      );
-      Alert.alert("Error", getErrorMessage(e));
-    }
-  }, []);
+
 
   const handleComment = useCallback((postId: string) => {
     setCommentPostId(postId);
@@ -342,12 +300,20 @@ export default function GroupDetailScreen() {
   };
 
   const handleDeletePost = async (postId: string) => {
+    // Optimistically remove first
+    const removed = posts.find((p) => p.id === postId);
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
     try {
       await postService.deletePost(parseInt(postId));
-      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-      Alert.alert("Success", "Post deleted successfully");
-    } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+    } catch (e: any) {
+      // 204 No Content — server confirmed deletion, ignore axios parse quirk
+      const status = e?.response?.status;
+      if (status && status >= 400) {
+        // Real server error — put post back and show message
+        if (removed) setPosts((prev) => [...prev, removed]);
+        Alert.alert("Error", getErrorMessage(e));
+      }
+      // network-level error with no response: delete already succeeded on server, do nothing
     }
   };
 
@@ -449,6 +415,12 @@ export default function GroupDetailScreen() {
               <MemberIcon width={14} height={14} color={Colors.textSecondary} />
               <Text style={s.metaChipText}>{group.members_count ?? 0} Members</Text>
             </TouchableOpacity>
+            {!!group.meetup?.name && (
+              <View style={s.metaChip}>
+                <LocationsIcon width={14} height={14} color={Colors.textSecondary} />
+                <Text style={s.metaChipText} numberOfLines={1}>{group.meetup.name}</Text>
+              </View>
+            )}
           </View>
 
           {isAdmin ? (
@@ -475,7 +447,7 @@ export default function GroupDetailScreen() {
           {isMember && (
             <View>
               <View style={s.fullDivider} />
-              <TouchableOpacity style={s.postInputRow} activeOpacity={0.7} onPress={() => setPostModalVisible(true)}>
+              <TouchableOpacity style={s.postInputRow} activeOpacity={0.7} onPress={() => router.push(`/(tabs)/post?groupId=${groupId}` as never)}>
                 <View style={s.postInputAvatar}>
                   {(localPhotoUri ?? group.photo_url) ? (
                     <Image source={{ uri: (localPhotoUri ?? group.photo_url)! }} style={s.postAvatar} />
@@ -520,85 +492,6 @@ export default function GroupDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Post Bottom Sheet */}
-      <Modal
-        visible={postModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setPostModalVisible(false)}
-      >
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => { setPostModalVisible(false); setPostModalText(""); setPostModalMedia(null); }}
-          />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1, justifyContent: "flex-end" }}
-          >
-            <View style={s.postSheet}>
-              {/* Handle */}
-              <View style={s.sheetHandle} />
-
-              {/* Header */}
-              <View style={s.sheetHeader}>
-                <Text style={s.sheetTitle}>Post to Group</Text>
-                <TouchableOpacity onPress={() => { setPostModalVisible(false); setPostModalText(""); setPostModalMedia(null); }}>
-                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Body input */}
-              <TextInput
-                style={s.sheetInput}
-                placeholder="What's on your mind?"
-                placeholderTextColor={Colors.textMuted}
-                value={postModalText}
-                onChangeText={setPostModalText}
-                multiline
-                autoFocus
-              />
-
-              {/* Image preview */}
-              {postModalMedia && (
-                <View style={s.mediaPreview}>
-                  <Image source={{ uri: postModalMedia.uri }} style={s.mediaPreviewImage} />
-                  <TouchableOpacity onPress={() => setPostModalMedia(null)} style={s.removeMediaBtn}>
-                    <Ionicons name="close-circle" size={22} color="#FF6B35" />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Footer */}
-              <View style={s.sheetFooter}>
-                <TouchableOpacity
-                  style={s.sheetMediaBtn}
-                  onPress={async () => {
-                    const picked = await pickPostMedia();
-                    if (!picked) return;
-                    const ext = picked.uri.split(".").pop() ?? "jpg";
-                    setPostModalMedia({ uri: picked.uri, ext });
-                  }}
-                >
-                  <ImageIcon width={22} height={22} color={Colors.textSecondary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[s.sheetSubmitBtn, (!postModalText.trim() && !postModalMedia) && { opacity: 0.4 }, creatingPost && { opacity: 0.6 }]}
-                  onPress={handleSubmitGroupPost}
-                  disabled={creatingPost || (!postModalText.trim() && !postModalMedia)}
-                >
-                  {creatingPost
-                    ? <ActivityIndicator size="small" color={Colors.black} />
-                    : <Text style={s.sheetSubmitText}>Post</Text>}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-
       {/* Comment Modal */}
       <Modal
         visible={!!commentPostId}
@@ -639,11 +532,18 @@ export default function GroupDetailScreen() {
         <TouchableOpacity
           style={s.deleteBtn}
           onPress={() => {
-            if (selectedPost) {
-              handleDeletePost(selectedPost);
-            }
+            const postId = selectedPost;
             setShowDeleteModal(false);
             setSelectedPost(null);
+            if (!postId) return;
+            Alert.alert(
+              "Delete Post",
+              "Are you sure you want to delete this post?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => handleDeletePost(postId) },
+              ]
+            );
           }}
         >
           <Text style={s.deleteBtnText}>Delete</Text>
@@ -909,4 +809,70 @@ const s = StyleSheet.create({
     alignSelf: "flex-start",
   },
   addImageText: { color: Colors.textSecondary, fontSize: 13 },
+
+  postSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 12,
+    minHeight: 300,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.cardBorder,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  sheetInput: {
+    color: Colors.text,
+    fontSize: 15,
+    minHeight: 100,
+    textAlignVertical: "top",
+    padding: 0,
+    marginBottom: 12,
+  },
+  sheetFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+    paddingTop: 12,
+  },
+  sheetMediaBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sheetSubmitBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 50,
+  },
+  sheetSubmitText: {
+    color: Colors.black,
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });

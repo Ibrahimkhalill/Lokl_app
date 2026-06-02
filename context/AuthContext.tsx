@@ -51,17 +51,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    const role = user?.role;
     try {
       const refreshToken = await AsyncStorage.getItem("refreshToken");
       if (refreshToken) {
-        await api.post("/auth/logout/", { refresh: refreshToken });
+        await api.post("/auth/logout/", { refresh: refreshToken }).catch(() => {});
       }
     } catch {
-      // ignore logout API error — still clear local storage
+      // ignore
+    } finally {
+      await AsyncStorage.clear();
+      setUser(null);
+      router.replace(role === "Business" ? "/auth/business-signin" : "/auth/sign-in");
     }
-    await AsyncStorage.multiRemove(["accessToken", "refreshToken", "user"]);
-    setUser(null);
-    router.replace("/auth/sign-in");
   }
 
   async function updateUser(userData: User) {

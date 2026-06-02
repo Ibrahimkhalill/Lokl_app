@@ -12,8 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ReviewListCard } from "../../components/events";
-import { eventService } from "../../services/eventService";
-import { getErrorMessage } from "../../lib/api";
+import { api, getErrorMessage } from "../../lib/api";
 
 type Review = {
   id: number;
@@ -37,25 +36,29 @@ function timeAgo(dateStr: string) {
 
 export default function ReviewsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, venueId } = useLocalSearchParams<{ id?: string; venueId?: string }>();
   const eventId = Number(id);
+  const resolvedVenueId = venueId ? Number(venueId) : null;
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchReviews = useCallback(async (refresh = false) => {
-    if (!eventId) { setLoading(false); return; }
+    if (!resolvedVenueId && !eventId) { setLoading(false); return; }
     if (refresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const res = await eventService.getReviews(eventId);
-      const payload = res.data?.data ?? res.data;
-      const results: Review[] = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.results)
-        ? payload.results
-        : [];
+      let results: Review[] = [];
+      if (resolvedVenueId) {
+        const res = await api.get(`/venues/${resolvedVenueId}/`);
+        const payload = res.data?.data ?? res.data;
+        results = Array.isArray(payload?.reviews) ? payload.reviews : [];
+      } else {
+        const res = await api.get(`/events/${eventId}/reviews/`);
+        const payload = res.data?.data ?? res.data;
+        results = Array.isArray(payload) ? payload : Array.isArray(payload?.results) ? payload.results : [];
+      }
       setReviews(results);
     } catch (e) {
       console.log("[Reviews] error:", getErrorMessage(e));
@@ -63,7 +66,7 @@ export default function ReviewsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [eventId]);
+  }, [resolvedVenueId, eventId]);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 

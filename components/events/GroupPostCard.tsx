@@ -97,7 +97,7 @@ export function GroupPostCard({
         )}
 
         {/* Post Content - Image */}
-        {post.type === "image" && post.image && (
+        {!!post.image && (
           <Image
             source={{ uri: post.image }}
             style={styles.postImage}
@@ -106,7 +106,7 @@ export function GroupPostCard({
         )}
 
         {/* Post Content - Video */}
-        {post.type === "video" && post.video && (
+        {!!post.video && (
           <View style={styles.postVideo}>
             <Ionicons name="play-circle" size={50} color={Colors.primary} />
           </View>

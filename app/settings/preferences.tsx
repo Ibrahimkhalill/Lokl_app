@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,8 @@ import AutoPlayIcon from "../../assets/icons/auto_play.svg";
 import DataServerIcon from "../../assets/icons/data_server.svg";
 import SoundsIcon from "../../assets/icons/sounds.svg";
 import HapticsIcon from "../../assets/icons/haptics.svg";
+import { usePreferences } from "../../context/PreferencesContext";
+
 const SECTIONS = [
   {
     title: "MEDIA & PLAYBACK",
@@ -15,16 +17,14 @@ const SECTIONS = [
       {
         id: "autoplay",
         label: "Auto-play Videos",
-        sub: "videos play automatically in feed",
+        sub: "Videos play automatically in feed",
         icon: <AutoPlayIcon width={24} height={24} color={Colors.primary} />,
-        on: true,
       },
       {
         id: "datasaver",
-        label: "Date Saver",
-        sub: "reduce date usage",
+        label: "Data Saver",
+        sub: "Reduce data usage",
         icon: <DataServerIcon width={24} height={24} color={Colors.primary} />,
-        on: true,
       },
     ],
   },
@@ -33,17 +33,15 @@ const SECTIONS = [
     items: [
       {
         id: "sound",
-        label: "Sound effects",
-        sub: "play sounds for actions",
+        label: "Sound Effects",
+        sub: "Play sounds for actions",
         icon: <SoundsIcon width={24} height={24} color={Colors.primary} />,
-        on: true,
       },
       {
         id: "haptic",
         label: "Haptic Feedback",
-        sub: "vibration feedback",
+        sub: "Vibration feedback",
         icon: <HapticsIcon width={24} height={24} color={Colors.primary} />,
-        on: true,
       },
     ],
   },
@@ -51,15 +49,10 @@ const SECTIONS = [
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    autoplay: true,
-    datasaver: true,
-    sound: true,
-    haptic: true,
-  });
+  const { preferences, setPreference } = usePreferences();
 
-  const toggle = (id: string) =>
-    setToggles((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggle = (id: keyof typeof preferences) =>
+    setPreference(id, !preferences[id]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -86,8 +79,8 @@ export default function PreferencesScreen() {
                   </View>
                 </View>
                 <Switch
-                  value={toggles[item.id]}
-                  onValueChange={() => toggle(item.id)}
+                  value={preferences[item.id as keyof typeof preferences]}
+                  onValueChange={() => toggle(item.id as keyof typeof preferences)}
                   trackColor={{
                     false: Colors.cardBorder,
                     true: Colors.primary,

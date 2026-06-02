@@ -7,6 +7,9 @@ export const messageService = {
   getDmThread(userId: number) {
     return api.get(`/messages/${userId}/`);
   },
+  markAsRead(userId: number) {
+    return api.patch(`/messages/${userId}/read/`);
+  },
   sendDm(recipientId: number, body: string) {
     return api.post("/messages/", { recipient_id: recipientId, body });
   },

@@ -17,31 +17,7 @@ import BookmarkIcon from "../../assets/icons/bookmarks.svg";
 import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Avatar } from "../primitives/Avatar";
-
-export type ApiPost = {
-  id: number;
-  author_id?: number;
-  author_name?: string;
-  author_avatar?: string | null;
-  type?: string;
-  tag?: string;
-  body?: string;
-  location?: string;
-  image_url?: string | null;
-  video_url?: string | null;
-  likes?: number;
-  comments?: number;
-  shares?: number;
-  saves?: number;
-  lokl_score?: string;
-  is_liked?: boolean;
-  is_saved?: boolean;
-  is_following?: boolean;
-  created_at: string;
-  is_author?: boolean;
-  tagged_groups?: { id: number; name: string }[];
-  post_target?: { id: number; name: string; photo?: string | null }[];
-};
+import { ApiPost } from "./PostCard";
 
 function PostVideoPlayer({ uri, autoPlay }: { uri: string; autoPlay: boolean }) {
   const player = useVideoPlayer(uri, (p) => {
@@ -58,24 +34,22 @@ function PostVideoPlayer({ uri, autoPlay }: { uri: string; autoPlay: boolean }) 
   );
 }
 
-export function PostCard({
+export function GroupFeedCard({
   item,
+  currentGroup,
   router,
   onLike,
   onSave,
   onShare,
-  onFollow,
   onComment,
-  hideFollowBtn,
 }: {
   item: ApiPost;
+  currentGroup?: { id: number; name: string; photo?: string | null };
   router: any;
   onLike: (id: number) => void;
   onSave: (id: number) => void;
   onShare: (id: number) => void;
-  onFollow: (id: number, authorId: number, following: boolean) => void;
   onComment: (id: number) => void;
-  hideFollowBtn?: boolean;
 }) {
   const { preferences } = usePreferences();
 
@@ -85,37 +59,70 @@ export function PostCard({
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
+      {/* Group header */}
+      <View style={styles.headerRow}>
+        {/* Group photo with author avatar overlaid at bottom */}
         <TouchableOpacity
-          style={styles.userRow}
-          onPress={() =>
-            router.push(
-              `/explore/user-profile?user_id=${item.author_id}&name=${encodeURIComponent(item.author_name ?? "")}`
-            )
-          }
           activeOpacity={0.8}
+          onPress={() =>
+            currentGroup && router.push(`/events/group-detail?id=${currentGroup.id}`)
+          }
         >
-          <Avatar uri={item.author_avatar} size={42} borderWidth={2} />
-          <Text style={styles.userName}>{item.author_name || ""}</Text>
+          <View style={styles.groupPhotoWrap}>
+            {currentGroup?.photo ? (
+              <Image
+                source={{ uri: currentGroup.photo }}
+                style={styles.groupPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.groupPhoto, styles.groupPhotoPlaceholder]}>
+                <Ionicons name="people" size={26} color={Colors.textSecondary} />
+              </View>
+            )}
+            {/* Author avatar overlaid at bottom-right */}
+            <TouchableOpacity
+              style={styles.avatarOverlay}
+              activeOpacity={0.8}
+              onPress={() =>
+                router.push(
+                  `/explore/user-profile?user_id=${item.author_id}&name=${encodeURIComponent(item.author_name ?? "")}`
+                )
+              }
+            >
+              <Avatar uri={item.author_avatar} size={30} borderWidth={2} />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
-        {!hideFollowBtn && (
+
+        {/* Group name + author name */}
+        <View style={styles.groupInfo}>
           <TouchableOpacity
-            style={[styles.followBtn, item.is_following && styles.followingBtn]}
-            onPress={() => onFollow(item.id, item.author_id ?? 0, !!item.is_following)}
+            activeOpacity={0.7}
+            onPress={() =>
+              currentGroup && router.push(`/events/group-detail?id=${currentGroup.id}`)
+            }
           >
-            <Text style={[styles.followText, item.is_following && styles.followingText]}>
-              {item.is_following ? "Following" : "Follow"}
+            <Text style={styles.groupName} numberOfLines={1}>
+              {currentGroup?.name ?? item.author_name}
             </Text>
           </TouchableOpacity>
-        )}
+          <Text style={styles.authorName} numberOfLines={1}>
+            {item.author_name || ""}
+          </Text>
+        </View>
       </View>
 
+      {/* Meta row */}
       <View style={styles.metaRow}>
         <View style={styles.metaLeft}>
           {item.tagged_groups && item.tagged_groups.length > 0 && (
             <>
               {item.tagged_groups.map((g) => (
-                <TouchableOpacity key={g.id} onPress={() => router.push(`/events/group-detail?id=${g.id}`)}>
+                <TouchableOpacity
+                  key={g.id}
+                  onPress={() => router.push(`/events/group-detail?id=${g.id}`)}
+                >
                   <Text style={styles.groupTagText}>@{g.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -190,17 +197,75 @@ export function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    paddingTop: 18,
+    paddingTop: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
-  header: {
+  headerRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    // alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 10,
+    gap: 12,
   },
+  groupPhotoWrap: {
+    position: "relative",
+    width: 64,
+    height: 64,
+    marginBottom: 8,
+  },
+  groupPhoto: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  groupPhotoPlaceholder: {
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarOverlay: {
+    position: "absolute",
+    bottom: 8,
+    right:0,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    padding: 2,
+  },
+  groupInfo: {
+    flex: 1,
+    gap: 4,
+    marginTop: 5,
+  },
+  groupName: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  authorName: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  followBtn: {
+    borderWidth: 1,
+    borderColor: Colors.white,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  followingBtn: {
+    borderColor: Colors.primary,
+    backgroundColor: "rgba(123,97,255,0.1)",
+  },
+  followText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
+  followingText: { color: Colors.primary },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -218,33 +283,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   scoreText: { color: Colors.black, fontSize: 13, fontWeight: "800" },
-  userRow: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: "#7B61FF",
-  },
-  avatarPlaceholder: {
-    backgroundColor: Colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  userName: { color: Colors.text, fontSize: 15, fontWeight: "700" },
-  followBtn: {
-    borderWidth: 1,
-    borderColor: Colors.white,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  followingBtn: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(123,97,255,0.1)",
-  },
-  followText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
-  followingText: { color: Colors.primary },
   groupTagText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
   content: {
     color: Colors.text,

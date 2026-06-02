@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ImageIcon from "../../assets/icons/image.svg";
 import CheckIcon from "../../assets/icons/check.svg";
 import { MediaPickerCard, FormField, AppTextInput } from "../../components/primitives";
+import { LocationPickerModal, type LocationResult } from "../../components/primitives/LocationPickerModal";
 import { pickCoverImage } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { userService } from "../../services/userService";
@@ -42,6 +43,8 @@ export default function GroupCreateScreen() {
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
+  const [meetupLocation, setMeetupLocation] = useState<LocationResult | null>(null);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export default function GroupCreateScreen() {
         const data = res.data;
         console.log("[GroupCreate] friends response:", data);
         const list = data?.data ?? data;
+        // console.log("[GroupCreate] friends list:", list);
         setFriends(Array.isArray(list) ? list : list?.results ?? []);
       } catch (e) {
         console.log("[GroupCreate] friends error:", getErrorMessage(e));
@@ -77,6 +81,11 @@ export default function GroupCreateScreen() {
       const form = new FormData();
       form.append("name", groupName.trim());
       if (bio.trim()) form.append("bio", bio.trim());
+      if (meetupLocation) {
+        form.append("meetup_location_name", meetupLocation.address);
+        form.append("meetup_latitude", meetupLocation.latitude.toFixed(6));
+        form.append("meetup_longitude", meetupLocation.longitude.toFixed(6));
+      }
       if (groupPhotoFile) {
         form.append("photo", {
           uri: groupPhotoFile.uri,
@@ -157,8 +166,24 @@ export default function GroupCreateScreen() {
             />
           </FormField>
 
+          <FormField label="Meetup Location" labelStyle={s.fieldLabel}>
+            <TouchableOpacity style={s.locationBtn} onPress={() => setLocationModalVisible(true)} activeOpacity={0.7}>
+              <Ionicons name="location-outline" size={18} color={meetupLocation ? Colors.primary : Colors.textMuted} />
+              <Text style={[s.locationBtnText, meetupLocation && s.locationBtnTextSelected]} numberOfLines={1}>
+                {meetupLocation ? meetupLocation.address : "Search or enter a location..."}
+              </Text>
+              {meetupLocation ? (
+                <TouchableOpacity onPress={() => setMeetupLocation(null)} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              )}
+            </TouchableOpacity>
+          </FormField>
+
           <View style={s.divider} />
-          <Text style={s.sectionTitle}>Add Friends</Text>
+          {/* <Text style={s.sectionTitle}>Add Friends</Text> */}
 
           {loadingFriends ? (
             <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
@@ -193,9 +218,9 @@ export default function GroupCreateScreen() {
                   </View>
                   <View style={s.memberInfo}>
                     <Text style={s.memberName}>{friend.name}</Text>
-                    {(friend.bio || friend.role) ? (
+                    {(friend.bio) ? (
                       <Text style={s.memberBio} numberOfLines={2}>
-                        {friend.bio || friend.role}
+                        {friend.bio}
                       </Text>
                     ) : null}
                   </View>
@@ -217,6 +242,15 @@ export default function GroupCreateScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <LocationPickerModal
+        visible={locationModalVisible}
+        onClose={() => setLocationModalVisible(false)}
+        onSelect={(result) => {
+          setMeetupLocation(result);
+          setLocationModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -316,4 +350,18 @@ const s = StyleSheet.create({
     marginTop: 28,
   },
   createBtnText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
+
+  locationBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  locationBtnText: { flex: 1, color: Colors.textMuted, fontSize: 14 },
+  locationBtnTextSelected: { color: Colors.text },
 });

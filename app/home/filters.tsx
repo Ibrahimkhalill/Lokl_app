@@ -215,7 +215,7 @@ export default function FiltersScreen() {
         </View>
 
         {/* ── Price Range ──────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Price Range</Text>
+        {/* <Text style={styles.sectionLabel}>Price Range</Text>
         <View style={styles.chipRow}>
           {PRICES.map((p) => (
             <TouchableOpacity
@@ -238,7 +238,7 @@ export default function FiltersScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </View> */}
 
         {/* ── Amenities ────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Amenities</Text>

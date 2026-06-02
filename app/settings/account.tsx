@@ -90,8 +90,9 @@ export default function Account() {
     setChangingPassword(true);
     try {
       await settingService.changePassword({
-        current_password: currentPassword,
-        new_password: newPassword,
+        current: currentPassword,
+        newPass: newPassword,
+        confirm: confirmPassword,
       });
       Alert.alert("Success", "Password changed successfully");
       setPasswordModalVisible(false);

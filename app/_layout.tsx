@@ -5,6 +5,7 @@ import * as SystemUI from "expo-system-ui";
 import { Colors } from "../constants/colors";
 import { AuthProvider } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
+import { PreferencesProvider } from "../context/PreferencesContext";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -13,6 +14,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <PreferencesProvider>
       <MessageProvider>
       <StatusBar style="light" />
       <Stack
@@ -33,6 +35,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth/reset-password" />
         <Stack.Screen name="auth/choose-role" />
         <Stack.Screen name="auth/business-signup" />
+        <Stack.Screen name="auth/business-signin" />
         <Stack.Screen name="auth/what-looking-for" />
         <Stack.Screen name="auth/what-are-you-into" />
         <Stack.Screen name="auth/location" />
@@ -60,10 +63,6 @@ export default function RootLayout() {
         <Stack.Screen name="events/share-event" />
         <Stack.Screen name="events/gallery" />
 
-        <Stack.Screen name="profile/streaks" />
-        <Stack.Screen name="profile/follow" />
-        <Stack.Screen name="profile/posts" />
-
         <Stack.Screen name="settings/setting" />
         <Stack.Screen name="settings/account" />
         <Stack.Screen name="settings/edit-profile" />
@@ -78,6 +77,7 @@ export default function RootLayout() {
         <Stack.Screen name="business/profile" />
       </Stack>
       </MessageProvider>
+      </PreferencesProvider>
     </AuthProvider>
   );
 }

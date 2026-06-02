@@ -26,4 +26,8 @@ export const userService = {
   getLeaderboard() {
     return api.get("/leaderboard/");
   },
+
+  updateLocation(payload: { latitude: number; longitude: number; location_name: string }) {
+    return api.patch("/users/location/", payload);
+  },
 };

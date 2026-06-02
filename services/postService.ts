@@ -33,7 +33,7 @@ export const postService = {
   },
 
   deletePost(id: number) {
-    return api.post(`/posts/${id}/delete/`);
+    return api.delete(`/posts/${id}/`);
   },
 
   sharePost(id: number) {

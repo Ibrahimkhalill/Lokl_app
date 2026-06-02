@@ -42,7 +42,7 @@ export default function SplashScreen() {
     if (!isLoading && isLoggedIn) {
       router.replace("/(tabs)");
     }
-  }, [isLoading]);
+  }, [isLoading, isLoggedIn, router]);
   const imgOpacity = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(1)).current;
   const labelTranslateY = useRef(new Animated.Value(0)).current;

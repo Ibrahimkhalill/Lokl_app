@@ -1,46 +1,68 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LocationIcon from "../../assets/icons/locations_sharing.svg";
 import EmailIcon from "../../assets/icons/email.svg";
+import { settingService } from "../../services/settingServices";
+
 type Visibility = "public" | "followers" | "private";
 
-const TOGGLES = [
-  {
-    id: "location",
-    label: "Location Sharing",
-    sub: "Share your location with friends",
-    icon: <LocationIcon width={24} height={24} color={Colors.primary} />,
-    defaultOn: true,
-  },
-  {
-    id: "activity",
-    label: "Activity Status",
-    sub: "Show when you're active",
-    icon: <EmailIcon width={24} height={24} color={Colors.primary} />,
-    defaultOn: true,
-  },
+const visibilityOptions: { key: Visibility; label: string }[] = [
+  { key: "public", label: "Public" },
+  { key: "followers", label: "Followers" },
+  { key: "private", label: "Private" },
 ];
 
 export default function PrivacySecurityScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState<Visibility>("public");
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    location: true,
-    activity: true,
-  });
+  const [locationSharing, setLocationSharing] = useState(true);
+  const [activityStatus, setActivityStatus] = useState(true);
 
-  const toggle = (id: string) =>
-    setToggles((prev) => ({ ...prev, [id]: !prev[id] }));
+  useEffect(() => {
+    settingService.getPrivacy().then((res) => {
+      const d = res.data?.data ?? res.data;
+      setVisibility(d.profile_visibility ?? "public");
+      setLocationSharing(d.location_sharing ?? true);
+      setActivityStatus(d.activity_status ?? true);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
-  const visibilityOptions: { key: Visibility; label: string }[] = [
-    { key: "public", label: "Public" },
-    { key: "followers", label: "Followers" },
-    { key: "private", label: "Private" },
-  ];
+  async function saveVisibility(val: Visibility) {
+    setVisibility(val);
+    settingService.updatePrivacy({ profile_visibility: val }).catch(() => {});
+  }
+
+  async function saveLocationSharing(val: boolean) {
+    setLocationSharing(val);
+    settingService.updatePrivacy({ location_sharing: val }).catch(() => {});
+  }
+
+  async function saveActivityStatus(val: boolean) {
+    setActivityStatus(val);
+    settingService.updatePrivacy({ activity_status: val }).catch(() => {});
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Privacy & security</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -52,7 +74,6 @@ export default function PrivacySecurityScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Profile Information section */}
       <View style={s.card}>
         <Text style={s.sectionTitle}>PROFILE INFORMATION</Text>
         <View style={s.visibilityRow}>
@@ -62,14 +83,9 @@ export default function PrivacySecurityScreen() {
               <TouchableOpacity
                 key={opt.key}
                 style={[s.visBtn, visibility === opt.key && s.visBtnActive]}
-                onPress={() => setVisibility(opt.key)}
+                onPress={() => saveVisibility(opt.key)}
               >
-                <Text
-                  style={[
-                    s.visBtnText,
-                    visibility === opt.key && s.visBtnTextActive,
-                  ]}
-                >
+                <Text style={[s.visBtnText, visibility === opt.key && s.visBtnTextActive]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -78,30 +94,48 @@ export default function PrivacySecurityScreen() {
         </View>
       </View>
 
-      {/* Notification Channels section */}
       <View style={[s.card, { marginTop: 14 }]}>
-        <Text style={s.sectionTitle}>NOTIFICATION CHANNELS</Text>
-        {TOGGLES.map((item, i) => (
-          <View key={item.id}>
-            {i > 0 && <View style={s.divider} />}
-            <View style={s.row}>
-              <View style={s.rowLeft}>
-                <View style={s.iconWrap}>{item.icon}</View>
-                <View>
-                  <Text style={s.rowLabel}>{item.label}</Text>
-                  <Text style={s.rowSub}>{item.sub}</Text>
-                </View>
-              </View>
-              <Switch
-                value={toggles[item.id]}
-                onValueChange={() => toggle(item.id)}
-                trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
-                thumbColor={Colors.white}
-                ios_backgroundColor={Colors.cardBorder}
-              />
+        <Text style={s.sectionTitle}>PRIVACY</Text>
+
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.iconWrap}>
+              <LocationIcon width={24} height={24} color={Colors.primary} />
+            </View>
+            <View>
+              <Text style={s.rowLabel}>Location Sharing</Text>
+              <Text style={s.rowSub}>Share your location with friends</Text>
             </View>
           </View>
-        ))}
+          <Switch
+            value={locationSharing}
+            onValueChange={saveLocationSharing}
+            trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+            thumbColor={Colors.white}
+            ios_backgroundColor={Colors.cardBorder}
+          />
+        </View>
+
+        <View style={s.divider} />
+
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <View style={s.iconWrap}>
+              <EmailIcon width={24} height={24} color={Colors.primary} />
+            </View>
+            <View>
+              <Text style={s.rowLabel}>Activity Status</Text>
+              <Text style={s.rowSub}>Show when you're active</Text>
+            </View>
+          </View>
+          <Switch
+            value={activityStatus}
+            onValueChange={saveActivityStatus}
+            trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+            thumbColor={Colors.white}
+            ios_backgroundColor={Colors.cardBorder}
+          />
+        </View>
       </View>
     </SafeAreaView>
   );

@@ -234,6 +234,7 @@ export default function BusinessProfileScreen() {
     user?.name ||
     "—";
   const displayRole = businessProfile?.business_type || "—";
+  const displayBusinessName = businessProfile?.business_name || "—";
   const displayBio = businessProfile?.bio || user?.bio || "";
   const displayAddress = businessProfile?.address || "";
 
@@ -280,6 +281,14 @@ export default function BusinessProfileScreen() {
               </View>
             )}
           </View>
+          {/* Settings icon */}
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push("/settings/setting")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={22} color={Colors.white} />
+          </TouchableOpacity>
         </TouchableOpacity>
 
         <View style={styles.topSection}>
@@ -309,7 +318,7 @@ export default function BusinessProfileScreen() {
 
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{displayName}</Text>
-              <Text style={styles.role}>{displayRole}</Text>
+              <Text style={styles.role}>{displayBusinessName}</Text>
             </View>
           </View>
 
@@ -323,7 +332,7 @@ export default function BusinessProfileScreen() {
                   ? `${(totalStudents / 1000).toFixed(1)}k`
                   : totalStudents}
               </Text>
-              <Text style={styles.statLabel}>Students</Text>
+              <Text style={styles.statLabel}>People</Text>
             </View>
             <View style={styles.statItem}>
               <View style={styles.statIconCircle}>
@@ -875,4 +884,40 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: Colors.black, fontSize: 16, fontWeight: "700" },
+
+  settingsBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 60,
+    paddingRight: 14,
+  },
+  menuSheet: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    overflow: "hidden",
+    minWidth: 160,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuItemText: { color: "#FF3B30", fontSize: 15, fontWeight: "600" },
 });

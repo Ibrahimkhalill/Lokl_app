@@ -17,8 +17,10 @@ import MessengerIcon from "../../assets/icons/messenger.svg";
 import NotificationsIcon from "../../assets/icons/notifications.svg";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { sharedPostStore } from "../../lib/sharedPostStore";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
+import { GroupFeedCard } from "../../components/feature-explore/GroupFeedCard";
 
 const { width } = Dimensions.get("window");
 
@@ -40,6 +42,7 @@ export default function ExploreScreen() {
   const [refreshingGroupPosts, setRefreshingGroupPosts] = useState(false);
 
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
+  const [commentGroupPostId, setCommentGroupPostId] = useState<number | null>(null);
 
   const fetchingRef = useRef(false);
 
@@ -116,6 +119,17 @@ export default function ExploreScreen() {
     }, [fetchPosts])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      const id = sharedPostStore.consume();
+      if (!id) return;
+      const increment = (p: ApiPost) =>
+        p.id === id ? { ...p, shares: (p.shares ?? 0) + 1 } : p;
+      setPosts((prev) => prev.map(increment));
+      setGroupPosts((prev) => prev.map(increment));
+    }, [])
+  );
+
   useEffect(() => {
     if (activeTab === "group") {
       fetchGroupPosts();
@@ -164,18 +178,14 @@ export default function ExploreScreen() {
     }
   }, []);
 
-  const handleShare = useCallback(async (id: number) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, shares: (p.shares ?? 0) + 1 } : p))
-    );
-    try {
-      await postService.sharePost(id);
-    } catch (e) {
-      setPosts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, shares: (p.shares ?? 0) - 1 } : p))
-      );
-    }
-  }, []);
+  const handleShare = useCallback((id: number) => {
+    const post = posts.find((p) => p.id === id);
+    const params = new URLSearchParams({ postId: String(id) });
+    if (post?.image_url) params.set("imageUrl", post.image_url);
+    if (post?.body) params.set("title", post.body.slice(0, 80));
+    if (post?.location) params.set("subtitle", post.location);
+    router.push(`/home/share-event?${params.toString()}` as never);
+  }, [router, posts]);
 
   const handleComment = useCallback((id: number) => {
     setCommentPostId(id);
@@ -214,6 +224,69 @@ export default function ExploreScreen() {
       />
     ),
     [router, handleLike, handleSave, handleShare, handleFollow, handleComment]
+  );
+
+  // ── Group feed handlers ─────────────────────────────────────────────────────
+  const handleGroupLike = useCallback(async (id: number) => {
+    setGroupPosts((prev) =>
+      prev.map((p) => p.id === id ? { ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) } : p)
+    );
+    try {
+      await postService.likePost(id);
+    } catch {
+      setGroupPosts((prev) =>
+        prev.map((p) => p.id === id ? { ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) } : p)
+      );
+    }
+  }, []);
+
+  const handleGroupSave = useCallback(async (id: number) => {
+    setGroupPosts((prev) =>
+      prev.map((p) => p.id === id ? { ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) } : p)
+    );
+    try {
+      await postService.savePost(id);
+    } catch {
+      setGroupPosts((prev) =>
+        prev.map((p) => p.id === id ? { ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) } : p)
+      );
+    }
+  }, []);
+
+  const handleGroupShare = useCallback((id: number) => {
+    const post = groupPosts.find((p) => p.id === id);
+    const params = new URLSearchParams({ postId: String(id) });
+    if (post?.image_url) params.set("imageUrl", post.image_url);
+    if (post?.body) params.set("title", post.body.slice(0, 80));
+    if (post?.location) params.set("subtitle", post.location);
+    router.push(`/home/share-event?${params.toString()}` as never);
+  }, [router, groupPosts]);
+
+  const handleGroupComment = useCallback((id: number) => {
+    setCommentGroupPostId(id);
+  }, []);
+
+  const renderGroupPost = useCallback(
+    ({ item }: { item: ApiPost }) => {
+      const groups = item.post_target && item.post_target.length > 0 ? item.post_target : [undefined];
+      return (
+        <>
+          {groups.map((group, idx) => (
+            <GroupFeedCard
+              key={group ? `${item.id}-${group.id}` : `${item.id}-${idx}`}
+              item={item}
+              currentGroup={group}
+              router={router}
+              onLike={handleGroupLike}
+              onSave={handleGroupSave}
+              onShare={handleGroupShare}
+              onComment={handleGroupComment}
+            />
+          ))}
+        </>
+      );
+    },
+    [router, handleGroupLike, handleGroupSave, handleGroupShare, handleGroupComment]
   );
 
   const renderFooter = () => {
@@ -299,7 +372,7 @@ export default function ExploreScreen() {
         <FlatList<ApiPost>
           data={groupPosts}
           keyExtractor={(item) => String(item.id)}
-          renderItem={renderPost}
+          renderItem={renderGroupPost}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={() => renderEmpty(loadingGroupPosts)}
           refreshControl={
@@ -319,9 +392,20 @@ export default function ExploreScreen() {
         onCommentAdded={() =>
           setPosts((prev) =>
             prev.map((p) =>
-              p.id === commentPostId
-                ? { ...p, comments: (p.comments ?? 0) + 1 }
-                : p
+              p.id === commentPostId ? { ...p, comments: (p.comments ?? 0) + 1 } : p
+            )
+          )
+        }
+      />
+
+      <CommentsSheet
+        visible={commentGroupPostId !== null}
+        postId={commentGroupPostId ?? 0}
+        onClose={() => setCommentGroupPostId(null)}
+        onCommentAdded={() =>
+          setGroupPosts((prev) =>
+            prev.map((p) =>
+              p.id === commentGroupPostId ? { ...p, comments: (p.comments ?? 0) + 1 } : p
             )
           )
         }

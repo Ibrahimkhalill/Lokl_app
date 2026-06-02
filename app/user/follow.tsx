@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,8 +18,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
+import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 
-type Tab = "followers" | "following";
+type Tab = "posts" | "followers" | "following";
 
 type FollowUser = {
   id: number;
@@ -30,6 +33,7 @@ type FollowUser = {
 type MeData = {
   profile: { id: number; name: string; username: string | null; avatar: string | null };
   stats: { posts: number; followers: number; following: number };
+  posts: ApiPost[];
   followers: FollowUser[];
   following: FollowUser[];
 };
@@ -58,15 +62,18 @@ function UserAvatar({ uri, size }: { uri: string | null; size: number }) {
 
 export default function FollowScreen() {
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab?: Tab }>();
-  const [activeTab, setActiveTab] = useState<Tab>(tab === "following" ? "following" : "followers");
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) ?? "followers");
 
   const [meData, setMeData] = useState<MeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
+  const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
-  const fetchMe = useCallback(async () => {
-    setLoading(true);
+  const fetchMe = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const res = await userService.getMe();
       const d = res.data?.data ?? res.data;
@@ -77,10 +84,36 @@ export default function FollowScreen() {
       console.log("[Follow] error:", getErrorMessage(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useFocusEffect(useCallback(() => { fetchMe(); }, [fetchMe]));
+
+  const updatePosts = useCallback((id: number, updater: (p: ApiPost) => ApiPost) => {
+    setMeData((prev) => prev ? {
+      ...prev,
+      posts: prev.posts.map((p) => p.id === id ? updater(p) : p),
+    } : prev);
+  }, []);
+
+  const handleLike = useCallback((id: number) => {
+    updatePosts(id, (p) => ({ ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) }));
+    postService.likePost(id).catch(() =>
+      updatePosts(id, (p) => ({ ...p, is_liked: !p.is_liked, likes: (p.likes ?? 0) + (p.is_liked ? -1 : 1) }))
+    );
+  }, [updatePosts]);
+
+  const handleSave = useCallback((id: number) => {
+    updatePosts(id, (p) => ({ ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) }));
+    postService.savePost(id).catch(() =>
+      updatePosts(id, (p) => ({ ...p, is_saved: !p.is_saved, saves: (p.saves ?? 0) + (p.is_saved ? -1 : 1) }))
+    );
+  }, [updatePosts]);
+
+  const handleShare = useCallback((id: number) => {
+    postService.sharePost(id).catch(() => {});
+  }, []);
 
   const handleToggleFollow = useCallback(async (userId: number) => {
     const alreadyFollowing = followingIds.has(userId);
@@ -107,109 +140,158 @@ export default function FollowScreen() {
     }
   }, [followingIds, activeTab, fetchMe]);
 
-  function getFollowBtnLabel(userId: number): string {
-    if (activeTab === "followers") return followingIds.has(userId) ? "Following" : "Follow Back";
-    return "Unfollow";
-  }
-
   const profile = meData?.profile;
   const stats = meData?.stats;
 
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "posts", label: "Posts" },
+    { key: "followers", label: "Followers" },
+    { key: "following", label: "Following" },
+  ];
+
   const renderHeader = () => (
-    <View style={styles.profileHeader}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate("/(tabs)/profile")}>
-        <Ionicons name="arrow-back" size={20} color={Colors.text} />
-      </TouchableOpacity>
+    <View>
+      <View style={styles.profileHeader}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate("/(tabs)/profile")}>
+          <Ionicons name="arrow-back" size={20} color={Colors.text} />
+        </TouchableOpacity>
 
-      <View style={styles.profileRow}>
-        <UserAvatar uri={profile?.avatar ?? null} size={60} />
-        <View style={styles.profileInfo}>
-          <Text style={styles.username}>{profile?.username ?? profile?.name ?? ""}</Text>
-          <View style={styles.statsRow}>
-            <TouchableOpacity onPress={() => router.push("/user/posts?tab=posts")}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNum}>{stats?.posts ?? 0}</Text>
-                <Text style={styles.statLabel}>posts</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setActiveTab("followers")}>
-              <View style={[styles.statBox, activeTab === "followers" && styles.statBoxActive]}>
-                <Text style={[styles.statNum, activeTab === "followers" && styles.statNumActive]}>
-                  {stats?.followers ?? 0}
-                </Text>
-                <Text style={[styles.statLabel, activeTab === "followers" && styles.statNumActive]}>
-                  followers
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setActiveTab("following")}>
-              <View style={[styles.statBox, activeTab === "following" && styles.statBoxActive]}>
-                <Text style={[styles.statNum, activeTab === "following" && styles.statNumActive]}>
-                  {stats?.following ?? 0}
-                </Text>
-                <Text style={[styles.statLabel, activeTab === "following" && styles.statNumActive]}>
-                  Following
-                </Text>
-              </View>
-            </TouchableOpacity>
+        <View style={styles.profileRow}>
+          <UserAvatar uri={profile?.avatar ?? null} size={60} />
+          <View style={styles.profileInfo}>
+            <Text style={styles.username}>{profile?.username ?? profile?.name ?? ""}</Text>
+            <View style={styles.statsRow}>
+              {([
+                { key: "posts", label: "posts", value: stats?.posts ?? 0 },
+                { key: "followers", label: "followers", value: stats?.followers ?? 0 },
+                { key: "following", label: "Following", value: stats?.following ?? 0 },
+              ] as const).map((stat) => (
+                <TouchableOpacity key={stat.key} onPress={() => setActiveTab(stat.key as Tab)}>
+                  <View style={[styles.statBox, activeTab === stat.key && styles.statBoxActive]}>
+                    <Text style={[styles.statNum, activeTab === stat.key && styles.statNumActive]}>
+                      {stat.value}
+                    </Text>
+                    <Text style={[styles.statLabel, activeTab === stat.key && styles.statNumActive]}>
+                      {stat.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
       </View>
+
+      {/* Tab Bar */}
+      
     </View>
   );
 
-  if (loading) {
+  // ── Posts tab ──────────────────────────────────────────────────────────────
+  if (activeTab === "posts") {
+    const displayPosts = meData?.posts ?? [];
     return (
       <SafeAreaView style={styles.safe}>
-        {renderHeader()}
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
+        {loading ? (
+          <>
+            {renderHeader()}
+            <View style={styles.center}><ActivityIndicator size="large" color={"#51A2FF"} /></View>
+          </>
+        ) : (
+          <FlatList
+            data={displayPosts}
+            keyExtractor={(item) => String(item.id)}
+            ListHeaderComponent={renderHeader}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchMe(true)} tintColor={"#51A2FF"} />}
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <Ionicons name="images-outline" size={42} color={Colors.textSecondary} />
+                <Text style={styles.emptyText}>No posts yet</Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <PostCard
+                item={item}
+                router={router}
+                onLike={handleLike}
+                onSave={handleSave}
+                onShare={handleShare}
+                onFollow={() => {}}
+                onComment={(id) => setCommentPostId(id)}
+                hideFollowBtn
+              />
+            )}
+          />
+        )}
+
+        <CommentsSheet
+          visible={commentPostId !== null}
+          postId={commentPostId ?? 0}
+          onClose={() => setCommentPostId(null)}
+          onCommentAdded={() =>
+            setMeData((prev) => prev ? {
+              ...prev,
+              posts: prev.posts.map((p) =>
+                p.id === commentPostId ? { ...p, comments: (p.comments ?? 0) + 1 } : p
+              ),
+            } : prev)
+          }
+        />
       </SafeAreaView>
     );
   }
 
+  // ── Followers / Following tab ───────────────────────────────────────────────
   const listData: FollowUser[] =
     activeTab === "followers" ? (meData?.followers ?? []) : (meData?.following ?? []);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <FlatList
-        data={listData}
-        keyExtractor={(item) => String(item.id)}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.center}>
-            <Ionicons name="people-outline" size={42} color={Colors.textSecondary} />
-            <Text style={styles.emptyText}>
-              {activeTab === "followers" ? "No followers yet" : "Not following anyone"}
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const isOutline = activeTab === "followers" ? followingIds.has(item.id) : true;
-          return (
-            <View style={styles.userRow}>
-              <UserAvatar uri={item.avatar} size={46} />
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>{item.name}</Text>
-                {!!item.username && <Text style={styles.userHandle}>@{item.username}</Text>}
-              </View>
-              <TouchableOpacity
-                style={[styles.actionBtn, isOutline && styles.actionBtnOutline]}
-                onPress={() => handleToggleFollow(item.id)}
-              >
-                <Text style={[styles.actionBtnText, isOutline && styles.actionBtnTextOutline]}>
-                  {getFollowBtnLabel(item.id)}
-                </Text>
-              </TouchableOpacity>
+      {loading ? (
+        <>
+          {renderHeader()}
+          <View style={styles.center}><ActivityIndicator size="large" color={"#51A2FF"} /></View>
+        </>
+      ) : (
+        <FlatList
+          data={listData}
+          keyExtractor={(item) => String(item.id)}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchMe(true)} tintColor={"#51A2FF"} />}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons name="people-outline" size={42} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>
+                {activeTab === "followers" ? "No followers yet" : "Not following anyone"}
+              </Text>
             </View>
-          );
-        }}
-      />
+          }
+          renderItem={({ item }) => {
+            const isOutline = activeTab === "followers" ? followingIds.has(item.id) : true;
+            const label = activeTab === "followers"
+              ? (followingIds.has(item.id) ? "Following" : "Follow Back")
+              : "Unfollow";
+            return (
+              <View style={styles.userRow}>
+                <UserAvatar uri={item.avatar} size={46} />
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName}>{item.name}</Text>
+                  {!!item.username && <Text style={styles.userHandle}>@{item.username}</Text>}
+                </View>
+                <TouchableOpacity
+                  style={[styles.actionBtn, isOutline && styles.actionBtnOutline]}
+                  onPress={() => handleToggleFollow(item.id)}
+                >
+                  <Text style={[styles.actionBtnText, isOutline && styles.actionBtnTextOutline]}>{label}</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -218,13 +300,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   center: { alignItems: "center", gap: 12, paddingTop: 60 },
   emptyText: { color: Colors.textSecondary, fontSize: 15 },
+  listContent: { paddingBottom: 80 },
 
   profileHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -235,34 +316,45 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   profileInfo: { flex: 1 },
   username: { color: Colors.text, fontSize: 15, fontWeight: "700", marginBottom: 8 },
-
   statsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   statBox: {
     borderRadius: 8, paddingVertical: 4,
     alignItems: "center", borderWidth: 1,
-    borderColor: Colors.cardBorder, width: 68,
+    borderColor: Colors.cardBorder, width: 72,
   },
-  statBoxActive: { backgroundColor: "#4A90E2", borderColor: "#4A90E2" },
-  statNum: { color: Colors.text, fontSize: 13, fontWeight: "800", textAlign: "center" },
-  statNumActive: { color: "#fff" },
-  statLabel: { color: Colors.textSecondary, fontSize: 9, textAlign: "center" },
+  statBoxActive: { backgroundColor: "#51A2FF", borderColor: "#51A2FF" },
+  statNum: { color: Colors.white, fontSize: 13, fontWeight: "800", textAlign: "center" },
+  statNumActive: { color: Colors.white },
+  statLabel: { color: Colors.white, fontSize: 12, textAlign: "center" },
 
-  listContent: { paddingBottom: 80 },
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+    marginBottom: 4,
+  },
+  tabItem: {
+    flex: 1, paddingVertical: 12, alignItems: "center",
+    borderBottomWidth: 2, borderBottomColor: "transparent",
+  },
+  tabItemActive: { borderBottomColor: "#51A2FF" },
+  tabLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  tabLabelActive: { color: "#51A2FF" },
+
   userRow: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 10, gap: 12,
   },
   userInfo: { flex: 1 },
-  userName: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+  userName: { color: Colors.text, fontSize: 13, fontWeight: "600" },
   userHandle: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
-
   actionBtn: {
-    backgroundColor: "#4A90E2", borderRadius: 20,
-    paddingHorizontal: 18, paddingVertical: 9,
+    backgroundColor: "#51A2FF", borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 10,
   },
   actionBtnOutline: {
     backgroundColor: "transparent", borderWidth: 1, borderColor: Colors.cardBorder,
   },
-  actionBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  actionBtnText: { color: Colors.white, fontSize: 12, fontWeight: "600" },
   actionBtnTextOutline: { color: Colors.text },
 });

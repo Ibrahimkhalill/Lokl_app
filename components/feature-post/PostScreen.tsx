@@ -27,6 +27,7 @@ import { eventService } from "../../services/eventService";
 import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { reviewedVenueStore } from "../../lib/reviewedVenueStore";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
@@ -67,7 +68,7 @@ const THUMB_SIZE = 34;
 
 export default function PostScreen() {
   const router = useRouter();
-  const { event_id, venueId } = useLocalSearchParams<{ event_id?: string; venueId?: string }>();
+  const { event_id, venueId, groupId } = useLocalSearchParams<{ event_id?: string; venueId?: string; groupId?: string }>();
   const isReview = !!(event_id || venueId);
 
   const [caption, setCaption] = useState("");
@@ -114,8 +115,8 @@ export default function PostScreen() {
   const { selected: selectedFriendIds, toggle: toggleFriendId, setSelected: resetFriendIds } = useToggleSet([]);
 
   // "Where to post": "public" = special string key, group ids stored as strings
-  const [postToPublic, setPostToPublic] = useState(true);
-  const { selected: postToGroupIds, toggle: togglePostToGroup, setSelected: resetPostToGroupIds } = useToggleSet([]);
+  const [postToPublic, setPostToPublic] = useState(!groupId);
+  const { selected: postToGroupIds, toggle: togglePostToGroup, setSelected: resetPostToGroupIds } = useToggleSet(groupId ? [groupId] : []);
 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
@@ -166,8 +167,9 @@ export default function PostScreen() {
       if (event_id) form.append("event_id", event_id);
       if (venueId) form.append("venue_id", venueId);
       await postService.createPost(form);
+      if (venueId) reviewedVenueStore.set(Number(venueId));
       resetForm();
-      Alert.alert("Success", venueId ? "Venue review posted!" : event_id ? "Event review posted!" : "Your post has been shared!");
+      router.back();
     } catch (e) {
       Alert.alert("Error", getErrorMessage(e) || "Failed to share post.");
     } finally {

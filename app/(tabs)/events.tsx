@@ -76,6 +76,7 @@ type ApiGroup = {
   avatar?: string | null;
   members_count?: number;
   is_member?: boolean;
+  is_admin?: boolean;
   members_preview?: GroupMember[];
 };
 
@@ -216,6 +217,15 @@ export default function EventsScreen() {
   const filteredEvents = events.filter((e) => {
     if (!search.trim()) return true;
     return e.title.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const filteredGroups = groups.filter((g) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      g.name.toLowerCase().includes(q) ||
+      (g.bio ?? "").toLowerCase().includes(q)
+    );
   });
 
   const handleRegister = async (event: ApiEvent) => {
@@ -374,11 +384,7 @@ export default function EventsScreen() {
         style={s.groupCard}
         activeOpacity={0.85}
         onPress={() =>
-          router.push(
-            activeTab === "myGroups"
-              ? `/events/group-detail?id=${group.id}&admin=true`
-              : `/events/group-detail?id=${group.id}`
-          )
+          router.push(`/events/group-detail?id=${group.id}${group.is_admin ? "&admin=true" : ""}` as never)
         }
       >
         <View style={s.groupCardTop}>
@@ -430,11 +436,7 @@ export default function EventsScreen() {
         <TouchableOpacity
           style={s.groupActionBtn}
           onPress={() =>
-            router.push(
-              activeTab === "myGroups"
-                ? `/events/group-detail?id=${group.id}&admin=true`
-                : `/events/group-detail?id=${group.id}`
-            )
+            router.push(`/events/group-detail?id=${group.id}${group.is_admin ? "&admin=true" : ""}` as never)
           }
         >
           <Text style={s.groupActionBtnText}>
@@ -553,26 +555,31 @@ export default function EventsScreen() {
           </>
         )}
 
-        {(activeTab === "allGroups" || activeTab === "myGroups") && (
-          loadingGroups ? (
+        {(activeTab === "allGroups" || activeTab === "myGroups") && (() => {
+          const displayGroups = activeTab === "myGroups"
+            ? filteredGroups.filter((g) => g.is_admin)
+            : filteredGroups;
+          return loadingGroups ? (
             <View style={s.center}>
               <ActivityIndicator size="large" color={Colors.primary} />
             </View>
-          ) : groups.length === 0 ? (
+          ) : displayGroups.length === 0 ? (
             <View style={s.center}>
-              <Text style={s.emptyText}>No groups found</Text>
+              <Text style={s.emptyText}>
+                {activeTab === "myGroups" ? "No groups you admin" : "No groups found"}
+              </Text>
             </View>
           ) : (
             <View style={s.groupsList}>
               <FlatList
-                data={groups}
+                data={displayGroups}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={renderGroupCard}
                 scrollEnabled={false}
               />
             </View>
-          )
-        )}
+          );
+        })()}
 
         <View style={{ height: 20 }} />
       </ScrollView>

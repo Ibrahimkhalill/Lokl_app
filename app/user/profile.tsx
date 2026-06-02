@@ -164,7 +164,7 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.username}>{profile?.username ?? profile?.name ?? ""}</Text>
             <View style={styles.statsRow}>
-              <TouchableOpacity style={styles.statItem} onPress={() => router.push("/user/posts?tab=posts")}>
+              <TouchableOpacity style={styles.statItem} onPress={() => router.push("/user/follow?tab=posts")}>
                 <Text style={styles.statNum}>{stats?.posts ?? 0}</Text>
                 <Text style={styles.statLabel}>posts</Text>
               </TouchableOpacity>
@@ -288,7 +288,7 @@ export default function ProfileScreen() {
           <>
             <View style={styles.recentHeader}>
               <Text style={styles.recentTitle}>RECENT ACTIVITIES</Text>
-              <TouchableOpacity onPress={() => router.push("/user/posts?tab=posts")}>
+              <TouchableOpacity onPress={() => router.push("/user/follow?tab=posts")}>
                 <Text style={styles.seeAll}>See All</Text>
               </TouchableOpacity>
             </View>
@@ -430,9 +430,9 @@ const styles = StyleSheet.create({
   },
   bioRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   bioText: { color: Colors.text, fontSize: 14, lineHeight: 20, flex: 1 },
-  bioMeta: { flexDirection: "row", gap: 16 },
-  bioMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  bioMetaText: { color: Colors.textSecondary, fontSize: 12 },
+  bioMeta: { flexDirection: "row", flexWrap: "wrap", gap: 8, rowGap: 4 },
+  bioMetaItem: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
+  bioMetaText: { color: Colors.textSecondary, fontSize: 12, flexShrink: 1 },
 
   statsGrid: { flexDirection: "row", gap: 12, paddingHorizontal: 20, marginBottom: 20 },
   statsGridItem: {

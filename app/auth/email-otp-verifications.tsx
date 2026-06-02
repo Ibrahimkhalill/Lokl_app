@@ -27,11 +27,10 @@ export default function EmailOTPVerifications() {
       });
       const { accessToken, refreshToken, user } = res.data.data;
       await login(accessToken, refreshToken, user);
-      
-      if (user.role ==="business") {
-         router.replace("/(tabs)");
-      }
-      else{
+
+      if (user.role?.toLowerCase() === "business") {
+        router.replace("/(tabs)");
+      } else {
         router.replace("/auth/what-are-you-into");
       }
 

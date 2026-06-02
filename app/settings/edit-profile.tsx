@@ -23,7 +23,6 @@ import {
   AppHeaderIconButton,
 } from "../../components/primitives";
 import { pickAvatarImage } from "../../lib/mediaPicker";
-import { userService } from "../../services/userService";
 import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
 
@@ -37,6 +36,7 @@ export default function EditProfileScreen() {
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phone, setPhone] = useState("");
+
 
   // Solution 1: Use useFocusEffect instead of useEffect
   useFocusEffect(
@@ -72,8 +72,8 @@ export default function EditProfileScreen() {
       setBio(data.bio || "");
       setPhone(data.phone || "");
       setDateOfBirth(data.date_of_birth || "");
-      setOriginalAvatarUrl(data.avatar_url || null);
-      setAvatarUri(data.avatar_url || null);
+      setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
+      setAvatarUri(data.avatar || data.avatar_url || null);
       
       console.log("✅ Profile loaded successfully");
     } catch (error) {
@@ -83,6 +83,7 @@ export default function EditProfileScreen() {
       setLoading(false);
     }
   };
+
 
   const handleUpdateProfile = async () => {
     console.log("🟡 handleUpdateProfile called");
@@ -251,8 +252,8 @@ export default function EditProfileScreen() {
             />
           </FormField> */}
 
-          <TouchableOpacity 
-            style={[s.saveBtn, saving && s.disabledBtn]} 
+          <TouchableOpacity
+            style={[s.saveBtn, saving && s.disabledBtn]}
             onPress={handleUpdateProfile}
             disabled={saving}
           >
@@ -262,6 +263,10 @@ export default function EditProfileScreen() {
               <Text style={s.saveBtnText}>Save Profile</Text>
             )}
           </TouchableOpacity>
+
+       
+
+          
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

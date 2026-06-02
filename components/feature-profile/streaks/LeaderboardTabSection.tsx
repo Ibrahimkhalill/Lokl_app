@@ -120,7 +120,7 @@ export function LeaderboardTabSection({
               <Text style={styles.leaderName}>
                 {isSelf ? "You" : entry.name}
               </Text>
-              <Text style={styles.leaderSub}>{entry.locations_visited} locations visited</Text>
+              {/* <Text style={styles.leaderSub}>{entry.locations_visited} locations visited</Text> */}
             </View>
             <View style={styles.leaderScore}>
               <FireIcon width={16} height={16} color="rgba(255,105,0,1)" />
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   leaderRowSelf: {
-    borderColor: Colors.primary,
-    backgroundColor: "rgba(123,97,255,0.08)",
+    borderColor: Colors.cardBorder,
+    // backgroundColor: "rgba(123,97,255,0.08)",
   },
   rankBadge: {
     width: 32,

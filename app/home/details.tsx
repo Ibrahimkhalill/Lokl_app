@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,12 +10,14 @@ import {
   Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../lib/api";
 import PlusIcon from "../../assets/icons/plus.svg";
 import BookmarkIcon from "../../assets/icons/bookmark.svg";
+import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
 import PhoneIcon from "../../assets/icons/call.svg";
 import TimeIcon from "../../assets/icons/clock.svg";
@@ -54,6 +56,7 @@ interface VenueDetail {
   website: string;
   hours: string[]; // ["Monday: 6:00 AM – 10:00 PM", ...]
   is_open_now: boolean | null;
+  is_bookmarked: boolean;
   cover: string | null;
   photos: VenuePhoto[];
   bookings: number;
@@ -118,49 +121,23 @@ export default function DetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
   const [userDistance, setUserDistance] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchAll(id);
-  }, [id]);
+  const handleToggleBookmark = async () => {
+    if (!venue || bookmarking) return;
+    setBookmarking(true);
+    setBookmarked((prev) => !prev); // optimistic
+    try {
+      await api.post(`/venues/${venue.id}/toggle_save/`);
+    } catch {
+      setBookmarked((prev) => !prev); // revert on error
+    } finally {
+      setBookmarking(false);
+    }
+  };
 
-  // Calculate GPS distance once venue lat/lng is loaded
-  useEffect(() => {
-    if (!venue?.latitude || !venue?.longitude) return;
-    (async () => {
-      try {
-        const { status } = await import("expo-location").then(m =>
-          m.requestForegroundPermissionsAsync()
-        );
-        if (status !== "granted") return;
-        const loc = await import("expo-location").then(m =>
-          m.getCurrentPositionAsync({ accuracy: 3 })
-        );
-        const dist = haversineKm(
-          loc.coords.latitude, loc.coords.longitude,
-          Number(venue.latitude), Number(venue.longitude)
-        );
-        const miles = dist * 0.621371;
-        setUserDistance(miles < 0.1 ? "nearby" : `${miles.toFixed(1)} mi`);
-      } catch {
-        // GPS unavailable — keep distanceParam from navigation
-      }
-    })();
-  }, [venue?.latitude, venue?.longitude]);
-
-  function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
-  async function fetchAll(venueId: string) {
+  const fetchAll = useCallback(async (venueId: string) => {
     setLoading(true);
     try {
       const [venueRes, friendsRes] = await Promise.allSettled([
@@ -172,7 +149,7 @@ export default function DetailsScreen() {
         const v = venueRes.value.data?.data ?? venueRes.value.data ?? null;
         if (v && distanceParam) v.distance = decodeURIComponent(distanceParam);
         setVenue(v);
-        // Reviews are now embedded in the venue response
+        setBookmarked(!!v?.is_bookmarked);
         const reviewList = Array.isArray(v?.reviews) ? v.reviews : [];
         setReviews(reviewList);
       }
@@ -185,7 +162,42 @@ export default function DetailsScreen() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [distanceParam]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchAll(id);
+    }, [id, fetchAll])
+  );
+
+  useEffect(() => {
+    if (!venue?.latitude || !venue?.longitude) return;
+    (async () => {
+      try {
+        const { status } = await import("expo-location").then(m =>
+          m.requestForegroundPermissionsAsync()
+        );
+        if (status !== "granted") return;
+        const loc = await import("expo-location").then(m =>
+          m.getCurrentPositionAsync({ accuracy: 3 })
+        );
+        const R = 6371;
+        const lat1 = loc.coords.latitude, lon1 = loc.coords.longitude;
+        const lat2 = Number(venue.latitude), lon2 = Number(venue.longitude);
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const miles = dist * 0.621371;
+        setUserDistance(miles < 0.1 ? "nearby" : `${miles.toFixed(1)} mi`);
+      } catch {
+        // GPS unavailable
+      }
+    })();
+  }, [venue?.latitude, venue?.longitude]);
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
@@ -364,8 +376,17 @@ export default function DetailsScreen() {
               >
                 <PlusIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIconBtn}>
-                <BookmarkIcon width={20} height={20} color={Colors.text} />
+              <TouchableOpacity
+                style={styles.actionIconBtn}
+                onPress={handleToggleBookmark}
+                disabled={bookmarking}
+              >
+                {bookmarked
+                  ? <BookmarkFilledIcon width={20} height={20} color={Colors.primary} />
+                  : <BookmarkIcon width={20} height={20} color={Colors.text} />
+                }
+
+           
               </TouchableOpacity>
             </View>
           </ScrollView>

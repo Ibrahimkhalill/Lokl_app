@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { reviewedVenueStore } from "../../lib/reviewedVenueStore";
 import {
   View,
   Text,
@@ -162,6 +164,29 @@ export default function HomeScreen() {
     tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 400);
   }, []);
 
+  // On focus: patch only the venue that was just reviewed (no full reload)
+  useFocusEffect(
+    useCallback(() => {
+      const venueId = reviewedVenueStore.consume();
+      if (!venueId) return;
+      api.get(`/venues/${venueId}/`).then((res) => {
+        const v = res.data?.data ?? res.data;
+        if (!v) return;
+        setVenues((prev) =>
+          prev.map((pin) =>
+            pin.id === venueId
+              ? { ...pin, score: v.score, score_display: v.score_display, ratings_count: v.ratings_count }
+              : pin
+          )
+        );
+        // Force marker bitmap to re-render with new score
+        if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
+        setTracksChanges(true);
+        tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 500);
+      }).catch(() => {});
+    }, [])
+  );
+
   // Load venues whenever filter params change
   useEffect(() => {
     loadVenues();
@@ -203,23 +228,45 @@ export default function HomeScreen() {
         ? payload
         : [];
 
-      // 1 venue per category — safest for Android (14 categories = 14 markers max)
-      const byType: Record<string, VenuePin> = {};
-      for (const v of all) {
-        if (
-          byType[v.type] === undefined &&
-          v.lat != null && v.lng != null &&
-          !isNaN(parseFloat(String(v.lat))) &&
-          !isNaN(parseFloat(String(v.lng)))
-        ) {
-          byType[v.type] = v;
+      const hasFilters =
+        !!params.type || !!params.min_rating || !!params.price_level ||
+        !!params.amenities || !!params.plan_tier || !!params.radius_km;
+
+      let data: VenuePin[];
+
+      if (hasFilters) {
+        // Filters active — show every matching venue that has valid coords
+        data = all
+          .filter(
+            (v) =>
+              v.lat != null && v.lng != null &&
+              !isNaN(parseFloat(String(v.lat))) &&
+              !isNaN(parseFloat(String(v.lng)))
+          )
+          .map((v) => ({
+            ...v,
+            lat: parseFloat(String(v.lat)),
+            lng: parseFloat(String(v.lng)),
+          }));
+      } else {
+        // No filters — 1 venue per type to keep Android marker count manageable
+        const byType: Record<string, VenuePin> = {};
+        for (const v of all) {
+          if (
+            byType[v.type] === undefined &&
+            v.lat != null && v.lng != null &&
+            !isNaN(parseFloat(String(v.lat))) &&
+            !isNaN(parseFloat(String(v.lng)))
+          ) {
+            byType[v.type] = v;
+          }
         }
+        data = Object.values(byType).map((v) => ({
+          ...v,
+          lat: parseFloat(String(v.lat)),
+          lng: parseFloat(String(v.lng)),
+        }));
       }
-      const data: VenuePin[] = Object.values(byType).map((v) => ({
-        ...v,
-        lat: parseFloat(String(v.lat)),   // ensure number — API returns strings
-        lng: parseFloat(String(v.lng)),
-      }));
 
       setVenues(data);
       if (data.length > 0) {
@@ -305,7 +352,19 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.filterBtn}
-            onPress={() => router.push("/home/filters")}
+            onPress={() =>
+              router.push({
+                pathname: "/home/filters",
+                params: {
+                  ...(params.type        && { type:        params.type }),
+                  ...(params.min_rating  && { min_rating:  params.min_rating }),
+                  ...(params.price_level && { price_level: params.price_level }),
+                  ...(params.amenities   && { amenities:   params.amenities }),
+                  ...(params.plan_tier   && { plan_tier:   params.plan_tier }),
+                  ...(params.radius_km   && { radius_km:   params.radius_km }),
+                },
+              })
+            }
           >
             <FilterIcon width={24} height={24} />
           </TouchableOpacity>
@@ -326,12 +385,6 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.venueCard}>
-            <TouchableOpacity
-              activeOpacity={0.95}
-              onPress={() =>
-                router.push(`/home/details?id=${selectedVenue.id}&distance=${encodeURIComponent(selectedVenue.distance ?? "")}`)
-              }
-            >
               {/* Cover image */}
               <View style={styles.venueImageWrap}>
                 {selectedVenue.cover ? (
@@ -391,7 +444,6 @@ export default function HomeScreen() {
                   )}
                 </View>
               </View>
-            </TouchableOpacity>
 
             {/* Action Buttons */}
             <View style={styles.venueActions}>

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Switch } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -7,40 +7,51 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PushIcon from "../../assets/icons/push.svg";
 import EmailIcon from "../../assets/icons/email.svg";
 import SmsIcon from "../../assets/icons/sms.svg";
-const CHANNELS = [
-  {
-    id: "push",
-    label: "Push Notifications",
-    sub: "Receive notification on your device",
-    icon: <PushIcon width={24} height={24} color={Colors.primary} />,
-    defaultOn: true,
-  },
-  {
-    id: "email",
-    label: "Email Notifications",
-    sub: "Get updates via email",
-    icon: <EmailIcon width={24} height={24} color={Colors.primary} />,
-    defaultOn: true,
-  },
-  {
-    id: "sms",
-    label: "SMS Notifications",
-    sub: "Text message alerts",
-    icon: <SmsIcon width={24} height={24} color={Colors.primary} />,
-    defaultOn: false,
-  },
-];
+import { settingService } from "../../services/settingServices";
 
 export default function NotificationsSettingScreen() {
   const router = useRouter();
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    push: true,
-    email: true,
-    sms: false,
-  });
+  const [loading, setLoading] = useState(true);
+  const [push, setPush] = useState(true);
+  const [email, setEmail] = useState(true);
+  const [sms, setSms] = useState(false);
 
-  const toggle = (id: string) =>
-    setToggles((prev) => ({ ...prev, [id]: !prev[id] }));
+  useEffect(() => {
+    settingService.getNotifications().then((res) => {
+      const d = res.data?.data ?? res.data;
+      setPush(d.push_notifications ?? true);
+      setEmail(d.email_notifications ?? true);
+      setSms(d.sms_notifications ?? false);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  function save(patch: Parameters<typeof settingService.updateNotifications>[0]) {
+    settingService.updateNotifications(patch).catch(() => {});
+  }
+
+  const CHANNELS = [
+    {
+      label: "Push Notifications",
+      sub: "Receive notification on your device",
+      icon: <PushIcon width={24} height={24} color={Colors.primary} />,
+      value: push,
+      onChange: (v: boolean) => { setPush(v); save({ push_notifications: v }); },
+    },
+    {
+      label: "Email Notifications",
+      sub: "Get updates via email",
+      icon: <EmailIcon width={24} height={24} color={Colors.primary} />,
+      value: email,
+      onChange: (v: boolean) => { setEmail(v); save({ email_notifications: v }); },
+    },
+    {
+      label: "SMS Notifications",
+      sub: "Text message alerts",
+      icon: <SmsIcon width={24} height={24} color={Colors.primary} />,
+      value: sms,
+      onChange: (v: boolean) => { setSms(v); save({ sms_notifications: v }); },
+    },
+  ];
 
   return (
     <SafeAreaView style={s.safe}>
@@ -52,30 +63,36 @@ export default function NotificationsSettingScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={s.card}>
-        <Text style={s.sectionTitle}>NOTIFICATION CHANNELS</Text>
-        {CHANNELS.map((ch, i) => (
-          <View key={ch.id}>
-            {i > 0 && <View style={s.divider} />}
-            <View style={s.row}>
-              <View style={s.rowLeft}>
-                <View style={s.iconWrap}>{ch.icon}</View>
-                <View>
-                  <Text style={s.rowLabel}>{ch.label}</Text>
-                  <Text style={s.rowSub}>{ch.sub}</Text>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <View style={s.card}>
+          <Text style={s.sectionTitle}>NOTIFICATION CHANNELS</Text>
+          {CHANNELS.map((ch, i) => (
+            <View key={ch.label}>
+              {i > 0 && <View style={s.divider} />}
+              <View style={s.row}>
+                <View style={s.rowLeft}>
+                  <View style={s.iconWrap}>{ch.icon}</View>
+                  <View>
+                    <Text style={s.rowLabel}>{ch.label}</Text>
+                    <Text style={s.rowSub}>{ch.sub}</Text>
+                  </View>
                 </View>
+                <Switch
+                  value={ch.value}
+                  onValueChange={ch.onChange}
+                  trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                  thumbColor={Colors.white}
+                  ios_backgroundColor={Colors.cardBorder}
+                />
               </View>
-              <Switch
-                value={toggles[ch.id]}
-                onValueChange={() => toggle(ch.id)}
-                trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
-                thumbColor={Colors.white}
-                ios_backgroundColor={Colors.cardBorder}
-              />
             </View>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </SafeAreaView>
   );
 }

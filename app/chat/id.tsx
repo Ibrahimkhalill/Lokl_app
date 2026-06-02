@@ -98,6 +98,7 @@ export default function ChatDetailScreen() {
         const data = res.data?.data ?? res.data;
         const list = Array.isArray(data) ? data : (data?.messages ?? data?.results ?? []);
         setMessages(normalizeMessages(list));
+        messageService.markAsRead(userId).catch(() => {});
       } else if (mode === "group" && groupId) {
         res = await messageService.getGroupMessages(groupId);
         const data = res.data?.data ?? res.data;

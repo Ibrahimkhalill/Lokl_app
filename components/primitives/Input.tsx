@@ -15,6 +15,7 @@ export interface InputProps extends TextInputProps {
   leftIcon?: keyof typeof Ionicons.glyphMap;
   leftSlot?: React.ReactNode;
   isPassword?: boolean;
+  error?: string;
 }
 
 export function Input({
@@ -22,6 +23,7 @@ export function Input({
   leftIcon,
   leftSlot,
   isPassword,
+  error,
   style,
   ...props
 }: InputProps) {
@@ -35,6 +37,7 @@ export function Input({
         style={[
           styles.inputContainer,
           focused && styles.inputContainerFocused,
+          !!error && styles.inputContainerError,
         ]}
       >
         {leftSlot ? (
@@ -70,6 +73,7 @@ export function Input({
           </TouchableOpacity>
         )}
       </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -94,6 +98,14 @@ const styles = StyleSheet.create({
   },
   inputContainerFocused: {
     borderColor: Colors.primary,
+  },
+  inputContainerError: {
+    borderColor: "#FF4D4F",
+  },
+  errorText: {
+    color: "#FF4D4F",
+    fontSize: 12,
+    marginTop: 4,
   },
   leftIconWrap: { marginRight: 10 },
   input: {

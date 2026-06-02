@@ -10,9 +10,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PrimaryButton } from "../../components/ui";
+import { AuthFooterLinkRow } from "../../components/auth";
 import { SelectRow, InputRow } from "../../components/primitives";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -37,6 +39,7 @@ import ChevronDownIcon from "../../assets/icons/chevron-down.svg";
 import AddIcon from "../../assets/icons/add.svg";
 import type { SvgProps } from "react-native-svg";
 import { authService } from "@/services/authService";
+import { getErrorMessage } from "../../lib/api";
 
 type SvgIconComponent = React.ComponentType<SvgProps>;
 
@@ -154,8 +157,11 @@ function BottomSheetModal({
   children: React.ReactNode;
 }) {
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={modalStyles.overlay}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
+      <KeyboardAvoidingView
+        style={modalStyles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <TouchableOpacity style={modalStyles.backdrop} onPress={onClose} />
         <View style={modalStyles.sheet}>
           <View style={modalStyles.header}>
@@ -166,7 +172,7 @@ function BottomSheetModal({
           </View>
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -217,6 +223,15 @@ export default function BusinessSignUp() {
     { platform: "Instagram", link: "" },
   ]);
 
+  const [businessNameError, setBusinessNameError] = useState("");
+  const [businessTypeError, setBusinessTypeError] = useState("");
+  const [ownerNameError, setOwnerNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [addressError, setAddressError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [socialModalIndex, setSocialModalIndex] = useState(0);
@@ -232,6 +247,7 @@ export default function BusinessSignUp() {
 
   const onSelectBusinessType = useCallback((item: string) => {
     setBusinessType(item);
+    setBusinessTypeError("");
     setShowTypeModal(false);
     setTypeSearch("");
   }, []);
@@ -276,6 +292,26 @@ export default function BusinessSignUp() {
   const [loading, setLoading] = useState(false);
 
 const handleSignUp = async () => {
+  const bnErr = businessName.trim() ? "" : "Business name is required";
+  const btErr = businessType ? "" : "Business type is required";
+  const onErr = ownerName.trim() ? "" : "Owner name is required";
+  const emErr = !email.trim() ? "Email is required" : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Enter a valid email address" : "";
+  const phErr = phone.trim() ? "" : "Phone number is required";
+  const adErr = address.trim() ? "" : "Address is required";
+  const pwErr = !password ? "Password is required" : password.length < 8 ? "Password must be at least 8 characters" : "";
+  const cpErr = !confirmPassword ? "Please confirm your password" : confirmPassword !== password ? "Passwords do not match" : "";
+
+  setBusinessNameError(bnErr);
+  setBusinessTypeError(btErr);
+  setOwnerNameError(onErr);
+  setEmailError(emErr);
+  setPhoneError(phErr);
+  setAddressError(adErr);
+  setPasswordError(pwErr);
+  setConfirmPasswordError(cpErr);
+
+  if (bnErr || btErr || onErr || emErr || phErr || adErr || pwErr || cpErr) return;
+
   setLoading(true);
   try {
     const res = await authService.registerBusiness({
@@ -296,8 +332,7 @@ const handleSignUp = async () => {
         params: { user_id: String(userId) },
       });
   } catch (error) {
-    console.error("Registration failed:", error);
-    // surface error to user via Alert or a toast
+    Alert.alert("Registration Failed", getErrorMessage(error));
   } finally {
     setLoading(false);
   }
@@ -336,14 +371,16 @@ const handleSignUp = async () => {
             <BusinessIcon width={18} height={18} color={Colors.textSecondary} />
           }
           value={businessName}
-          onChangeText={setBusinessName}
+          onChangeText={(v) => { setBusinessName(v); if (v.trim()) setBusinessNameError(""); }}
+          onBlur={() => setBusinessNameError(businessName.trim() ? "" : "Business name is required")}
+          error={businessNameError}
         />
 
         {/* Business Type — dropdown */}
         <View style={styles.fieldWrap}>
           <Text style={styles.label}>Business Type*</Text>
           <SelectRow
-            style={styles.dropdownBtn}
+            style={[styles.dropdownBtn, businessTypeError ? { borderColor: "#FF4D4F" } : {}] as any}
             leftSlot={
               <View style={styles.fieldIcon}>
                 <BusinessTypeIcon
@@ -364,6 +401,7 @@ const handleSignUp = async () => {
             }
             onPress={() => setShowTypeModal(true)}
           />
+          {businessTypeError ? <Text style={styles.errorText}>{businessTypeError}</Text> : null}
         </View>
 
         <Input
@@ -373,7 +411,9 @@ const handleSignUp = async () => {
             <PersonIcon width={18} height={18} color={Colors.textSecondary} />
           }
           value={ownerName}
-          onChangeText={setOwnerName}
+          onChangeText={(v) => { setOwnerName(v); if (v.trim()) setOwnerNameError(""); }}
+          onBlur={() => setOwnerNameError(ownerName.trim() ? "" : "Owner name is required")}
+          error={ownerNameError}
         />
         <Input
           label="Email*"
@@ -384,7 +424,17 @@ const handleSignUp = async () => {
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (!v.trim()) setEmailError("Email is required");
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) setEmailError("Enter a valid email address");
+            else setEmailError("");
+          }}
+          onBlur={() => {
+            if (!email.trim()) setEmailError("Email is required");
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) setEmailError("Enter a valid email address");
+          }}
+          error={emailError}
         />
         <Input
           label="Business Phone*"
@@ -394,7 +444,9 @@ const handleSignUp = async () => {
           }
           keyboardType="phone-pad"
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={(v) => { setPhone(v); if (v.trim()) setPhoneError(""); }}
+          onBlur={() => setPhoneError(phone.trim() ? "" : "Phone number is required")}
+          error={phoneError}
         />
         <Input
           label="Business Address*"
@@ -407,7 +459,9 @@ const handleSignUp = async () => {
             />
           }
           value={address}
-          onChangeText={setAddress}
+          onChangeText={(v) => { setAddress(v); if (v.trim()) setAddressError(""); }}
+          onBlur={() => setAddressError(address.trim() ? "" : "Address is required")}
+          error={addressError}
         />
         <Input
           label="Website link"
@@ -472,7 +526,14 @@ const handleSignUp = async () => {
           }
           isPassword
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(v) => {
+            setPassword(v);
+            if (!v) setPasswordError("Password is required");
+            else if (v.length < 8) setPasswordError("Password must be at least 8 characters");
+            else setPasswordError("");
+            setConfirmPasswordError(confirmPassword && confirmPassword !== v ? "Passwords do not match" : "");
+          }}
+          error={passwordError}
         />
         <Input
           label="Confirm Password*"
@@ -482,7 +543,13 @@ const handleSignUp = async () => {
           }
           isPassword
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={(v) => {
+            setConfirmPassword(v);
+            if (!v) setConfirmPasswordError("Please confirm your password");
+            else if (v !== password) setConfirmPasswordError("Passwords do not match");
+            else setConfirmPasswordError("");
+          }}
+          error={confirmPasswordError}
         />
 
           <PrimaryButton
@@ -490,6 +557,12 @@ const handleSignUp = async () => {
             onPress={handleSignUp}
             disabled={loading}
             style={styles.signupBtn}
+          />
+
+          <AuthFooterLinkRow
+            prefixText="Already have an account? "
+            linkText="Sign in"
+            onPress={() => router.push("/auth/business-signin")}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -664,4 +737,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   textMuted: { color: Colors.textMuted },
+  errorText: {
+    color: "#FF4D4F",
+    fontSize: 12,
+    marginTop: 4,
+  },
 });
