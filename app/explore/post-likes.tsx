@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 type LikeUser = {
   id: number;
@@ -64,9 +65,7 @@ export default function PostLikesScreen() {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>No likes yet</Text>
-            </View>
+            <EmptyState icon="heart-outline" title="No likes yet" subtitle="Be the first to like this post" />
           }
           renderItem={({ item }) => (
             <View style={styles.row}>

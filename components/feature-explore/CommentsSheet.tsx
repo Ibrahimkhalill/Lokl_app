@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../primitives";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
@@ -299,9 +300,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
                 <CommentRow item={item} onReply={handleReply} />
               )}
               ListEmptyComponent={
-                <View style={styles.center}>
-                  <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
-                </View>
+                <EmptyState icon="chatbubble-outline" title="No comments yet" subtitle="Be the first to comment!" />
               }
               contentContainerStyle={{ paddingBottom: 12 }}
               showsVerticalScrollIndicator={false}

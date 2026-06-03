@@ -16,6 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 
@@ -89,10 +90,7 @@ export default function SavedPostsScreen() {
           contentContainerStyle={s.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchSaved(true)} tintColor={Colors.primary} />}
           ListEmptyComponent={
-            <View style={s.center}>
-              <Ionicons name="bookmark-outline" size={42} color={Colors.textSecondary} />
-              <Text style={s.emptyText}>No saved posts</Text>
-            </View>
+            <EmptyState icon="bookmark-outline" title="No saved posts" subtitle="Posts you save will appear here" />
           }
           renderItem={({ item }) => (
             <PostCard

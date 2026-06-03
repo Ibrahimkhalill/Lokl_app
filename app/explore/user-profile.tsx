@@ -17,6 +17,7 @@ import { getErrorMessage } from "../../lib/api";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { Avatar } from "../../components/primitives/Avatar";
+import { EmptyState } from "../../components/primitives";
 
 type UserProfile = {
   id: number;
@@ -244,10 +245,11 @@ export default function UserProfileScreen() {
             />
           )}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="images-outline" size={42} color={Colors.textSecondary} />
-              <Text style={styles.emptyText}>No posts yet</Text>
-            </View>
+            <EmptyState
+              icon="images-outline"
+              title="No posts yet"
+              subtitle="This user hasn't shared anything yet"
+            />
           }
         />
       )}

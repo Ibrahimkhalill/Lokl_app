@@ -35,7 +35,8 @@ function defaultBirthDate() {
 export default function SignUp() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [dobDate, setDobDate] = useState(defaultBirthDate);
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [phone, setPhone] = useState("");
@@ -45,7 +46,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
-    if (!username.trim() || !fullName.trim() || !formattedPhone || !password.trim()) {
+    if (!username.trim() || !firstName.trim() || !lastName.trim() || !formattedPhone || !password.trim()) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
@@ -54,7 +55,7 @@ export default function SignUp() {
       const dob = dobDate.toISOString().split("T")[0];
       const res = await authService.register({
         username: username.trim(),
-        full_name: fullName.trim(),
+        full_name: `${firstName.trim()} ${lastName.trim()}`,
         phone: formattedPhone,
         password,
         date_of_birth: dob,
@@ -78,7 +79,7 @@ export default function SignUp() {
 
       <AuthHeaderBlock
         title="Create your account"
-        subtitle="join the LOKL community today"
+        subtitle="Join the Lokl community today"
         titleStyle={styles.headerTitle}
         subtitleStyle={styles.headerSubtitle}
         containerStyle={{ marginBottom: 28 }}
@@ -92,10 +93,16 @@ export default function SignUp() {
         autoCapitalize="none"
       />
       <Input
-        label="Full Name"
-        placeholder="Enter full name"
-        value={fullName}
-        onChangeText={setFullName}
+        label="First Name"
+        placeholder="Enter first name"
+        value={firstName}
+        onChangeText={setFirstName}
+      />
+      <Input
+        label="Last Name"
+        placeholder="Enter last name"
+        value={lastName}
+        onChangeText={setLastName}
       />
       <TouchableOpacity
         activeOpacity={0.85}

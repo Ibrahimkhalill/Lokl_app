@@ -19,17 +19,27 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { Avatar } from "../primitives/Avatar";
 import { ApiPost } from "./PostCard";
 
-function PostVideoPlayer({ uri, autoPlay }: { uri: string; autoPlay: boolean }) {
-  const player = useVideoPlayer(uri, (p) => {
-    p.loop = true;
-    if (autoPlay) p.play();
-  });
+function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }) {
+  const player = useVideoPlayer(
+    { uri, useCaching: true },
+    (p) => {
+      p.loop = true;
+      p.bufferOptions = { preferredForwardBufferDuration: 10 };
+    }
+  );
+
+  React.useEffect(() => {
+    if (isVisible) player.play();
+    else player.pause();
+  }, [isVisible, player]);
+
   return (
     <VideoView
       player={player}
       style={styles.postVideo}
       contentFit="cover"
       nativeControls
+      requiresLinearPlayback
     />
   );
 }
@@ -42,6 +52,7 @@ export function GroupFeedCard({
   onSave,
   onShare,
   onComment,
+  visiblePostId,
 }: {
   item: ApiPost;
   currentGroup?: { id: number; name: string; photo?: string | null };
@@ -50,6 +61,7 @@ export function GroupFeedCard({
   onSave: (id: number) => void;
   onShare: (id: number) => void;
   onComment: (id: number) => void;
+  visiblePostId?: number | null;
 }) {
   const { preferences } = usePreferences();
 
@@ -156,7 +168,7 @@ export function GroupFeedCard({
 
       {!!item.video_url && (
         <View style={styles.imageWrap}>
-          <PostVideoPlayer uri={item.video_url} autoPlay={preferences.autoplay} />
+          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && item.id === visiblePostId} />
         </View>
       )}
 

@@ -13,6 +13,7 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ReviewListCard } from "../../components/events";
 import { api, getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 type Review = {
   id: number;
@@ -93,9 +94,7 @@ export default function ReviewsScreen() {
           onRefresh={() => fetchReviews(true)}
           refreshing={refreshing}
           ListEmptyComponent={
-            <View style={s.center}>
-              <Text style={s.emptyText}>No reviews yet</Text>
-            </View>
+            <EmptyState icon="star-outline" title="No reviews yet" subtitle="Be the first to leave a review" />
           }
           renderItem={({ item }) => (
             <ReviewListCard

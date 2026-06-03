@@ -24,6 +24,7 @@ import IconMedicalPhysio from "../../assets/icons/medical-icon_i-physical-therap
 import IconSurfing from "../../assets/icons/material-symbols-light_surfing-rounded.svg";
 import IconCricket from "../../assets/icons/cricket.svg";
 import { api } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 const MANHATTAN = { lat: 40.7831, lng: -73.9712 };
 
@@ -244,10 +245,7 @@ export default function SearchScreen() {
               </Text>
             }
             ListEmptyComponent={
-              <View style={styles.center}>
-                <Ionicons name="search-outline" size={36} color={Colors.textSecondary} />
-                <Text style={styles.emptyText}>No venues found</Text>
-              </View>
+              <EmptyState icon="search-outline" title="No venues found" subtitle="Try a different search term" />
             }
           />
         )}

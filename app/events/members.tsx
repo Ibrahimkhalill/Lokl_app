@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../../constants/colors";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 import LocationIcon from "../../assets/icons/locations.svg";
 type Member = {
   id: number;
@@ -119,10 +120,7 @@ export default function MembersScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchMembers(true)} tintColor={Colors.primary} />}
           ItemSeparatorComponent={() => <View style={s.separator} />}
           ListEmptyComponent={
-            <View style={s.center}>
-              <Ionicons name="people-outline" size={40} color={Colors.textSecondary} />
-              <Text style={s.emptyText}>No members found</Text>
-            </View>
+            <EmptyState icon="people-outline" title="No members found" subtitle="No one has joined this group yet" />
           }
           renderItem={({ item }) => (
             <View style={s.memberRow}>

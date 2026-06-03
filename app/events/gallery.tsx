@@ -15,6 +15,7 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 const { width } = Dimensions.get("window");
 const ITEM_SIZE = (width - 4) / 3;
@@ -80,10 +81,7 @@ export default function GalleryScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : images.length === 0 ? (
-        <View style={s.center}>
-          <Ionicons name="images-outline" size={48} color={Colors.textMuted} />
-          <Text style={s.emptyText}>No photos yet</Text>
-        </View>
+        <EmptyState icon="images-outline" title="No photos yet" subtitle="No one has added photos to this event" />
       ) : (
         <FlatList
           data={images}

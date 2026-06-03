@@ -25,6 +25,15 @@ export interface PhoneInputProps {
   error?: string | null;
 }
 
+function getDeviceCountryCode(): string {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const parts = locale.split("-");
+    if (parts.length >= 2) return parts[parts.length - 1].toUpperCase();
+  } catch {}
+  return "US";
+}
+
 function getFlag(code: string) {
   return code
     .toUpperCase()
@@ -41,9 +50,10 @@ export function PhoneInput({
   error,
 }: PhoneInputProps) {
   const insets = useSafeAreaInsets();
-  const [country, setCountry] = useState<CountryItem>(
-    COUNTRIES.find((c) => c.code === "BD") ?? COUNTRIES[0]
-  );
+  const [country, setCountry] = useState<CountryItem>(() => {
+    const code = getDeviceCountryCode();
+    return COUNTRIES.find((c) => c.code === code) ?? COUNTRIES.find((c) => c.code === "US") ?? COUNTRIES[0];
+  });
   const [pickerVisible, setPickerVisible] = useState(false);
   const [focused, setFocused] = useState(false);
   const [search, setSearch] = useState("");

@@ -24,8 +24,18 @@ export const businessService = {
     return api.get("/business/profile/");
   },
 
+  getBusinessProfileById(id: number) {
+    return api.get(`/business/${id}/`);
+  },
+
+  getBusinessEvents(id: number) {
+    return api.get(`/business/${id}/events/`);
+  },
+
   updateBusinessProfile(data: {
     business_name?: string;
+    owner_name?: string;
+    bio?: string;
     address?: string;
     website?: string;
     social_media?: { platform: string; link: string }[];

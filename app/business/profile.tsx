@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Linking,
   RefreshControl,
   Modal,
   TextInput,
@@ -15,7 +16,7 @@ import {
   Platform,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
@@ -23,11 +24,15 @@ import LocationsIcon from "../../assets/icons/locations.svg";
 import StudentsIcon from "../../assets/icons/students.svg";
 import CourseIcon from "../../assets/icons/course.svg";
 import DollarIcon from "../../assets/icons/dollar.svg";
+import WebsiteIcon from "../../assets/icons/website.svg";
+import EmailIcon from "../../assets/icons/email.svg";
+import PhoneIcon from "../../assets/icons/call.svg";
 import StarIcon from "../../assets/icons/star.svg";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
+import { EmptyState } from "../../components/primitives";
 
 interface BusinessProfile {
   business_name: string;
@@ -39,6 +44,7 @@ interface BusinessProfile {
   profile_photo_url?: string | null;
   cover_photo_url?: string | null;
   social_media: { platform: string; link: string }[];
+  phone_number?: string;
 }
 
 interface Event {
@@ -84,6 +90,10 @@ function buildMediaForm(field: string, uri: string) {
 export default function BusinessProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { id: businessIdParam } = useLocalSearchParams<{ id?: string }>();
+  const isOwner = !businessIdParam;
+  const businessId = businessIdParam ? Number(businessIdParam) : null;
+
   const [tab, setTab] = useState<"about" | "event">("about");
   const [businessProfile, setBusinessProfile] =
     useState<BusinessProfile | null>(null);
@@ -92,13 +102,13 @@ export default function BusinessProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // local URI overrides (shown immediately after pick, before API confirms)
+  // local URI overrides — owner only
   const [localCoverUri, setLocalCoverUri] = useState<string | null>(null);
   const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // bio edit modal
+  // bio edit modal — owner only
   const [bioModalVisible, setBioModalVisible] = useState(false);
   const [bioInput, setBioInput] = useState("");
   const [savingBio, setSavingBio] = useState(false);
@@ -106,8 +116,12 @@ export default function BusinessProfileScreen() {
   const fetchData = useCallback(async () => {
     try {
       const [bpRes, evRes] = await Promise.all([
-        businessService.getBusinessProfile(),
-        businessService.getMyEvents(),
+        isOwner
+          ? businessService.getBusinessProfile()
+          : businessService.getBusinessProfileById(businessId!),
+        isOwner
+          ? businessService.getMyEvents()
+          : businessService.getBusinessEvents(businessId!),
       ]);
       const bpData = bpRes.data?.data ?? bpRes.data;
       setBusinessProfile(bpData);
@@ -126,7 +140,7 @@ export default function BusinessProfileScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isOwner, businessId]);
 
   useEffect(() => {
     fetchData();
@@ -228,15 +242,21 @@ export default function BusinessProfileScreen() {
     );
   }
 
+  console.log("Business Profile:", businessProfile);
+
   const displayName =
    
     businessProfile?.owner_name ||
     user?.name ||
     "—";
-  const displayRole = businessProfile?.business_type || "—";
+
   const displayBusinessName = businessProfile?.business_name || "—";
   const displayBio = businessProfile?.bio || user?.bio || "";
   const displayAddress = businessProfile?.address || "";
+  const displayWebsite = businessProfile?.website || "";
+  const displaySocials = businessProfile?.social_media || [];
+  const bussinesPhone = businessProfile?.phone_number || "";
+  const displayEmail = user?.email || "";
 
   const coverUri =
     localCoverUri ?? businessProfile?.cover_photo_url ?? null;
@@ -261,8 +281,8 @@ export default function BusinessProfileScreen() {
       >
         {/* Cover Photo */}
         <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handlePickCover}
+          activeOpacity={isOwner ? 0.85 : 1}
+          onPress={isOwner ? handlePickCover : undefined}
           style={styles.heroBanner}
           disabled={uploadingCover}
         >
@@ -271,32 +291,44 @@ export default function BusinessProfileScreen() {
           ) : (
             <View style={styles.heroPlaceholder} />
           )}
-          <View style={styles.coverOverlay}>
-            {uploadingCover ? (
-              <ActivityIndicator color={Colors.white} />
-            ) : (
-              <View style={styles.coverEditBadge}>
-                <Ionicons name="camera" size={16} color={Colors.white} />
-                <Text style={styles.coverEditText}>Edit Cover</Text>
-              </View>
-            )}
-          </View>
-          {/* Settings icon */}
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => router.push("/settings/setting")}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="settings-outline" size={22} color={Colors.white} />
-          </TouchableOpacity>
+          {isOwner && (
+            <View style={styles.coverOverlay}>
+              {uploadingCover ? (
+                <ActivityIndicator color={Colors.white} />
+              ) : (
+                <View style={styles.coverEditBadge}>
+                  <Ionicons name="camera" size={16} color={Colors.white} />
+                  <Text style={styles.coverEditText}>Edit Cover</Text>
+                </View>
+              )}
+            </View>
+          )}
+          {/* Back button for visitor (top-left), Settings for owner (top-right) */}
+          {isOwner ? (
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => router.push("/settings/setting")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="settings-outline" size={22} color={Colors.white} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={22} color={Colors.white} />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
 
         <View style={styles.topSection}>
           <View style={styles.profileRow}>
             {/* Avatar */}
             <TouchableOpacity
-              onPress={handlePickAvatar}
-              activeOpacity={0.85}
+              onPress={isOwner ? handlePickAvatar : undefined}
+              activeOpacity={isOwner ? 0.85 : 1}
               disabled={uploadingAvatar}
               style={styles.avatarWrap}
             >
@@ -307,13 +339,15 @@ export default function BusinessProfileScreen() {
                   <Ionicons name="person" size={32} color={Colors.textMuted} />
                 </View>
               )}
-              <View style={styles.avatarEditBadge}>
-                {uploadingAvatar ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                ) : (
-                  <Ionicons name="camera" size={12} color={Colors.black} />
-                )}
-              </View>
+              {isOwner && (
+                <View style={styles.avatarEditBadge}>
+                  {uploadingAvatar ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <Ionicons name="camera" size={12} color={Colors.black} />
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
 
             <View style={styles.profileInfo}>
@@ -352,13 +386,15 @@ export default function BusinessProfileScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.createBtn}
-            onPress={() => router.push("/business/create-event")}
-          >
-            <Ionicons name="add" size={24} color={Colors.white} />
-            <Text style={styles.createBtnText}>Create New Event</Text>
-          </TouchableOpacity>
+          {isOwner && (
+            <TouchableOpacity
+              style={styles.createBtn}
+              onPress={() => router.push("/business/create-event")}
+            >
+              <Ionicons name="add" size={24} color={Colors.white} />
+              <Text style={styles.createBtnText}>Create New Event</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.tabRow}>
             <TouchableOpacity
@@ -395,47 +431,145 @@ export default function BusinessProfileScreen() {
             <View style={styles.aboutCard}>
               <View style={styles.aboutHeader}>
                 <Text style={styles.aboutTitle}>Bio</Text>
-                <TouchableOpacity onPress={openBioModal} hitSlop={8}>
-                  <Ionicons
-                    name="create-outline"
-                    size={20}
-                    color={Colors.textSecondary}
-                  />
-                </TouchableOpacity>
+                {isOwner && (
+                  <TouchableOpacity onPress={openBioModal} hitSlop={8}>
+                    <Ionicons
+                      name="create-outline"
+                      size={20}
+                      color={Colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
               {displayBio ? (
                 <Text style={styles.aboutBody}>{displayBio}</Text>
-              ) : (
+              ) : isOwner ? (
                 <TouchableOpacity onPress={openBioModal}>
-                  <Text style={styles.bioPlaceholder}>
-                    Tap to add a bio...
-                  </Text>
+                  <Text style={styles.bioPlaceholder}>Tap to add a bio...</Text>
                 </TouchableOpacity>
+              ) : (
+                <Text style={styles.bioPlaceholder}>No bio yet.</Text>
               )}
             </View>
 
             {displayAddress ? (
-              <View style={styles.locationCard}>
-                <View style={styles.locationRow}>
-                  <LocationsIcon
-                    width={16}
-                    height={16}
-                    color={Colors.primary}
-                  />
-                  <View style={styles.locationInfo}>
-                    <Text style={styles.locationText}>Location</Text>
-                    <Text style={styles.locationValue}>{displayAddress}</Text>
-                  </View>
+              <View style={styles.infoCard}>
+                <View style={styles.infoIconWrap}>
+                  <LocationsIcon width={18} height={18} color={Colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Location</Text>
+                  <Text style={styles.infoValue}>{displayAddress}</Text>
                 </View>
               </View>
+            ) : null}
+
+            {displayEmail ? (
+              <View style={styles.infoCard}>
+                <View style={styles.infoIconWrap}>
+                  <EmailIcon width={18} height={18} color={Colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{displayEmail}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {bussinesPhone ? (
+              <View style={styles.infoCard}>
+                <View style={styles.infoIconWrap}>
+                  <PhoneIcon width={18} height={18} color={Colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Business Phone</Text>
+                  <Text style={styles.infoValue}>{bussinesPhone}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {displayAddress ? (
+              <View style={styles.infoCard}>
+                <View style={styles.infoIconWrap}>
+                  <LocationsIcon width={18} height={18} color={Colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Business Address</Text>
+                  <Text style={styles.infoValue}>{displayAddress}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {displayWebsite ? (
+              <TouchableOpacity
+                style={styles.infoCard}
+                activeOpacity={0.7}
+                onPress={() => Linking.openURL(
+                  displayWebsite.startsWith("http") ? displayWebsite : `https://${displayWebsite}`
+                )}
+              >
+                <View style={styles.infoIconWrap}>
+                  <WebsiteIcon width={18} height={18} color={Colors.primary} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Website </Text>
+                  <Text style={styles.infoValue}>{displayWebsite}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            ) : null}
+
+            {displaySocials.length > 0 ? (
+              <>
+                <Text style={styles.sectionHeader}>Social Media</Text>
+                {displaySocials.map((s, i) => {
+                  const platform = s.platform?.toLowerCase() ?? "";
+                  const iconName =
+                    platform.includes("instagram") ? "logo-instagram" :
+                    platform.includes("facebook")  ? "logo-facebook"  :
+                    platform.includes("twitter") || platform.includes("x")
+                                                   ? "logo-twitter"   :
+                    platform.includes("youtube")   ? "logo-youtube"   :
+                    platform.includes("tiktok")    ? "logo-tiktok"    :
+                    platform.includes("linkedin")  ? "logo-linkedin"  :
+                    "globe-outline";
+                  const label = s.platform
+                    ? s.platform.charAt(0).toUpperCase() + s.platform.slice(1)
+                    : "Social";
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.infoCard}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        s.link && Linking.openURL(
+                          s.link.startsWith("http") ? s.link : `https://${s.link}`
+                        )
+                      }
+                    >
+                      <View style={styles.infoIconWrap}>
+                        <Ionicons name={iconName as any} size={20} color={Colors.primary} />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>{label}</Text>
+                        <Text style={styles.infoValue}>{s.link}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
             ) : null}
           </>
         ) : (
           <View style={styles.eventsList}>
             {events.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyText}>No events yet.</Text>
-              </View>
+              <EmptyState
+                icon="calendar-outline"
+                title="No events yet"
+                subtitle="Create your first event to get started"
+                
+              />
             ) : (
               events.map((eventItem) => (
                 <TouchableOpacity
@@ -493,7 +627,7 @@ export default function BusinessProfileScreen() {
                       </View>
                     </View>
 
-                    {/* Row 2: price  |  trash */}
+                    {/* Row 2: price  |  trash (owner only) */}
                     <View style={styles.priceRow}>
                       <View style={styles.priceLeft}>
                         <DollarIcon width={16} height={16} color={Colors.primary} />
@@ -501,17 +635,19 @@ export default function BusinessProfileScreen() {
                           {Number(eventItem.price) === 0 ? "Free" : `$${eventItem.price}`}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.deleteBtn}
-                        onPress={() => handleDeleteEvent(eventItem.id, eventItem.title)}
-                        disabled={deletingId === eventItem.id}
-                      >
-                        {deletingId === eventItem.id ? (
-                          <ActivityIndicator size="small" color="#FF3B30" />
-                        ) : (
-                          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-                        )}
-                      </TouchableOpacity>
+                      {isOwner && (
+                        <TouchableOpacity
+                          style={styles.deleteBtn}
+                          onPress={() => handleDeleteEvent(eventItem.id, eventItem.title)}
+                          disabled={deletingId === eventItem.id}
+                        >
+                          {deletingId === eventItem.id ? (
+                            <ActivityIndicator size="small" color="#FF3B30" />
+                          ) : (
+                            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -522,8 +658,8 @@ export default function BusinessProfileScreen() {
         )}
       </ScrollView>
 
-      {/* Bio Edit Modal */}
-      <Modal
+      {/* Bio Edit Modal — owner only */}
+      {isOwner && <Modal
         visible={bioModalVisible}
         transparent
         animationType="slide"
@@ -578,7 +714,7 @@ export default function BusinessProfileScreen() {
           </View>
           </KeyboardAvoidingView>
         </View>
-      </Modal>
+      </Modal>}
     </SafeAreaView>
   );
 }
@@ -736,6 +872,39 @@ const styles = StyleSheet.create({
   locationText: { color: Colors.textSecondary, fontSize: 13 },
   locationValue: { color: Colors.text, fontSize: 13 },
 
+  infoCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: Colors.secondaryCard,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  infoIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "rgba(209,255,0,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  infoContent: { flex: 1, gap: 3 },
+  infoLabel: { color: Colors.textSecondary, fontSize: 12 },
+  infoValue: { color: Colors.text, fontSize: 14, fontWeight: "600" },
+
+  sectionHeader: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+    marginHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+
   emptyWrap: { paddingVertical: 40, alignItems: "center" },
   emptyText: { color: Colors.textSecondary, fontSize: 14 },
 
@@ -885,6 +1054,17 @@ const styles = StyleSheet.create({
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: Colors.black, fontSize: 16, fontWeight: "700" },
 
+  backBtn: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   settingsBtn: {
     position: "absolute",
     top: 14,

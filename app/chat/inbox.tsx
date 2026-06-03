@@ -16,6 +16,7 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
 import { useMessages } from "../../context/MessageContext";
+import { EmptyState } from "../../components/primitives";
 
 function timeLabel(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -98,10 +99,11 @@ export default function MessagesScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="chatbubbles-outline" size={48} color={Colors.textSecondary} />
-              <Text style={styles.emptyText}>No messages yet</Text>
-            </View>
+            <EmptyState
+              icon="chatbubbles-outline"
+              title="No messages yet"
+              subtitle="Start a conversation with someone"
+            />
           }
           renderItem={({ item }) => {
             const chatRoute =

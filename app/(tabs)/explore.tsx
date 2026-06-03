@@ -21,6 +21,7 @@ import { sharedPostStore } from "../../lib/sharedPostStore";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import { GroupFeedCard } from "../../components/feature-explore/GroupFeedCard";
+import { EmptyState } from "../../components/primitives";
 
 const { width } = Dimensions.get("window");
 
@@ -43,6 +44,21 @@ export default function ExploreScreen() {
 
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
   const [commentGroupPostId, setCommentGroupPostId] = useState<number | null>(null);
+
+  const [visiblePostId, setVisiblePostId] = useState<number | null>(null);
+  const [visibleGroupPostId, setVisibleGroupPostId] = useState<number | null>(null);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
+
+  const onViewablePostsChanged = useRef(({ viewableItems }: any) => {
+    const first = viewableItems.find((v: any) => v.item?.video_url);
+    setVisiblePostId(first ? first.item.id : null);
+  });
+
+  const onViewableGroupPostsChanged = useRef(({ viewableItems }: any) => {
+    const first = viewableItems.find((v: any) => v.item?.video_url);
+    setVisibleGroupPostId(first ? first.item.id : null);
+  });
 
   const fetchingRef = useRef(false);
 
@@ -221,9 +237,10 @@ export default function ExploreScreen() {
         onFollow={handleFollow}
         onComment={handleComment}
         hideFollowBtn={item.is_author === true}
+        visiblePostId={visiblePostId}
       />
     ),
-    [router, handleLike, handleSave, handleShare, handleFollow, handleComment]
+    [router, handleLike, handleSave, handleShare, handleFollow, handleComment, visiblePostId]
   );
 
   // ── Group feed handlers ─────────────────────────────────────────────────────
@@ -281,12 +298,13 @@ export default function ExploreScreen() {
               onSave={handleGroupSave}
               onShare={handleGroupShare}
               onComment={handleGroupComment}
+              visiblePostId={visibleGroupPostId}
             />
           ))}
         </>
       );
     },
-    [router, handleGroupLike, handleGroupSave, handleGroupShare, handleGroupComment]
+    [router, handleGroupLike, handleGroupSave, handleGroupShare, handleGroupComment, visibleGroupPostId]
   );
 
   const renderFooter = () => {
@@ -307,9 +325,11 @@ export default function ExploreScreen() {
       );
     }
     return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>Nothing here yet</Text>
-      </View>
+      <EmptyState
+        icon="newspaper-outline"
+        title="No posts yet"
+        subtitle="Be the first to share something with the community"
+      />
     );
   };
 
@@ -360,6 +380,11 @@ export default function ExploreScreen() {
           onEndReachedThreshold={0.4}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={() => renderEmpty(loadingPosts)}
+          onViewableItemsChanged={onViewablePostsChanged.current}
+          viewabilityConfig={viewabilityConfig.current}
+          windowSize={5}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
           refreshControl={
             <RefreshControl
               refreshing={refreshingPosts}
@@ -375,6 +400,11 @@ export default function ExploreScreen() {
           renderItem={renderGroupPost}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={() => renderEmpty(loadingGroupPosts)}
+          onViewableItemsChanged={onViewableGroupPostsChanged.current}
+          viewabilityConfig={viewabilityConfig.current}
+          windowSize={5}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
           refreshControl={
             <RefreshControl
               refreshing={refreshingGroupPosts}

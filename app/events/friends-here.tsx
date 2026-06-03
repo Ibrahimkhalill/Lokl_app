@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AvatarListItem } from "../../components/events";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 type Friend = {
   id: number;
@@ -68,9 +69,7 @@ export default function FriendsHereScreen() {
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={s.sep} />}
           ListEmptyComponent={
-            <View style={s.center}>
-              <Text style={s.emptyText}>No friends attending yet</Text>
-            </View>
+            <EmptyState icon="people-outline" title="No friends attending yet" subtitle="Invite your friends to join this event" />
           }
           renderItem={({ item }) => (
             <AvatarListItem

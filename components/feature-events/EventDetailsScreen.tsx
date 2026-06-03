@@ -42,6 +42,9 @@ type EventDetail = {
   title: string;
   host_display: string;
   host_avatar: string | null;
+  host_id?: number;
+  business_id?: number;
+  host?: { id?: number };
   venue: string;
   date: string;
   time: string;
@@ -329,7 +332,23 @@ export default function EventDetailsScreen() {
 
           {/* Hosted By */}
           <Text style={s.sectionTitle}>Hosted By</Text>
-          <View style={s.hostRow}>
+          <TouchableOpacity
+            style={s.hostRow}
+            activeOpacity={0.7}
+            onPress={() => {
+              const e = event as any;
+              const hostId =
+                e.host_id ??
+                e.business_id ??
+                e.host?.id ??
+                e.business?.id ??
+                e.created_by_id ??
+                e.organizer_id ??
+                e.creator_id;
+                console.log("Determined host ID:", e, hostId);
+              if (hostId) router.push(`/business/profile?id=${hostId}`);
+            }}
+          >
             {event.host_avatar ? (
               <Image source={{ uri: event.host_avatar }} style={s.hostAvatar} />
             ) : (
@@ -338,7 +357,8 @@ export default function EventDetailsScreen() {
               </View>
             )}
             <Text style={s.hostName}>{event.host_display}</Text>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} style={{ marginLeft: "auto" }} />
+          </TouchableOpacity>
 
           {/* Participants (Friends Here card) */}
           {event.participants.length > 0 && (

@@ -438,7 +438,7 @@ const handleSignUp = async () => {
         />
         <Input
           label="Business Phone*"
-          placeholder="+880 1XXX-XXXXXX"
+          placeholder="+1 (XXX) XXX-XXXX"
           leftSlot={
             <CallIcon width={18} height={18} color={Colors.textSecondary} />
           }

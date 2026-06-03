@@ -43,17 +43,27 @@ export type ApiPost = {
   post_target?: { id: number; name: string; photo?: string | null }[];
 };
 
-function PostVideoPlayer({ uri, autoPlay }: { uri: string; autoPlay: boolean }) {
-  const player = useVideoPlayer(uri, (p) => {
-    p.loop = true;
-    if (autoPlay) p.play();
-  });
+function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }) {
+  const player = useVideoPlayer(
+    { uri, useCaching: true },
+    (p) => {
+      p.loop = true;
+      p.bufferOptions = { preferredForwardBufferDuration: 10 };
+    }
+  );
+
+  React.useEffect(() => {
+    if (isVisible) player.play();
+    else player.pause();
+  }, [isVisible, player]);
+
   return (
     <VideoView
       player={player}
       style={styles.postVideo}
       contentFit="cover"
       nativeControls
+      requiresLinearPlayback
     />
   );
 }
@@ -67,6 +77,7 @@ export function PostCard({
   onFollow,
   onComment,
   hideFollowBtn,
+  visiblePostId,
 }: {
   item: ApiPost;
   router: any;
@@ -76,6 +87,7 @@ export function PostCard({
   onFollow: (id: number, authorId: number, following: boolean) => void;
   onComment: (id: number) => void;
   hideFollowBtn?: boolean;
+  visiblePostId?: number | null;
 }) {
   const { preferences } = usePreferences();
 
@@ -149,7 +161,7 @@ export function PostCard({
 
       {!!item.video_url && (
         <View style={styles.imageWrap}>
-          <PostVideoPlayer uri={item.video_url} autoPlay={preferences.autoplay} />
+          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && item.id === visiblePostId} />
         </View>
       )}
 

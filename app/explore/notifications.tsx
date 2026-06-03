@@ -15,6 +15,7 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { notificationService } from "../../services/notificationService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 
 type ApiNotification = {
   id: number;
@@ -136,10 +137,11 @@ export default function NotificationsScreen() {
             return <NotifRow item={item.data} />;
           }}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="notifications-off-outline" size={48} color={Colors.textSecondary} />
-              <Text style={styles.emptyText}>No notifications yet</Text>
-            </View>
+            <EmptyState
+              icon="notifications-off-outline"
+              title="No notifications yet"
+              subtitle="You're all caught up!"
+            />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />

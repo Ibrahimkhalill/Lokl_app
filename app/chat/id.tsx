@@ -21,6 +21,7 @@ import ImageIcon from "../../assets/icons/image.svg";
 import { pickPostMedia } from "../../lib/mediaPicker";
 import { messageService } from "../../services/messageService";
 import { BASE_URL, fixMediaUrl, getErrorMessage } from "../../lib/api";
+import { useMessages } from "@/context/MessageContext";
 
 const WS_BASE = BASE_URL.replace(/^https?/, "ws").replace("/api", "");
 
@@ -36,10 +37,10 @@ type ChatMessage = {
 
 type ChatMode = "dm" | "group" | "event";
 
-function timeLabel(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+// function timeLabel(iso: string) {
+//   const d = new Date(iso);
+//   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// }
 
 export default function ChatDetailScreen() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function ChatDetailScreen() {
   const [input, setInput] = useState("");
   const [attachmentDraft, setAttachmentDraft] = useState<{ uri: string; kind: "image" | "video" } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
-
+ const { refreshInbox } = useMessages();
   const wsRef = useRef<WebSocket | null>(null);
   const listRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,17 +78,34 @@ export default function ChatDetailScreen() {
     });
   }, []);
 
-  const normalizeMessages = useCallback((raw: any[]): ChatMessage[] =>
-    raw.map((m) => ({
-      id: m.id,
-      sender_id: m.sender_id,
-      sender_name: m.sender_name ?? "",
-      sender_avatar: fixMediaUrl(m.sender_avatar ?? m.avatar),
-      content: m.content ?? m.body ?? "",
-      created_at: m.created_at,
-    })).reverse(),
-    []
-  );
+const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
+  return raw
+    .map((m) => {
+      // Extract sender ID with multiple fallbacks
+      let senderId = m.sender_id;
+      
+      if (!senderId && m.sender?.id) {
+        senderId = m.sender.id;
+      }
+      if (!senderId && m.send_id) {
+        // send_id seems to be message ID in some cases, but sometimes matches sender
+        // Only use it if we don't have better info and it looks like a user ID
+        senderId = m.send_id;
+      }
+
+      return {
+        id: m.id,
+        sender_id: senderId,
+        sender_name: m.sender?.name ?? m.sender_name ?? "",
+        sender_avatar: fixMediaUrl(
+          m.sender?.profile_picture ?? m.sender_avatar ?? m.avatar
+        ),
+        content: m.content ?? m.body ?? "",
+        created_at: m.created_at,
+      };
+    })
+    .reverse();
+}, []);
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
@@ -98,7 +116,9 @@ export default function ChatDetailScreen() {
         const data = res.data?.data ?? res.data;
         const list = Array.isArray(data) ? data : (data?.messages ?? data?.results ?? []);
         setMessages(normalizeMessages(list));
+        console.log("[Chat] Marking messages as read for userId", list);
         messageService.markAsRead(userId).catch(() => {});
+        refreshInbox();
       } else if (mode === "group" && groupId) {
         res = await messageService.getGroupMessages(groupId);
         const data = res.data?.data ?? res.data;
@@ -115,7 +135,7 @@ export default function ChatDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [mode, userId, groupId, eventId, normalizeMessages]);
+  }, [mode, userId, groupId, eventId, normalizeMessages, refreshInbox]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
@@ -160,6 +180,7 @@ export default function ChatDetailScreen() {
               return [msg, ...prev];
             });
           } else if (data.type === "typing") {
+            console.log("[Chat] typing event:", data);
             if (data.is_typing) {
               setTypingUser(data.user_name ?? "Someone");
             } else {
@@ -178,15 +199,7 @@ export default function ChatDetailScreen() {
     };
   }, [mode, userId, groupId, eventId]);
 
-  const sendTyping = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "typing" }));
-    }
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(() => {
-      wsRef.current?.send(JSON.stringify({ type: "read" }));
-    }, 2000);
-  };
+
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -221,13 +234,47 @@ export default function ChatDetailScreen() {
       }
     }
   };
+useEffect(() => {
+  return () => {
+    if (typingTimer.current) {
+      clearTimeout(typingTimer.current);
+    }
+    // Optional: send stop typing on leave
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "typing", is_typing: false }));
+    }
+  };
+}, []);
+
+const stopTyping = useCallback(() => {
+  if (wsRef.current?.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify({
+      type: "typing",
+      is_typing: false     // ← Must be false
+    }));
+  }
+}, []);
+
+const handleTyping = useCallback(() => {
+  if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
+  wsRef.current.send(JSON.stringify({
+    type: "typing",
+    is_typing: true
+  }));
+
+  if (typingTimer.current) clearTimeout(typingTimer.current);
+
+  typingTimer.current = setTimeout(stopTyping, 2000);
+}, [stopTyping]);
+
 
   const displayName = decodeURIComponent(headerName);
-  const initials = displayName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+  // const initials = displayName
+  //   .split(/\s+/)
+  //   .slice(0, 2)
+  //   .map((w) => w[0]?.toUpperCase() ?? "")
+  //   .join("");
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -255,15 +302,14 @@ export default function ChatDetailScreen() {
             keyExtractor={(item) => String(item.id)}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.messageList}
-            ListFooterComponent={
-              typingUser ? (
-                <View style={styles.typingRow}>
-                  <Text style={styles.typingText}>{typingUser} is typing…</Text>
-                </View>
-              ) : null
-            }
+          
             renderItem={({ item }) => {
-              const isMe = item.sender_id === myId;
+              console.log("[Chat] rendering message:", item);
+         
+              const isMe = 
+                item.sender_id === myId || 
+                item.sender_id === myId?.toString() || 
+                (item.id && String(item.id).startsWith('tmp-'))
               return (
                 <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
                   {!isMe && (
@@ -288,14 +334,18 @@ export default function ChatDetailScreen() {
                         </Text>
                       ) : null}
                     </View>
-                    <Text style={[styles.msgTime, isMe && styles.msgTimeMe]}>
-                      {timeLabel(item.created_at)}
-                    </Text>
+                   
                   </View>
                 </View>
               );
             }}
           />
+        )}
+
+        {typingUser && (
+          <View style={styles.typingRow}>
+            <Text style={styles.typingText}>{typingUser} is typing...</Text>
+          </View>
         )}
 
         <View style={styles.inputWrapper}>
@@ -320,8 +370,9 @@ export default function ChatDetailScreen() {
                 placeholder="Type your message"
                 placeholderTextColor="#4a5568"
                 value={input}
-                onChangeText={(t) => { setInput(t); sendTyping(); }}
+                onChangeText={(t) => { setInput(t); handleTyping(); }}
                 multiline
+                onBlur={stopTyping}
               />
               <TouchableOpacity
                 style={styles.mediaBtn}
@@ -392,7 +443,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   msgRowMe: { justifyContent: "flex-end" },
-  msgAvatar: { width: 40, height: 34, borderRadius: 17 },
+  msgAvatar: { width: 40, height: 40, borderRadius: 20 },
   avatarPlaceholder: {
     backgroundColor: "#1e2a3a",
     justifyContent: "center",

@@ -18,6 +18,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { EmptyState } from "../../components/primitives";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 
@@ -206,10 +207,7 @@ export default function FollowScreen() {
             contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchMe(true)} tintColor={"#51A2FF"} />}
             ListEmptyComponent={
-              <View style={styles.center}>
-                <Ionicons name="images-outline" size={42} color={Colors.textSecondary} />
-                <Text style={styles.emptyText}>No posts yet</Text>
-              </View>
+              <EmptyState icon="images-outline" title="No posts yet" subtitle="This user hasn't shared anything yet" />
             }
             renderItem={({ item }) => (
               <PostCard
@@ -262,12 +260,10 @@ export default function FollowScreen() {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchMe(true)} tintColor={"#51A2FF"} />}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="people-outline" size={42} color={Colors.textSecondary} />
-              <Text style={styles.emptyText}>
-                {activeTab === "followers" ? "No followers yet" : "Not following anyone"}
-              </Text>
-            </View>
+            <EmptyState
+              icon="people-outline"
+              title={activeTab === "followers" ? "No followers yet" : "Not following anyone"}
+            />
           }
           renderItem={({ item }) => {
             const isOutline = activeTab === "followers" ? followingIds.has(item.id) : true;

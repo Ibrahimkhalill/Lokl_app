@@ -27,6 +27,7 @@ import LocationIcon from "../../assets/icons/locations.svg";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
+import { EmptyState } from "../../components/primitives";
 
 type ApiEvent = {
   id: number;
@@ -534,9 +535,11 @@ export default function EventsScreen() {
                 <ActivityIndicator size="large" color={Colors.primary} />
               </View>
             ) : filteredEvents.length === 0 ? (
-              <View style={s.center}>
-                <Text style={s.emptyText}>No events found</Text>
-              </View>
+              <EmptyState
+                icon="calendar-outline"
+                title="No events found"
+                subtitle="Try adjusting your filters or search"
+              />
             ) : (
               <FlatList
                 data={filteredEvents}
@@ -564,11 +567,11 @@ export default function EventsScreen() {
               <ActivityIndicator size="large" color={Colors.primary} />
             </View>
           ) : displayGroups.length === 0 ? (
-            <View style={s.center}>
-              <Text style={s.emptyText}>
-                {activeTab === "myGroups" ? "No groups you admin" : "No groups found"}
-              </Text>
-            </View>
+            <EmptyState
+              icon="people-outline"
+              title={activeTab === "myGroups" ? "No groups yet" : "No groups found"}
+              subtitle={activeTab === "myGroups" ? "Create a group to get started" : "Try a different search"}
+            />
           ) : (
             <View style={s.groupsList}>
               <FlatList
