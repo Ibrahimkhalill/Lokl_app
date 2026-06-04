@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   PanResponder,
@@ -28,7 +28,7 @@ import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
 import { reviewedVenueStore } from "../../lib/reviewedVenueStore";
 import * as Location from "expo-location";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { useToast } from "../../context/ToastContext";
 
@@ -198,26 +198,31 @@ export default function PostScreen() {
     console.log("[PostScreen] event_id:", event_id, "venueId:", venueId, "isReview:", isReview);
   }, [event_id, venueId, isReview]);
 
-  useEffect(() => {
-    eventService
-      .getMyGroups()
-      .then((res) => {
-        const raw = res.data?.data ?? res.data;
-        const data = Array.isArray(raw) ? raw : (raw?.results ?? []);
-        setGroups(data);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingGroups(false));
+  useFocusEffect(
+    useCallback(() => {
+      setLoadingGroups(true);
+      setLoadingFriends(true);
 
-    userService
-      .getFriends()
-      .then((res) => {
-        const data = res.data?.data ?? res.data;
-        setFriends(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingFriends(false));
-  }, []);
+      eventService
+        .getMyGroups()
+        .then((res) => {
+          const raw = res.data?.data ?? res.data;
+          const data = Array.isArray(raw) ? raw : (raw?.results ?? []);
+          setGroups(data);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingGroups(false));
+
+      userService
+        .getFriends()
+        .then((res) => {
+          const data = res.data?.data ?? res.data;
+          setFriends(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingFriends(false));
+    }, [])
+  );
 
   const selectedGroupNames = groups
     .filter((g) => selectedGroupIds.includes(String(g.id)))
