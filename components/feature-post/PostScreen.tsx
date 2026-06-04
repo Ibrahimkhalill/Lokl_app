@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   PanResponder,
   View,
@@ -31,6 +30,7 @@ import { reviewedVenueStore } from "../../lib/reviewedVenueStore";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
+import { useToast } from "../../context/ToastContext";
 
 type ApiGroup = {
   id: number;
@@ -65,22 +65,24 @@ function Avatar({ uri, size = 38 }: { uri: string | null; size?: number }) {
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 10;
 const THUMB_SIZE = 34;
+const SLIDER_DEFAULT = 5.0;
 
 export default function PostScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { event_id, venueId, groupId } = useLocalSearchParams<{ event_id?: string; venueId?: string; groupId?: string }>();
   const isReview = !!(event_id || venueId);
 
   const [caption, setCaption] = useState("");
 
   // Slider — Animated values for zero-rerender drag
-  const [lokiScore, setLokiScore] = useState(8.9);
+  const [lokiScore, setLokiScore] = useState(SLIDER_DEFAULT);
   const trackWidthRef = useRef(1);
-  const initialRatio = (8.9 - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
+  const initialRatio = (SLIDER_DEFAULT - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
   const thumbAnim = useRef(new Animated.Value(0)).current;
   const fillAnim = useRef(new Animated.Value(initialRatio * 100)).current;
-  const scoreDisplayRef = useRef(8.9);
-  const [scoreDisplay, setScoreDisplay] = useState(8.9);
+  const scoreDisplayRef = useRef(SLIDER_DEFAULT);
+  const [scoreDisplay, setScoreDisplay] = useState(SLIDER_DEFAULT);
 
   const computeFromX = (x: number) => {
     const tw = trackWidthRef.current;
@@ -136,9 +138,9 @@ export default function PostScreen() {
     resetGroupIds([]);
     resetFriendIds([]);
     resetPostToGroupIds([]);
-    setLokiScore(8.9);
-    setScoreDisplay(8.9);
-    const ratio = (8.9 - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
+    setLokiScore(SLIDER_DEFAULT);
+    setScoreDisplay(SLIDER_DEFAULT);
+    const ratio = (SLIDER_DEFAULT - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
     const tw = trackWidthRef.current;
     thumbAnim.setValue(Math.max(0, Math.min(ratio * tw - THUMB_SIZE / 2, tw - THUMB_SIZE)));
     fillAnim.setValue(ratio * 100);
@@ -169,9 +171,13 @@ export default function PostScreen() {
       await postService.createPost(form);
       if (venueId) reviewedVenueStore.set(Number(venueId));
       resetForm();
-      router.back();
+      if (event_id || venueId) {
+        router.back();
+      } else {
+        router.replace("/(tabs)/explore");
+      }
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e) || "Failed to share post.");
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) || "Failed to share post." });
     } finally {
       setSubmitting(false);
     }

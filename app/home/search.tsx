@@ -12,6 +12,7 @@ import {
 import type { SvgProps } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
@@ -25,6 +26,44 @@ import IconSurfing from "../../assets/icons/material-symbols-light_surfing-round
 import IconCricket from "../../assets/icons/cricket.svg";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type VenueResult = {
+  id: number;
+  name: string;
+  type: string;
+  address?: string;
+  distance?: string;
+  score?: number | string;
+  score_display?: string;
+  cover?: string | null;
+};
+
+// ─── Recent storage ───────────────────────────────────────────────────────────
+
+const RECENT_KEY = "lokl_recent_venues";
+const MAX_RECENT = 10;
+
+async function loadRecent(): Promise<VenueResult[]> {
+  try {
+    const raw = await AsyncStorage.getItem(RECENT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveRecent(venue: VenueResult) {
+  try {
+    const prev = await loadRecent();
+    const filtered = prev.filter((v) => v.id !== venue.id);
+    const updated = [venue, ...filtered].slice(0, MAX_RECENT);
+    await AsyncStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+// ─── Categories ───────────────────────────────────────────────────────────────
 
 const MANHATTAN = { lat: 40.7831, lng: -73.9712 };
 
@@ -42,16 +81,7 @@ const CATEGORIES: CategoryEntry[] = [
   { id: "6", label: "Cricket",    type: "Cricket",    kind: "svg", Icon: IconCricket },
 ];
 
-type VenueResult = {
-  id: number;
-  name: string;
-  type: string;
-  address?: string;
-  distance?: string;
-  score?: number | string;
-  score_display?: string;
-  cover?: string | null;
-};
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -59,8 +89,14 @@ export default function SearchScreen() {
   const [location, setLocation] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [results, setResults] = useState<VenueResult[]>([]);
+  const [recentVenues, setRecentVenues] = useState<VenueResult[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load recently visited on mount
+  useEffect(() => {
+    loadRecent().then(setRecentVenues);
+  }, []);
 
   const searchVenues = useCallback(async (q: string, type: string | null, loc: string) => {
     setLoading(true);
@@ -103,11 +139,22 @@ export default function SearchScreen() {
     setActiveCategory((prev) => (prev === type ? null : type));
   };
 
+  const handleVenuePress = (item: VenueResult) => {
+    saveRecent(item);
+    setRecentVenues((prev) => {
+      const filtered = prev.filter((v) => v.id !== item.id);
+      return [item, ...filtered].slice(0, MAX_RECENT);
+    });
+    router.push(`/home/details?id=${item.id}`);
+  };
+
+  const isSearching = !!(query || activeCategory || location);
+
   const renderResult = ({ item }: { item: VenueResult }) => (
     <TouchableOpacity
       style={styles.resultItem}
       activeOpacity={0.85}
-      onPress={() => router.push(`/home/details?id=${item.id}`)}
+      onPress={() => handleVenuePress(item)}
     >
       <View style={styles.resultLeft}>
         {item.cover ? (
@@ -133,13 +180,15 @@ export default function SearchScreen() {
             </View>
           )}
         </View>
-        <Text style={styles.resultLocation} numberOfLines={1}>{item.type}{item.address ? ` · ${item.address}` : ""}</Text>
+        <Text style={styles.resultLocation} numberOfLines={1}>
+          {item.type}{item.address ? ` · ${item.address}` : ""}
+        </Text>
       </View>
 
       <TouchableOpacity
         style={styles.navigateBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        onPress={() => router.push(`/home/details?id=${item.id}`)}
+        onPress={() => handleVenuePress(item)}
       >
         <NavigateIcon width={18} height={18} color={Colors.text} />
       </TouchableOpacity>
@@ -227,8 +276,31 @@ export default function SearchScreen() {
           />
         </View>
 
-        {/* Results */}
-        {loading ? (
+        {/* Recently Visited — shown only when not searching */}
+        {!isSearching && recentVenues.length > 0 && (
+          <View style={styles.recentSection}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.sectionTitle}>Recently Visited</Text>
+              <TouchableOpacity
+                onPress={async () => {
+                  await AsyncStorage.removeItem(RECENT_KEY);
+                  setRecentVenues([]);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.clearText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            {recentVenues.map((item) => (
+              <React.Fragment key={item.id}>
+                {renderResult({ item })}
+              </React.Fragment>
+            ))}
+          </View>
+        )}
+
+        {/* Search Results / Nearby Venues — hidden when recently visited is showing */}
+        {(!isSearching && recentVenues.length > 0) ? null : loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.primary} size="large" />
           </View>
@@ -241,11 +313,13 @@ export default function SearchScreen() {
             contentContainerStyle={styles.resultList}
             ListHeaderComponent={
               <Text style={styles.sectionTitle}>
-                {query || activeCategory ? "Results" : "Nearby Venues"}
+                {isSearching ? "Results" : "Nearby Venues"}
               </Text>
             }
             ListEmptyComponent={
-              <EmptyState icon="search-outline" title="No venues found" subtitle="Try a different search term" />
+              isSearching ? (
+                <EmptyState icon="search-outline" title="No venues found" subtitle="Try a different search term" />
+              ) : null
             }
           />
         )}
@@ -270,7 +344,7 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#2E3A3F",
     borderRadius: 24, height: 48,
     paddingHorizontal: 16, gap: 8,
     borderWidth: 1, borderColor: Colors.cardBorder,
@@ -279,7 +353,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: Colors.text, fontSize: 14 },
   locationBar: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#2E3A3F",
     borderRadius: 24, height: 48,
     paddingHorizontal: 16, gap: 8,
     borderWidth: 1, borderColor: Colors.cardBorder,
@@ -298,6 +372,15 @@ const styles = StyleSheet.create({
   categoryIconActive: { borderColor: Colors.primary },
   categoryLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: "500", textAlign: "center" },
   categoryLabelActive: { color: Colors.primary },
+
+  recentSection: { marginBottom: 8 },
+  recentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  clearText: { color: Colors.textSecondary, fontSize: 13 },
 
   sectionTitle: { color: Colors.textSecondary, fontSize: 14, fontWeight: "500", marginBottom: 14 },
   resultList: { paddingBottom: 100 },

@@ -47,9 +47,9 @@ export default function ChooseRole() {
 
   const handleContinue = () => {
     if (selected === "business") {
-      router.push("/auth/business-signup");
+      router.push("/auth/business-signin");
     } else {
-      router.push("/auth/sign-up");
+      router.push("/auth/sign-in");
     }
   };
 

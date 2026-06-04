@@ -1,21 +1,23 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen, BackButton, PhoneInput, PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function ForgotPassword() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [phone, setPhone] = useState("");
   const [formattedPhone, setFormattedPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleNext() {
     if (!formattedPhone) {
-      Alert.alert("Error", "Please enter your phone number.");
+      showToast({ type: "error", title: "Error", message: "Please enter your phone number." });
       return;
     }
     setLoading(true);
@@ -27,7 +29,7 @@ export default function ForgotPassword() {
         params: { user_id: String(userId) },
       });
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }

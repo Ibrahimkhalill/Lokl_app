@@ -7,7 +7,6 @@ import {
   FlatList,
   Image,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -17,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
 import { useMessages } from "../../context/MessageContext";
 import { EmptyState } from "../../components/primitives";
+import { ChatRowSkeleton } from "../../components/primitives/Skeletons";
 
 function timeLabel(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -81,8 +81,8 @@ export default function MessagesScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={{ paddingTop: 8 }}>
+          {Array.from({ length: 6 }).map((_, i) => <ChatRowSkeleton key={i} />)}
         </View>
       ) : (
         <FlatList

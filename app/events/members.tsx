@@ -53,6 +53,7 @@ export default function MembersScreen() {
         : Array.isArray(data?.members)
         ? data.members
         : [];
+        console.log("[Members] fetched:", list);
       setMembers(list);
     } catch (e) {
       console.log("[Members] error:", getErrorMessage(e));

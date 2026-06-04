@@ -357,7 +357,7 @@ export default function EventDetailsScreen() {
               </View>
             )}
             <Text style={s.hostName}>{event.host_display}</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} style={{ marginLeft: "auto" }} />
+           
           </TouchableOpacity>
 
           {/* Participants (Friends Here card) */}
@@ -603,8 +603,8 @@ const s = StyleSheet.create({
     gap: 14,
   },
   infoText: { flex: 1, paddingTop: 1 },
-  infoLabel: { color: Colors.textSecondary, fontSize: 16.5, marginBottom: 4 },
-  infoValue: { color: Colors.text, fontSize: 32 / 2, lineHeight: 20 },
+  infoLabel: { color: Colors.textSecondary, fontSize: 14, marginBottom: 4 },
+  infoValue: { color: Colors.text, fontSize: 14, lineHeight: 20 },
   infoLink: { color: Colors.primary },
   amenitiesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 },
   amenityChip: {

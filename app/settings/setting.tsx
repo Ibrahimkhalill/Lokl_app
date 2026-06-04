@@ -12,6 +12,7 @@ import AppPreferenceCseIcon from "../../assets/icons/app_preference_cse.svg";
 import TermsIcon from "../../assets/icons/terms.svg";
 import LogoutIcon from "../../assets/icons/logout.svg";
 import ArrowForwardIcon from "../../assets/icons/arrow-forward.svg";
+import { useAuth } from "../../context/AuthContext";
 
 const MENU_ITEMS = [
   {
@@ -85,6 +86,7 @@ const MENU_ITEMS = [
 
 export default function Settings() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
 
   const handlePress = (item: (typeof MENU_ITEMS)[0]) => {
@@ -94,6 +96,8 @@ export default function Settings() {
       router.push(item.route as any);
     }
   };
+
+
 
   return (
     <SafeAreaView style={s.safe}>
@@ -155,7 +159,8 @@ export default function Settings() {
                 style={s.confirmBtn}
                 onPress={() => {
                   setShowLogout(false);
-                  router.replace("/auth/sign-in");
+                  logout();
+                  
                 }}
               >
                 <Text style={s.confirmText}>Logout</Text>

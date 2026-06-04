@@ -44,7 +44,7 @@ function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }
   );
 }
 
-export function GroupFeedCard({
+export const GroupFeedCard = React.memo(function GroupFeedCard({
   item,
   currentGroup,
   router,
@@ -52,7 +52,7 @@ export function GroupFeedCard({
   onSave,
   onShare,
   onComment,
-  visiblePostId,
+  isVisible,
 }: {
   item: ApiPost;
   currentGroup?: { id: number; name: string; photo?: string | null };
@@ -61,7 +61,7 @@ export function GroupFeedCard({
   onSave: (id: number) => void;
   onShare: (id: number) => void;
   onComment: (id: number) => void;
-  visiblePostId?: number | null;
+  isVisible?: boolean;
 }) {
   const { preferences } = usePreferences();
 
@@ -168,7 +168,7 @@ export function GroupFeedCard({
 
       {!!item.video_url && (
         <View style={styles.imageWrap}>
-          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && item.id === visiblePostId} />
+          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && !!isVisible} />
         </View>
       )}
 
@@ -205,7 +205,7 @@ export function GroupFeedCard({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

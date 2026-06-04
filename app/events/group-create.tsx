@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +22,7 @@ import { pickCoverImage } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { userService } from "../../services/userService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 type Friend = {
   id: number;
@@ -34,6 +34,7 @@ type Friend = {
 
 export default function GroupCreateScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [groupName, setGroupName] = useState("");
   const [bio, setBio] = useState("");
   const [groupPhotoUri, setGroupPhotoUri] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export default function GroupCreateScreen() {
 
   const handleCreate = async () => {
     if (!groupName.trim()) {
-      Alert.alert("Validation", "Group name is required.");
+      showToast({ type: "warning", title: "Validation", message: "Group name is required." });
       return;
     }
     setSubmitting(true);
@@ -98,7 +99,7 @@ export default function GroupCreateScreen() {
       await eventService.createSocialGroup(form);
       router.back();
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     } finally {
       setSubmitting(false);
     }

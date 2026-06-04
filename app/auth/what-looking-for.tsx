@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
@@ -7,6 +7,7 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 const OPTIONS = [
   "Classes & Training",
@@ -18,6 +19,7 @@ const OPTIONS = [
 
 export default function WhatLookingFor() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { sports } = useLocalSearchParams<{ sports: string }>();
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,7 @@ export default function WhatLookingFor() {
       });
       router.replace("/auth/location");
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }

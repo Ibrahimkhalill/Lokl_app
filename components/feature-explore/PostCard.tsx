@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -43,6 +43,27 @@ export type ApiPost = {
   post_target?: { id: number; name: string; photo?: string | null }[];
 };
 
+function ExpandableBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={styles.bodyWrap}>
+      <Text style={styles.content} numberOfLines={expanded ? undefined : 3}>
+        {body}
+      </Text>
+      {!expanded && body.length > 120 && (
+        <TouchableOpacity onPress={() => setExpanded(true)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+          <Text style={styles.readMore}>Read more</Text>
+        </TouchableOpacity>
+      )}
+      {expanded && (
+        <TouchableOpacity onPress={() => setExpanded(false)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+          <Text style={styles.readMore}>Show less</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }) {
   const player = useVideoPlayer(
     { uri, useCaching: true },
@@ -68,7 +89,7 @@ function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }
   );
 }
 
-export function PostCard({
+export const PostCard = React.memo(function PostCard({
   item,
   router,
   onLike,
@@ -77,7 +98,7 @@ export function PostCard({
   onFollow,
   onComment,
   hideFollowBtn,
-  visiblePostId,
+  isVisible,
 }: {
   item: ApiPost;
   router: any;
@@ -87,7 +108,7 @@ export function PostCard({
   onFollow: (id: number, authorId: number, following: boolean) => void;
   onComment: (id: number) => void;
   hideFollowBtn?: boolean;
-  visiblePostId?: number | null;
+  isVisible?: boolean;
 }) {
   const { preferences } = usePreferences();
 
@@ -147,11 +168,7 @@ export function PostCard({
         )}
       </View>
 
-      {!!item.body && (
-        <Text style={styles.content} numberOfLines={3}>
-          {item.body}
-        </Text>
-      )}
+      {!!item.body && <ExpandableBody body={item.body} />}
 
       {!!item.image_url && (
         <View style={styles.imageWrap}>
@@ -161,7 +178,7 @@ export function PostCard({
 
       {!!item.video_url && (
         <View style={styles.imageWrap}>
-          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && item.id === visiblePostId} />
+          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && !!isVisible} />
         </View>
       )}
 
@@ -198,7 +215,7 @@ export function PostCard({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -258,13 +275,13 @@ const styles = StyleSheet.create({
   followText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
   followingText: { color: Colors.primary },
   groupTagText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+  bodyWrap: { paddingHorizontal: 16, marginBottom: 10 },
   content: {
     color: Colors.text,
     fontSize: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
     lineHeight: 20,
   },
+  readMore: { color: Colors.primary, fontSize: 13, fontWeight: "600", marginTop: 4 },
   imageWrap: {
     marginHorizontal: 16,
     borderRadius: 16,

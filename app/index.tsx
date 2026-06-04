@@ -42,7 +42,9 @@ export default function SplashScreen() {
     if (!isLoading && isLoggedIn) {
       router.replace("/(tabs)");
     }
-  }, [isLoading, isLoggedIn, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+
   const imgOpacity = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(1)).current;
   const labelTranslateY = useRef(new Animated.Value(0)).current;
@@ -116,6 +118,8 @@ export default function SplashScreen() {
     const id = setInterval(advance, ROTATE_MS);
     return () => clearInterval(id);
   }, [advance]);
+
+  if (isLoading || isLoggedIn) return <View style={{ flex: 1, backgroundColor: "#232323" }} />;
 
   const current = CYCLES[index];
 

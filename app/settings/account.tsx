@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -26,9 +25,11 @@ import CameraProfileIcon from "../../assets/icons/camera_profile.svg";
 import { userService } from "../../services/userService";
 import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
+import { useToast } from "../../context/ToastContext";
 
 export default function Account() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
   
@@ -71,19 +72,19 @@ export default function Account() {
   // Handle password change
   const handlePasswordChange = async () => {
     if (!currentPassword) {
-      Alert.alert("Error", "Please enter current password");
+      showToast({ type: "error", title: "Error", message: "Please enter current password" });
       return;
     }
     if (!newPassword) {
-      Alert.alert("Error", "Please enter new password");
+      showToast({ type: "error", title: "Error", message: "Please enter new password" });
       return;
     }
     if (newPassword.length < 6) {
-      Alert.alert("Error", "New password must be at least 6 characters");
+      showToast({ type: "error", title: "Error", message: "New password must be at least 6 characters" });
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "New passwords do not match");
+      showToast({ type: "error", title: "Error", message: "New passwords do not match" });
       return;
     }
 
@@ -94,11 +95,11 @@ export default function Account() {
         newPass: newPassword,
         confirm: confirmPassword,
       });
-      Alert.alert("Success", "Password changed successfully");
+      showToast({ type: "success", title: "Success", message: "Password changed successfully" });
       setPasswordModalVisible(false);
       resetPasswordForm();
     } catch (error) {
-      Alert.alert("Error", getErrorMessage(error));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
     } finally {
       setChangingPassword(false);
     }
@@ -107,18 +108,17 @@ export default function Account() {
   // Handle account deletion
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") {
-      Alert.alert("Error", 'Please type "DELETE" to confirm');
+      showToast({ type: "error", title: "Error", message: 'Please type "DELETE" to confirm' });
       return;
     }
 
     setDeleting(true);
     try {
       await settingService.deleteAccount();
-      Alert.alert("Account Deleted", "Your account has been deleted", [
-        { text: "OK", onPress: () => router.replace("/auth/sign-in") }
-      ]);
+      showToast({ type: "info", title: "Account Deleted", message: "Your account has been deleted" });
+      router.replace("/auth/sign-in");
     } catch (error) {
-      Alert.alert("Error", getErrorMessage(error));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
     } finally {
       setDeleting(false);
       setDeleteModalVisible(false);

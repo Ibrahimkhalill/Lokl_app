@@ -19,7 +19,9 @@ import { EmptyState } from "../../components/primitives";
 type Friend = {
   id: number;
   name: string;
-  profile_picture: string | null;
+  avatar?: string | null;
+  profile_picture?: string | null;
+  status?: string;
   rating?: string;
 };
 
@@ -37,7 +39,8 @@ export default function FriendsHereScreen() {
     try {
       const res = await eventService.getFriends(eventId);
       const payload = res.data?.data ?? res.data;
-      const results: Friend[] = payload?.friends ?? (Array.isArray(payload) ? payload : []);
+      const results: Friend[] = payload?.friends ?? payload?.results ?? (Array.isArray(payload) ? payload : []);
+      console.log("[FriendsHere] fetched:", payload);
       setFriends(results);
     } catch (e) {
       console.log("[FriendsHere] error:", getErrorMessage(e));
@@ -73,7 +76,7 @@ export default function FriendsHereScreen() {
           }
           renderItem={({ item }) => (
             <AvatarListItem
-              avatarUri={item.profile_picture || undefined}
+              avatarUri={item.avatar || item.profile_picture || undefined}
               title={item.name}
               rightSlot={
                 item.rating ? (

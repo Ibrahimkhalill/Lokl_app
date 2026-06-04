@@ -11,7 +11,7 @@ export const authService = {
     phone: string;
     password: string;
     date_of_birth: string;
-    remember_me: boolean;
+   
   }) {
     return api.post("/auth/register/", data);
   },

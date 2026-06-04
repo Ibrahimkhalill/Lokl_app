@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
 } from "react-native";
@@ -20,6 +19,7 @@ import { getErrorMessage } from "../../lib/api";
 import { sharedPostStore } from "../../lib/sharedPostStore";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
+import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
 import { GroupFeedCard } from "../../components/feature-explore/GroupFeedCard";
 import { EmptyState } from "../../components/primitives";
 
@@ -33,13 +33,16 @@ export default function ExploreScreen() {
   const [activeTab, setActiveTab] = useState<"public" | "group">("public");
 
   const [posts, setPosts] = useState<ApiPost[]>([]);
-  const [nextUrl, setNextUrl] = useState<string | null>(null);
-  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(true);
   const [refreshingPosts, setRefreshingPosts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [groupPosts, setGroupPosts] = useState<ApiPost[]>([]);
-  const [loadingGroupPosts, setLoadingGroupPosts] = useState(false);
+  const [groupPostsPage, setGroupPostsPage] = useState(1);
+  const [groupPostsHasMore, setGroupPostsHasMore] = useState(false);
+  const [loadingGroupPosts, setLoadingGroupPosts] = useState(true);
   const [refreshingGroupPosts, setRefreshingGroupPosts] = useState(false);
 
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
@@ -61,6 +64,19 @@ export default function ExploreScreen() {
   });
 
   const fetchingRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+
+  function parsePayload(res: any): { results: ApiPost[]; pagination: any } {
+    const raw = res.data?.data ?? res.data;
+    const results: ApiPost[] = Array.isArray(raw?.posts)
+      ? raw.posts
+      : Array.isArray(raw?.results)
+      ? raw.results
+      : Array.isArray(raw)
+      ? raw
+      : [];
+    return { results, pagination: raw?.pagination ?? null };
+  }
 
   const fetchPosts = useCallback(async (refresh = false) => {
     if (fetchingRef.current) return;
@@ -69,14 +85,10 @@ export default function ExploreScreen() {
     else setLoadingPosts(true);
     try {
       const res = await postService.getFeed(1);
-      const payload = res.data?.data ?? res.data;
-      const results: ApiPost[] = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.results)
-        ? payload.results
-        : [];
+      const { results, pagination } = parsePayload(res);
       setPosts(results);
-      setNextUrl(payload?.next ?? null);
+      setPostsPage(1);
+      setPostsHasMore(pagination ? pagination.page < pagination.total_pages : results.length === 10);
     } catch (e) {
       console.log("[Explore] fetchPosts error:", getErrorMessage(e));
     } finally {
@@ -87,40 +99,33 @@ export default function ExploreScreen() {
   }, []);
 
   const fetchMorePosts = useCallback(async () => {
-    if (!nextUrl || loadingMore || fetchingRef.current) return;
-    fetchingRef.current = true;
+    if (!postsHasMore || loadingMoreRef.current || fetchingRef.current) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const res = await postService.getFeedByUrl(nextUrl);
-      const payload = res.data?.data ?? res.data;
-      const results: ApiPost[] = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.results)
-        ? payload.results
-        : [];
+      const nextPage = postsPage + 1;
+      const res = await postService.getFeed(nextPage);
+      const { results, pagination } = parsePayload(res);
       setPosts((prev) => [...prev, ...results]);
-      setNextUrl(payload?.next ?? null);
-      console.log("[Explore] fetchMorePosts nextUrl:", results);
+      setPostsPage(nextPage);
+      setPostsHasMore(pagination ? nextPage < pagination.total_pages : results.length === 10);
     } catch (e) {
       console.log("[Explore] fetchMorePosts error:", getErrorMessage(e));
     } finally {
       setLoadingMore(false);
-      fetchingRef.current = false;
+      loadingMoreRef.current = false;
     }
-  }, [nextUrl, loadingMore]);
+  }, [postsHasMore, postsPage]);
 
   const fetchGroupPosts = useCallback(async (refresh = false) => {
     if (refresh) setRefreshingGroupPosts(true);
     else setLoadingGroupPosts(true);
     try {
       const res = await postService.getGroupFeed(1);
-      const payload = res.data?.data ?? res.data;
-      const results: ApiPost[] = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.results)
-        ? payload.results
-        : [];
+      const { results, pagination } = parsePayload(res);
       setGroupPosts(results);
+      setGroupPostsPage(1);
+      setGroupPostsHasMore(pagination ? pagination.page < pagination.total_pages : results.length === 10);
     } catch (e) {
       console.log("[Explore] fetchGroupPosts error:", getErrorMessage(e));
     } finally {
@@ -128,6 +133,25 @@ export default function ExploreScreen() {
       setRefreshingGroupPosts(false);
     }
   }, []);
+
+  const fetchMoreGroupPosts = useCallback(async () => {
+    if (!groupPostsHasMore || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const nextPage = groupPostsPage + 1;
+      const res = await postService.getGroupFeed(nextPage);
+      const { results, pagination } = parsePayload(res);
+      setGroupPosts((prev) => [...prev, ...results]);
+      setGroupPostsPage(nextPage);
+      setGroupPostsHasMore(pagination ? nextPage < pagination.total_pages : results.length === 10);
+    } catch (e) {
+      console.log("[Explore] fetchMoreGroupPosts error:", getErrorMessage(e));
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  }, [groupPostsHasMore, groupPostsPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -237,7 +261,7 @@ export default function ExploreScreen() {
         onFollow={handleFollow}
         onComment={handleComment}
         hideFollowBtn={item.is_author === true}
-        visiblePostId={visiblePostId}
+        isVisible={item.id === visiblePostId}
       />
     ),
     [router, handleLike, handleSave, handleShare, handleFollow, handleComment, visiblePostId]
@@ -298,7 +322,7 @@ export default function ExploreScreen() {
               onSave={handleGroupSave}
               onShare={handleGroupShare}
               onComment={handleGroupComment}
-              visiblePostId={visibleGroupPostId}
+              isVisible={item.id === visibleGroupPostId}
             />
           ))}
         </>
@@ -310,8 +334,8 @@ export default function ExploreScreen() {
   const renderFooter = () => {
     if (!loadingMore) return null;
     return (
-      <View style={{ paddingVertical: 16, alignItems: "center" }}>
-        <ActivityIndicator size="small" color={Colors.primary} />
+      <View style={{ paddingTop: 4 }}>
+        {Array.from({ length: 2 }).map((_, i) => <PostCardSkeleton key={i} />)}
       </View>
     );
   };
@@ -319,8 +343,10 @@ export default function ExploreScreen() {
   const renderEmpty = (isLoading: boolean) => {
     if (isLoading) {
       return (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={{ paddingTop: 8 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <PostCardSkeleton key={i} />
+          ))}
         </View>
       );
     }
@@ -399,6 +425,9 @@ export default function ExploreScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderGroupPost}
           showsVerticalScrollIndicator={false}
+          onEndReached={fetchMoreGroupPosts}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={() => renderEmpty(loadingGroupPosts)}
           onViewableItemsChanged={onViewableGroupPostsChanged.current}
           viewabilityConfig={viewabilityConfig.current}

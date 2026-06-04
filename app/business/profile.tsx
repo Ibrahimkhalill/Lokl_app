@@ -45,6 +45,7 @@ interface BusinessProfile {
   cover_photo_url?: string | null;
   social_media: { platform: string; link: string }[];
   phone_number?: string;
+  rating?: number;
 }
 
 interface Event {
@@ -249,7 +250,7 @@ export default function BusinessProfileScreen() {
     businessProfile?.owner_name ||
     user?.name ||
     "—";
-
+  const displayRole = businessProfile?.business_type || "—";
   const displayBusinessName = businessProfile?.business_name || "—";
   const displayBio = businessProfile?.bio || user?.bio || "";
   const displayAddress = businessProfile?.address || "";
@@ -303,7 +304,7 @@ export default function BusinessProfileScreen() {
               )}
             </View>
           )}
-          {/* Back button for visitor (top-left), Settings for owner (top-right) */}
+          {/* Back button for visitor, Settings for owner */}
           {isOwner ? (
             <TouchableOpacity
               style={styles.settingsBtn}
@@ -377,12 +378,19 @@ export default function BusinessProfileScreen() {
               </Text>
               <Text style={styles.statLabel}>Events</Text>
             </View>
+            <View style={styles.statItem}>
             <View style={styles.scoreBlock}>
               <View style={styles.coachPill}>
                 <Text style={styles.coachPillText}>
                   {businessProfile?.business_type || "Business"}
                 </Text>
+               
               </View>
+            </View>
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingText}>{businessProfile?.rating || "0.0"}</Text>
+              </View>
+              <Text style={styles.statLabel}>Review</Text>
             </View>
           </View>
 
@@ -443,12 +451,12 @@ export default function BusinessProfileScreen() {
               </View>
               {displayBio ? (
                 <Text style={styles.aboutBody}>{displayBio}</Text>
-              ) : isOwner ? (
-                <TouchableOpacity onPress={openBioModal}>
-                  <Text style={styles.bioPlaceholder}>Tap to add a bio...</Text>
-                </TouchableOpacity>
               ) : (
-                <Text style={styles.bioPlaceholder}>No bio yet.</Text>
+                <TouchableOpacity onPress={openBioModal}>
+                  <Text style={styles.bioPlaceholder}>
+                    Tap to add a bio...
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -627,7 +635,7 @@ export default function BusinessProfileScreen() {
                       </View>
                     </View>
 
-                    {/* Row 2: price  |  trash (owner only) */}
+                    {/* Row 2: price  |  trash */}
                     <View style={styles.priceRow}>
                       <View style={styles.priceLeft}>
                         <DollarIcon width={16} height={16} color={Colors.primary} />
@@ -635,19 +643,17 @@ export default function BusinessProfileScreen() {
                           {Number(eventItem.price) === 0 ? "Free" : `$${eventItem.price}`}
                         </Text>
                       </View>
-                      {isOwner && (
-                        <TouchableOpacity
-                          style={styles.deleteBtn}
-                          onPress={() => handleDeleteEvent(eventItem.id, eventItem.title)}
-                          disabled={deletingId === eventItem.id}
-                        >
-                          {deletingId === eventItem.id ? (
-                            <ActivityIndicator size="small" color="#FF3B30" />
-                          ) : (
-                            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-                          )}
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => handleDeleteEvent(eventItem.id, eventItem.title)}
+                        disabled={deletingId === eventItem.id}
+                      >
+                        {deletingId === eventItem.id ? (
+                          <ActivityIndicator size="small" color="#FF3B30" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -658,8 +664,8 @@ export default function BusinessProfileScreen() {
         )}
       </ScrollView>
 
-      {/* Bio Edit Modal — owner only */}
-      {isOwner && <Modal
+      {/* Bio Edit Modal */}
+      <Modal
         visible={bioModalVisible}
         transparent
         animationType="slide"
@@ -714,7 +720,7 @@ export default function BusinessProfileScreen() {
           </View>
           </KeyboardAvoidingView>
         </View>
-      </Modal>}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -788,8 +794,9 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 18,
     paddingHorizontal: 8,
+    justifyContent: "space-between",
   },
-  statItem: { flex: 1, alignItems: "center", paddingVertical: 6 },
+  statItem: { gap: 8, alignItems: "center", paddingVertical: 6 },
   statIconCircle: {
     width: 29,
     height: 29,
@@ -797,11 +804,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    // marginBottom: 8,
   },
   statValue: { color: Colors.text, fontSize: 16, fontWeight: "800" },
-  statLabel: { color: Colors.textSecondary, fontSize: 11, marginTop: 4 },
-  scoreBlock: { flex: 1, alignItems: "center", justifyContent: "center" },
+  statLabel: { color: Colors.textSecondary, fontSize: 11,  },
+  scoreBlock: {  alignItems: "center", justifyContent: "center" },
+
+    ratingBadge: {
+    backgroundColor: Colors.primary, borderRadius: 8,
+    paddingVertical:5, paddingHorizontal: 12,
+  },
+
+  ratingText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
   coachPill: {
     backgroundColor: "#248BFF",
     borderRadius: 999,

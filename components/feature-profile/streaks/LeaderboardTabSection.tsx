@@ -160,15 +160,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   crownIcon: {
-    marginBottom: 4,
+    marginBottom: 0,
+    position: "absolute",
+    top: -12,
+    left: "50%",
+    transform: [{ translateX: -12 }],
+    zIndex: 1,
   },
   avatarWrap: {
     position: "relative",
   },
   rankDot: {
     position: "absolute",
-    bottom: -4,
-    right: -4,
+    bottom: -10,
+    left: "50%",
+    transform: [{ translateX: -11 }],
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -188,6 +194,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     maxWidth: 80,
+    marginTop: 4,
   },
   podiumSub: {
     color: Colors.textSecondary,

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   Image,
 } from "react-native";
@@ -16,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { notificationService } from "../../services/notificationService";
 import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
+import { NotifRowSkeleton } from "../../components/primitives/Skeletons";
 
 type ApiNotification = {
   id: number;
@@ -30,6 +30,17 @@ type ApiNotification = {
   sender_avatar?: string | null;
 };
 
+function timeLabel(iso: string): string {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function Avatar({ uri, size = 46 }: { uri?: string | null; size?: number }) {
   const s = { width: size, height: size, borderRadius: size / 2 };
   return uri ? (
@@ -42,17 +53,22 @@ function Avatar({ uri, size = 46 }: { uri?: string | null; size?: number }) {
 }
 
 function NotifRow({ item }: { item: ApiNotification }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <View style={[styles.row, item.unread && styles.rowUnread]}>
+    <TouchableOpacity
+      style={[styles.row, item.unread && styles.rowUnread]}
+      activeOpacity={0.75}
+      onPress={() => setExpanded((v) => !v)}
+    >
       <Avatar uri={item.sender_avatar} />
       <View style={styles.rowContent}>
-        <Text style={styles.rowText} numberOfLines={2}>
+        <Text style={styles.rowText} numberOfLines={expanded ? undefined : 2}>
           <Text style={styles.rowName}>{item.sender_name ?? item.title} </Text>
           <Text style={styles.rowAction}>{item.description}</Text>
         </Text>
       </View>
-      <Text style={styles.rowTime}>{item.time}</Text>
-    </View>
+      <Text style={styles.rowTime}>{timeLabel(item.created_at)}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -115,8 +131,8 @@ export default function NotificationsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={{ paddingTop: 8 }}>
+          {Array.from({ length: 6 }).map((_, i) => <NotifRowSkeleton key={i} />)}
         </View>
       ) : (
         <FlatList

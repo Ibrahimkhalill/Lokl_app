@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 
 export interface AvatarListItemProps {
-  avatarUri: string;
+  avatarUri?: string;
   title: string;
   /** Secondary line (e.g. location) */
   subtitle?: string;

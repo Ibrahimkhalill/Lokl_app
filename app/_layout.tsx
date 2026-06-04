@@ -6,6 +6,7 @@ import { Colors } from "../constants/colors";
 import { AuthProvider } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { PreferencesProvider } from "../context/PreferencesContext";
+import { ToastProvider } from "../context/ToastContext";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function RootLayout() {
     <AuthProvider>
       <PreferencesProvider>
       <MessageProvider>
+      <ToastProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -76,6 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="business/event-detail" />
         <Stack.Screen name="business/profile" />
       </Stack>
+      </ToastProvider>
       </MessageProvider>
       </PreferencesProvider>
     </AuthProvider>

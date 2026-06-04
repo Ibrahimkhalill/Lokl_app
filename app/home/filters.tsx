@@ -90,7 +90,7 @@ export default function FiltersScreen() {
     params.radius_km = String(distance);
 
     // Navigate to home tab with filter params — home screen reads them via useLocalSearchParams
-    router.push({ pathname: "/(tabs)/", params });
+    router.push({ pathname: "/(tabs)" as any, params });
   }
 
   // ── Simple drag slider ───────────────────────────────────────────────────

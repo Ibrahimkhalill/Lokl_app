@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import {
   Screen,
@@ -15,10 +15,12 @@ import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function SignIn() {
   const router = useRouter();
   const { login } = useAuth();
+  const { showToast } = useToast();
   const [phone, setPhone] = useState("");
   const [formattedPhone, setFormattedPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export default function SignIn() {
 
   async function handleSignIn() {
     if (!formattedPhone || !password.trim()) {
-      Alert.alert("Error", "Please enter your phone number and password.");
+      showToast({ type: "error", title: "Error", message: "Please enter your phone number and password." });
       return;
     }
     setLoading(true);
@@ -36,7 +38,7 @@ export default function SignIn() {
       await login(accessToken, refreshToken, user);
       router.replace("/(tabs)");
     } catch (err) {
-      Alert.alert("Sign In Failed", getErrorMessage(err));
+      showToast({ type: "error", title: "Sign In Failed", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }

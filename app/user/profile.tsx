@@ -288,9 +288,11 @@ export default function ProfileScreen() {
           <>
             <View style={styles.recentHeader}>
               <Text style={styles.recentTitle}>RECENT ACTIVITIES</Text>
-              <TouchableOpacity onPress={() => router.push("/user/follow?tab=posts")}>
-                <Text style={styles.seeAll}>See All</Text>
-              </TouchableOpacity>
+              {recentActivities.length > 0 && (
+                <TouchableOpacity onPress={() => router.push("/user/follow?tab=posts")}>
+                  <Text style={styles.seeAll}>See All</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {recentActivities.length === 0 ? (
@@ -328,9 +330,11 @@ export default function ProfileScreen() {
           <>
             <View style={styles.recentHeader}>
               <Text style={styles.recentTitle}>SAVED POSTS</Text>
-              <TouchableOpacity onPress={() => router.push("/user/posts?tab=saved")}>
-                <Text style={styles.seeAll}>See All</Text>
-              </TouchableOpacity>
+              {savedPosts.length > 0 && (
+                <TouchableOpacity onPress={() => router.push("/user/posts?tab=saved")}>
+                  <Text style={styles.seeAll}>See All</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {savedPosts.length === 0 ? (

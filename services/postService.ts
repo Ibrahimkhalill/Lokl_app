@@ -8,16 +8,12 @@ export const postService = {
     });
   },
 
-  getFeed(page = 1) {
-    return api.get("/posts/", { params: { page } });
+  getFeed(page = 1, pageSize = 10) {
+    return api.get("/posts/", { params: { page, page_size: pageSize } });
   },
 
-  getGroupFeed(page = 1) {
-    return api.get("/posts/", { params: { my_groups: true, page } });
-  },
-
-  getFeedByUrl(url: string) {
-    return api.get(url);
+  getGroupFeed(page = 1, pageSize = 10) {
+    return api.get("/posts/", { params: { my_groups: true, page, page_size: pageSize } });
   },
 
   getGroups() {

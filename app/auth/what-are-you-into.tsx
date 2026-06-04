@@ -16,29 +16,72 @@ import FindIcon from "../../assets/icons/find.svg";
 import SearchIcon from "../../assets/icons/search.svg";
 
 const ALL_TAGS = [
-  "Pickleball",
-  "Golf",
-  "Soccer",
-  "Boxing",
-  "Climbing",
-  "Yoga",
-  "Barre",
-  "Cycling",
-  "Training",
-  "Strength",
-  "Gym",
-  "Trainers",
-  "Tennis",
   "Basketball",
-  "Running",
-  "Swimming",
+  "Tennis / pickleball",
+  "Soccer",
+  "Baseball / softball",
+  "Golf",
+  "Driving range",
+  "Skating rink",
+  "Skate park",
+  "Yoga",
   "Pilates",
-  "HIIT",
-  "CrossFit",
-  "Martial Arts",
   "Dance",
-  "Rowing",
-  "Volleyball",
+  "Barre",
+  "Stretch lab",
+  "Cycling",
+  "Boxing",
+  "Martial arts studio",
+  "Climbing gym",
+  "Personal trainer",
+  "Strength coach",
+  "Golf instructor",
+  "Tennis Coach",
+  "Boxing trainer",
+  "Running coach",
+  "Yoga instructor",
+  "Chiropractor",
+  "Physical therapy",
+  "Acupuncture",
+  "Massage therapy",
+  "IV therapy",
+  "Sauna / cold plunge",
+  "Cryotherapy",
+  "Sports recovery center",
+  "Salon",
+  "Barbershop",
+  "Tanning Salon",
+  "Waxing studio",
+  "Makeup Studio",
+  "Strength & conditioning coach",
+  "Weightlifting / powerlifting coach",
+  "Bodybuilding coach",
+  "Cross-training / HIIT coach",
+  "Functional fitness",
+  "Basketball trainer",
+  "Tennis / pickleball coach",
+  "Soccer trainer",
+  "Baseball / softball coach",
+  "Golf instructors",
+  "Cycling coach",
+  "Swimming coach",
+  "Boxing coach",
+  "MMA / martial arts instructor",
+  "Wrestling coach",
+  "Pilates instructor",
+  "Barre instructor",
+  "Dance instructor",
+  "Spin / cycling instructor",
+  "Zumba / cardio dance instructor",
+  "Mobility / flexibility coach",
+  "Stretch therapist",
+  "Breathwork instructor",
+  "Physical therapist",
+  "Massage therapist",
+  "Sports massage specialist",
+  "Acupuncturist",
+  "Cupping therapy practitioner",
+  "IV therapy provider",
 ];
 
 export default function WhatAreYouInto() {
@@ -47,7 +90,7 @@ export default function WhatAreYouInto() {
   const [search, setSearch] = useState("");
 
   const filtered = ALL_TAGS.filter((t) =>
-    t.toLowerCase().includes(search.toLowerCase()),
+    t.toLowerCase().includes(search.toLowerCase())
   );
 
   const toggle = (tag: string) => {
@@ -84,6 +127,7 @@ export default function WhatAreYouInto() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={styles.tagsScroll}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.tagsWrap}>
             {filtered.map((tag) => {
@@ -101,10 +145,7 @@ export default function WhatAreYouInto() {
                     color={isSelected ? Colors.black : Colors.textSecondary}
                   />
                   <Text
-                    style={[
-                      styles.tagText,
-                      isSelected && styles.tagTextSelected,
-                    ]}
+                    style={[styles.tagText, isSelected && styles.tagTextSelected]}
                   >
                     {tag}
                   </Text>
@@ -137,7 +178,7 @@ const styles = StyleSheet.create({
     flex: 1,
 
     paddingTop: 48,
-    paddingBottom: 32,
+    // paddingBottom: 32,
   },
   top: { marginBottom: 20 },
   title: {
@@ -201,5 +242,11 @@ const styles = StyleSheet.create({
     color: Colors.black,
     fontWeight: "600",
   },
-  bottom: { paddingTop: 8 },
+  bottom: { paddingTop: 0 },
+  hint: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 32,
+  },
 });

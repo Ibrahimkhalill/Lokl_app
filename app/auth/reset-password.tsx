@@ -1,14 +1,16 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Screen, BackButton, Input, PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function ResetPassword() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { user_id, secret_key } = useLocalSearchParams<{
     user_id: string;
     secret_key: string;
@@ -19,15 +21,15 @@ export default function ResetPassword() {
 
   async function handleReset() {
     if (!newPass.trim() || !confirm.trim()) {
-      Alert.alert("Error", "Please fill in both fields.");
+      showToast({ type: "error", title: "Error", message: "Please fill in both fields." });
       return;
     }
     if (newPass !== confirm) {
-      Alert.alert("Error", "Passwords do not match.");
+      showToast({ type: "error", title: "Error", message: "Passwords do not match." });
       return;
     }
     if (!user_id || !secret_key) {
-      Alert.alert("Error", "Invalid reset session. Please start over.");
+      showToast({ type: "error", title: "Error", message: "Invalid reset session. Please start over." });
       return;
     }
     setLoading(true);
@@ -38,11 +40,10 @@ export default function ResetPassword() {
         new_password: newPass,
         confirm_password: confirm,
       });
-      Alert.alert("Success", "Password reset successfully.", [
-        { text: "Sign In", onPress: () => router.replace("/auth/sign-in") },
-      ]);
+      showToast({ type: "success", title: "Success", message: "Password reset successfully." });
+      router.replace("/auth/sign-in");
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }

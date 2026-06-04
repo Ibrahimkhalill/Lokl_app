@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -19,6 +18,7 @@ import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
+import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
 
 export default function SavedPostsScreen() {
   const router = useRouter();
@@ -79,8 +79,8 @@ export default function SavedPostsScreen() {
       </View>
 
       {loading ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={{ paddingTop: 8 }}>
+          {Array.from({ length: 3 }).map((_, i) => <PostCardSkeleton key={i} />)}
         </View>
       ) : (
         <FlatList

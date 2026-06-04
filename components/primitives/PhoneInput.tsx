@@ -43,7 +43,7 @@ function getFlag(code: string) {
 }
 
 export function PhoneInput({
-  label = "Phone Number",
+  label = "Phone Number*",
   value,
   onChangeText,
   onChangeFormattedText,

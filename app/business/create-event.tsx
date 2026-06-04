@@ -9,7 +9,6 @@ import {
   Platform,
   Modal,
   Pressable,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -34,6 +33,7 @@ import type { SvgProps } from "react-native-svg";
 import { pickCoverImage } from "../../lib/mediaPicker";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 function initialEventStart() {
   const d = new Date();
@@ -78,6 +78,7 @@ const AMENITIES_LIST: { id: string; Icon: AmenityIcon; label: string }[] = [
 
 export default function CreateEventScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [eventType, setEventType] = useState("Yoga");
@@ -98,15 +99,15 @@ export default function CreateEventScreen() {
 
   async function handleSubmit() {
     if (!title.trim()) {
-      Alert.alert("Validation", "Event title is required.");
+      showToast({ type: "warning", title: "Validation", message: "Event title is required." });
       return;
     }
     if (!location.trim()) {
-      Alert.alert("Validation", "Location is required.");
+      showToast({ type: "warning", title: "Validation", message: "Location is required." });
       return;
     }
     if (!maxParticipants || Number(maxParticipants) < 1) {
-      Alert.alert("Validation", "Max participants must be at least 1.");
+      showToast({ type: "warning", title: "Validation", message: "Max participants must be at least 1." });
       return;
     }
 
@@ -138,11 +139,10 @@ export default function CreateEventScreen() {
       }
 
       await businessService.createEvent(form);
-      Alert.alert("Success", "Event created successfully!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      showToast({ type: "success", title: "Success", message: "Event created successfully!" });
+      router.back();
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(err) });
     } finally {
       setSubmitting(false);
     }

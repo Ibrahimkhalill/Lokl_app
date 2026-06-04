@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +25,7 @@ import StarIcon from "../../assets/icons/star.svg";
 import { eventService } from "../../services/eventService";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 type EventData = {
   id: number;
@@ -101,6 +101,7 @@ function renderStars(rating: number) {
 
 export default function HostEventDetailScreen() {
   const router = useRouter();
+  const { showToast, showConfirm } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const eventId = Number(id);
 
@@ -160,24 +161,24 @@ export default function HostEventDetailScreen() {
 
   const handleDelete = () => {
     if (!event) return;
-    Alert.alert("Delete Event", `Delete "${event.title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            await businessService.deleteEvent(eventId);
-            router.back();
-          } catch (e) {
-            Alert.alert("Error", getErrorMessage(e));
-          } finally {
-            setDeleting(false);
-          }
-        },
+    showConfirm({
+      title: "Delete Event",
+      message: `Delete "${event.title}"?`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await businessService.deleteEvent(eventId);
+          router.back();
+        } catch (e) {
+          showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+        } finally {
+          setDeleting(false);
+        }
       },
-    ]);
+    });
   };
 
   if (loading) {
@@ -429,7 +430,7 @@ const s = StyleSheet.create({
   },
   infoTextWrap: { flex: 1 },
   infoLabel: { color: Colors.textSecondary, fontSize: 13, marginBottom: 4 },
-  infoValue: { color: Colors.text, fontSize: 15, lineHeight: 22 },
+  infoValue: { color: Colors.text, fontSize: 14, lineHeight: 22 },
   infoLink: { color: Colors.primary },
 
   amenitiesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 },

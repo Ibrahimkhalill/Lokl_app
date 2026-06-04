@@ -7,7 +7,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -30,6 +29,7 @@ import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
 import { businessService } from "../../services/businessService";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import type { SvgProps } from "react-native-svg";
 import InstagramIcon from "../../assets/icons/instagram.svg";
 import YoutubeIcon from "../../assets/icons/youtube.svg";
@@ -108,6 +108,7 @@ const BUSINESS_TYPE_ITEMS: PickerItem[] = BUSINESS_TYPES.map((t) => ({
 
 function BusinessEditForm() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -141,12 +142,12 @@ function BusinessEditForm() {
         setAvatarUri(photoUrl);
         setOriginalAvatarUrl(photoUrl);
       } catch (e) {
-        Alert.alert("Error", getErrorMessage(e));
+        showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function addSocial() {
     setSocials((prev) => [...prev, { platform: "", link: "" }]);
@@ -164,7 +165,7 @@ function BusinessEditForm() {
 
   async function handleSave() {
     if (!businessName.trim()) {
-      Alert.alert("Error", "Business name is required");
+      showToast({ type: "error", title: "Error", message: "Business name is required" });
       return;
     }
     setSaving(true);
@@ -189,10 +190,10 @@ function BusinessEditForm() {
         await businessService.updateProfileMedia(form);
       }
 
-      Alert.alert("Success", "Profile updated");
+      showToast({ type: "success", title: "Success", message: "Profile updated" });
       router.back();
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     } finally {
       setSaving(false);
     }
@@ -344,6 +345,7 @@ function BusinessEditForm() {
 
 function UserEditForm() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
@@ -363,16 +365,16 @@ function UserEditForm() {
         setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
         setAvatarUri(data.avatar || data.avatar_url || null);
       } catch (error) {
-        Alert.alert("Error", getErrorMessage(error));
+        showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
     if (!name.trim()) {
-      Alert.alert("Error", "Name is required");
+      showToast({ type: "error", title: "Error", message: "Name is required" });
       return;
     }
     setSaving(true);
@@ -390,10 +392,10 @@ function UserEditForm() {
         } as any);
       }
       await settingService.updateProfile(formData);
-      Alert.alert("Success", "Profile updated successfully");
+      showToast({ type: "success", title: "Success", message: "Profile updated successfully" });
       router.back();
     } catch (error) {
-      Alert.alert("Error", getErrorMessage(error));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }

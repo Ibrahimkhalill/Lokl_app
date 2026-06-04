@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { PrimaryButton, Screen } from "../../components/ui";
 import { Colors } from "../../constants/colors";
 import LocationIcon from "../../assets/icons/locations.svg";
+import { useToast } from "../../context/ToastContext";
 
 export default function LocationScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
   async function handleEnableLocation() {
@@ -15,11 +17,8 @@ export default function LocationScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Location permission is needed to show venues near you. You can enable it later in Settings.",
-          [{ text: "OK", onPress: () => router.replace("/(tabs)") }]
-        );
+        showToast({ type: "info", title: "Permission Denied", message: "Location permission is needed to show venues near you. You can enable it later in Settings." });
+        router.replace("/(tabs)");
         return;
       }
       router.replace("/(tabs)");

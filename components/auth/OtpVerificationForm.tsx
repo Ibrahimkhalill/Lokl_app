@@ -112,10 +112,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 40,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   top: {
-    marginBottom: 48,
+    marginBottom: 32,
   },
   title: {
     fontSize: 26,
@@ -168,6 +168,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   bottom: {
-    marginTop: "auto",
+    marginTop: 32,
   },
 });

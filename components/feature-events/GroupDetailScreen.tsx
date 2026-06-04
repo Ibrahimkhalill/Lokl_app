@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
   TextInput,
   Modal,
 } from "react-native";
@@ -24,6 +23,7 @@ import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 type GroupDetail = {
   id: number;
@@ -108,6 +108,7 @@ const convertApiPostToGroupPost = (apiPost: ApiPost): GroupPostItem => {
 
 export default function GroupDetailScreen() {
   const router = useRouter();
+  const { showToast, showConfirm } = useToast();
   const params = useLocalSearchParams<{ id: string; admin?: string }>();
   const groupId = Number(params.id);
 
@@ -177,7 +178,7 @@ export default function GroupDetailScreen() {
       await eventService.uploadGroupCover(groupId, form);
       await fetchGroup();
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
       setLocalCoverUri(null);
     } finally {
       setUploadingCover(false);
@@ -196,7 +197,7 @@ export default function GroupDetailScreen() {
       await eventService.uploadGroupPhoto(groupId, form);
       await fetchGroup();
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
       setLocalPhotoUri(null);
     } finally {
       setUploadingPhoto(false);
@@ -209,7 +210,7 @@ export default function GroupDetailScreen() {
       await eventService.joinSocialGroup(groupId);
       setGroup((prev) => prev ? { ...prev, is_member: true } : prev);
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     } finally {
       setJoining(false);
     }
@@ -239,7 +240,7 @@ export default function GroupDetailScreen() {
             : p
         )
       );
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     }
   }, [posts]);
 
@@ -265,7 +266,7 @@ export default function GroupDetailScreen() {
             : p
         )
       );
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     }
   }, [posts]);
 
@@ -293,9 +294,9 @@ export default function GroupDetailScreen() {
       
       setCommentPostId(null);
       setCommentText("");
-      Alert.alert("Success", "Comment added");
+      showToast({ type: "success", title: "Success", message: "Comment added" });
     } catch (e) {
-      Alert.alert("Error", getErrorMessage(e));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     }
   };
 
@@ -311,7 +312,7 @@ export default function GroupDetailScreen() {
       if (status && status >= 400) {
         // Real server error — put post back and show message
         if (removed) setPosts((prev) => [...prev, removed]);
-        Alert.alert("Error", getErrorMessage(e));
+        showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
       }
       // network-level error with no response: delete already succeeded on server, do nothing
     }
@@ -536,14 +537,14 @@ export default function GroupDetailScreen() {
             setShowDeleteModal(false);
             setSelectedPost(null);
             if (!postId) return;
-            Alert.alert(
-              "Delete Post",
-              "Are you sure you want to delete this post?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => handleDeletePost(postId) },
-              ]
-            );
+            showConfirm({
+              title: "Delete Post",
+              message: "Are you sure you want to delete this post?",
+              confirmText: "Delete",
+              cancelText: "Cancel",
+              destructive: true,
+              onConfirm: () => handleDeletePost(postId),
+            });
           }}
         >
           <Text style={s.deleteBtnText}>Delete</Text>

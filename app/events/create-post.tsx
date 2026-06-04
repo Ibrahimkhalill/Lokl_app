@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -17,9 +16,11 @@ import { Colors } from "../../constants/colors";
 import { pickPostMedia } from "../../lib/mediaPicker";
 import { getErrorMessage } from "../../lib/api";
 import { postService } from "@/services/postService";
+import { useToast } from "../../context/ToastContext";
 
 export default function CreatePostScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName?: string }>();
   const [text, setText] = useState("");
   const [media, setMedia] = useState<{ uri: string; kind: "image" | "video" } | null>(null);
@@ -34,7 +35,7 @@ export default function CreatePostScreen() {
 
   const handleSubmit = async () => {
     if (!text.trim() && !media) {
-      Alert.alert("Error", "Please add some content");
+      showToast({ type: "error", title: "Error", message: "Please add some content" });
       return;
     }
 
@@ -43,7 +44,7 @@ export default function CreatePostScreen() {
       const formData = new FormData();
       formData.append("body", text);
       formData.append("group_id", groupId);
-      
+
       if (media) {
         const ext = media.uri.split(".").pop() ?? "jpg";
         formData.append("media", {
@@ -57,10 +58,10 @@ export default function CreatePostScreen() {
       }
 
       await postService.createPost(formData);
-      Alert.alert("Success", "Post created successfully");
+      showToast({ type: "success", title: "Success", message: "Post created successfully" });
       router.back();
     } catch (error) {
-      Alert.alert("Error", getErrorMessage(error));
+      showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }

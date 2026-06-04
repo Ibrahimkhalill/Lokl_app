@@ -7,7 +7,6 @@ import {
   Platform,
   Modal,
   Pressable,
-  Alert,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -25,29 +24,36 @@ import { AuthHeaderBlock, AuthFooterLinkRow } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
-function defaultBirthDate() {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  return d;
+function formatDob(date: Date): string {
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
 }
 
 export default function SignUp() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [dobDate, setDobDate] = useState(defaultBirthDate);
+  const [dobDate, setDobDate] = useState<Date | null>(null);
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [phone, setPhone] = useState("");
   const [formattedPhone, setFormattedPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
-    if (!username.trim() || !firstName.trim() || !lastName.trim() || !formattedPhone || !password.trim()) {
-      Alert.alert("Error", "Please fill in all fields.");
+    if (!username.trim() || !firstName.trim() || !formattedPhone || !password.trim()) {
+      showToast({ type: "error", title: "Error", message: "Please fill in all required fields." });
+      return;
+    }
+    if (!dobDate) {
+      showToast({ type: "error", title: "Error", message: "Please select your date of birth." });
       return;
     }
     setLoading(true);
@@ -58,8 +64,8 @@ export default function SignUp() {
         full_name: `${firstName.trim()} ${lastName.trim()}`,
         phone: formattedPhone,
         password,
-        date_of_birth: dob,
-        remember_me: rememberMe,
+        date_of_birth: dob
+
       });
       const userId: number = res.data.data.user_id;
       router.push({
@@ -67,7 +73,7 @@ export default function SignUp() {
         params: { user_id: String(userId) },
       });
     } catch (err) {
-      Alert.alert("Sign Up Failed", getErrorMessage(err));
+      showToast({ type: "error", title: "Sign Up Failed", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }
@@ -86,14 +92,14 @@ export default function SignUp() {
       />
 
       <Input
-        label="Username"
+        label="Username*"
         placeholder="Enter username"
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
       />
       <Input
-        label="First Name"
+        label="First Name*"
         placeholder="Enter first name"
         value={firstName}
         onChangeText={setFirstName}
@@ -109,14 +115,10 @@ export default function SignUp() {
         onPress={() => setShowDobPicker(true)}
         style={styles.dobBlock}
       >
-        <Text style={styles.dobLabel}>Date of Birth</Text>
+        <Text style={styles.dobLabel}>Date of Birth*</Text>
         <View style={styles.dobRow}>
-          <Text style={styles.dobValue}>
-            {dobDate.toLocaleDateString(undefined, {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
+          <Text style={[styles.dobValue, !dobDate && styles.dobPlaceholder]}>
+            {dobDate ? formatDob(dobDate) : "DD/MM/YYYY"}
           </Text>
           <Ionicons
             name="calendar-outline"
@@ -128,7 +130,7 @@ export default function SignUp() {
 
       {Platform.OS === "android" && showDobPicker ? (
         <DateTimePicker
-          value={dobDate}
+          value={dobDate ?? new Date()}
           mode="date"
           maximumDate={new Date()}
           minimumDate={new Date(1900, 0, 1)}
@@ -160,7 +162,7 @@ export default function SignUp() {
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={dobDate}
+              value={dobDate ?? new Date()}
               mode="date"
               display="spinner"
               maximumDate={new Date()}
@@ -178,26 +180,14 @@ export default function SignUp() {
         onChangeFormattedText={setFormattedPhone}
       />
       <Input
-        label="Password"
+        label="Password*"
         placeholder="Create a password"
         isPassword
         value={password}
         onChangeText={setPassword}
       />
 
-      {/* Remember Me */}
-      <TouchableOpacity
-        style={styles.rememberRow}
-        onPress={() => setRememberMe(!rememberMe)}
-        activeOpacity={0.8}
-      >
-        <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-          {rememberMe && (
-            <Ionicons name="checkmark" size={12} color={Colors.black} />
-          )}
-        </View>
-        <Text style={styles.rememberText}>Remember Me</Text>
-      </TouchableOpacity>
+   
 
       <PrimaryButton
         title={loading ? "Creating account..." : "Sign Up"}
@@ -273,6 +263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   dobValue: { color: Colors.text, fontSize: 15 },
+  dobPlaceholder: { color: Colors.textMuted },
   dobModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.45)",

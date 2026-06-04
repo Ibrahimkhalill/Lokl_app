@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +17,8 @@ import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { Avatar } from "../../components/primitives/Avatar";
 import { EmptyState } from "../../components/primitives";
+import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
+import { UserProfileHeaderSkeleton } from "../../components/primitives/Skeletons";
 
 type UserProfile = {
   id: number;
@@ -223,8 +224,9 @@ export default function UserProfileScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={{ paddingTop: 8 }}>
+          <UserProfileHeaderSkeleton />
+          {Array.from({ length: 2 }).map((_, i) => <PostCardSkeleton key={i} />)}
         </View>
       ) : (
         <FlatList

@@ -28,6 +28,7 @@ import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { EmptyState } from "../../components/primitives";
+import { EventCardSkeleton, GroupCardSkeleton } from "../../components/primitives/Skeletons";
 
 type ApiEvent = {
   id: number;
@@ -129,12 +130,12 @@ export default function EventsScreen() {
 
 
   const [events, setEvents] = useState<ApiEvent[]>([]);
-  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [refreshingEvents, setRefreshingEvents] = useState(false);
   const [registering, setRegistering] = useState<number | null>(null);
 
   const [groups, setGroups] = useState<ApiGroup[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [refreshingGroups, setRefreshingGroups] = useState(false);
 
   const fetchingRef = useRef(false);
@@ -531,8 +532,8 @@ export default function EventsScreen() {
             </ScrollView> */}
 
             {loadingEvents ? (
-              <View style={s.center}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+              <View style={{ paddingTop: 8 }}>
+                {Array.from({ length: 3 }).map((_, i) => <EventCardSkeleton key={i} />)}
               </View>
             ) : filteredEvents.length === 0 ? (
               <EmptyState
@@ -563,8 +564,8 @@ export default function EventsScreen() {
             ? filteredGroups.filter((g) => g.is_admin)
             : filteredGroups;
           return loadingGroups ? (
-            <View style={s.center}>
-              <ActivityIndicator size="large" color={Colors.primary} />
+            <View style={{ paddingTop: 8 }}>
+              {Array.from({ length: 3 }).map((_, i) => <GroupCardSkeleton key={i} />)}
             </View>
           ) : displayGroups.length === 0 ? (
             <EmptyState

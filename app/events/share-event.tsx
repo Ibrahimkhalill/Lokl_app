@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   Image,
   Share,
-  Alert,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useToast } from "../../context/ToastContext";
 import MessagesIcon from "../../assets/icons/comments.svg";
 import WhatsAppIcon from "../../assets/icons/whatsapp.svg";
 import EmailIcon from "../../assets/icons/email.svg";
@@ -20,6 +20,7 @@ import MoreIcon from "../../assets/icons/link.svg";
 
 export default function ShareScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{
     title?: string;
     subtitle?: string;
@@ -53,7 +54,7 @@ export default function ShareScreen() {
       await Share.share({ message, title });
     } catch (e: any) {
       if (e.message !== "The user did not share") {
-        Alert.alert("Error", "Could not open share sheet.");
+        showToast({ type: "error", title: "Error", message: "Could not open share sheet." });
       }
     }
   };

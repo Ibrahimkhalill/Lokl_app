@@ -10,7 +10,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PrimaryButton } from "../../components/ui";
@@ -40,6 +39,7 @@ import AddIcon from "../../assets/icons/add.svg";
 import type { SvgProps } from "react-native-svg";
 import { authService } from "@/services/authService";
 import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 type SvgIconComponent = React.ComponentType<SvgProps>;
 
@@ -210,6 +210,7 @@ const modalStyles = StyleSheet.create({
 
 export default function BusinessSignUp() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -332,7 +333,7 @@ const handleSignUp = async () => {
         params: { user_id: String(userId) },
       });
   } catch (error) {
-    Alert.alert("Registration Failed", getErrorMessage(error));
+    showToast({ type: "error", title: "Registration Failed", message: getErrorMessage(error) });
   } finally {
     setLoading(false);
   }
