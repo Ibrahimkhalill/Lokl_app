@@ -374,7 +374,7 @@ const handleTyping = useCallback(() => {
                 multiline
                 onBlur={stopTyping}
               />
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.mediaBtn}
                 onPress={async () => {
                   const picked = await pickPostMedia();
@@ -383,7 +383,7 @@ const handleTyping = useCallback(() => {
                 }}
               >
                 <ImageIcon width={22} height={22} color="#4a5568" />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
             <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
               <SendIcon width={20} height={20} color={Colors.primary} />

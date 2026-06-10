@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -18,9 +19,6 @@ import FriendsIcon from "../../assets/icons/friends.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
 import TimeIcon from "../../assets/icons/clock.svg";
 import GlobeIcon from "../../assets/icons/website.svg";
-import ShowerIcon from "../../assets/icons/shower.svg";
-import LockerIcon from "../../assets/icons/loack.svg";
-import WifiIcon from "../../assets/icons/wifi.svg";
 import VenueIcon from "../../assets/icons/venue.svg";
 import { ReviewListCard } from "../events";
 import PlusIcon from "../../assets/icons/plus.svg";
@@ -49,6 +47,7 @@ type EventDetail = {
   date: string;
   time: string;
   capacity: number;
+  max_participants?: number | null;
   registered: number;
   is_registered: boolean;
   status: string;
@@ -56,8 +55,10 @@ type EventDetail = {
   location: string;
   phone?: string;
   website?: string;
-  amenities: string[];
   event_type: string;
+  neighborhood?: string;
+  is_private: boolean;
+  join_request_status?: "Pending" | "Approved" | "Declined" | null;
   price: string;
   cover_image_url: string | null;
   latitude?: string;
@@ -83,14 +84,6 @@ function formatTime(timeStr: string) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-function amenityIcon(key: string) {
-  switch (key.toLowerCase()) {
-    case "shower": return <ShowerIcon width={20} height={20} color={Colors.primary} />;
-    case "locker": return <LockerIcon width={20} height={20} color={Colors.primary} />;
-    case "wifi":   return <WifiIcon width={20} height={20} color={Colors.primary} />;
-    default:       return <Ionicons name="checkmark-circle-outline" size={20} color={Colors.primary} />;
-  }
-}
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
@@ -125,6 +118,7 @@ export default function EventDetailsScreen() {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [requestingJoin, setRequestingJoin] = useState(false);
   const [distanceStr, setDistanceStr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -174,6 +168,22 @@ export default function EventDetailsScreen() {
       console.log("[EventDetails] register error:", getErrorMessage(e));
     } finally {
       setRegistering(false);
+    }
+  };
+
+  /** For private events — submit a join request */
+  const handleRequestToJoin = async () => {
+    if (!event || requestingJoin) return;
+    setRequestingJoin(true);
+    try {
+      await eventService.requestToJoinEvent(event.id);
+      await fetchEvent();
+    } catch (e) {
+      const msg = getErrorMessage(e);
+      Alert.alert("Join Request", msg);
+      console.log("[EventDetails] join request error:", msg);
+    } finally {
+      setRequestingJoin(false);
     }
   };
 
@@ -244,16 +254,34 @@ export default function EventDetailsScreen() {
         </View>
 
         <View style={s.content}>
-          {/* Join / Joined */}
-          {!event.is_registered ? (
+          {/* Join / Join Request / Joined */}
+          {!event.is_registered && !event.is_private && (
             <TouchableOpacity style={s.joinBtn} onPress={handleRegister} disabled={registering}>
               {registering
                 ? <ActivityIndicator size="small" color={Colors.black} />
                 : <Text style={s.joinBtnText}>Join Event</Text>
               }
             </TouchableOpacity>
-          ) : (
-           ""
+          )}
+          {!event.is_registered && event.is_private && !event.join_request_status && (
+            <TouchableOpacity style={s.joinBtn} onPress={handleRequestToJoin} disabled={requestingJoin}>
+              {requestingJoin
+                ? <ActivityIndicator size="small" color={Colors.black} />
+                : <Text style={s.joinBtnText}>Request to Join</Text>
+              }
+            </TouchableOpacity>
+          )}
+          {event.is_private && event.join_request_status === "Pending" && (
+            <View style={s.joinRequestBadge}>
+              <Ionicons name="time-outline" size={16} color={Colors.primary} />
+              <Text style={s.joinRequestText}>Request Pending</Text>
+            </View>
+          )}
+          {event.is_private && event.join_request_status === "Declined" && (
+            <View style={[s.joinRequestBadge, s.joinRequestDeclined]}>
+              <Ionicons name="close-circle-outline" size={16} color="#FF3B30" />
+              <Text style={[s.joinRequestText, { color: "#FF3B30" }]}>Request Declined</Text>
+            </View>
           )}
 
           {/* Title */}
@@ -410,21 +438,6 @@ export default function EventDetailsScreen() {
               </View>
             </View>
           ))}
-
-          {/* Amenities */}
-          {event.amenities.length > 0 && (
-            <>
-              <Text style={s.sectionTitle}>AMENITIES</Text>
-              <View style={s.amenitiesGrid}>
-                {event.amenities.map((a, i) => (
-                  <View key={i} style={s.amenityChip}>
-                    {amenityIcon(a)}
-                    <Text style={s.amenityText}>{a.charAt(0).toUpperCase() + a.slice(1)}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
 
           {/* Reviews */}
           <View style={s.reviewsHeader}>
@@ -606,18 +619,25 @@ const s = StyleSheet.create({
   infoLabel: { color: Colors.textSecondary, fontSize: 14, marginBottom: 4 },
   infoValue: { color: Colors.text, fontSize: 14, lineHeight: 20 },
   infoLink: { color: Colors.primary },
-  amenitiesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 },
-  amenityChip: {
+  joinRequestBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    backgroundColor: "rgba(209,255,0,0.1)",
+    borderRadius: 50,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 18,
+    alignSelf: "stretch",
+    justifyContent: "center",
   },
-  amenityText: { color: Colors.text, fontSize: 13 },
+  joinRequestDeclined: {
+    backgroundColor: "rgba(255,59,48,0.08)",
+    borderColor: "#FF3B30",
+  },
+  joinRequestText: { color: Colors.primary, fontSize: 15, fontWeight: "700" },
   reviewsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

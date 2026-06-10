@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  Switch,
   ActivityIndicator,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -16,9 +17,6 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import ShowerIcon from "../../assets/icons/shower.svg";
-import LockerIcon from "../../assets/icons/loack.svg";
-import WifiIcon from "../../assets/icons/wifi.svg";
 import {
   MediaPickerCard,
   FormField,
@@ -28,8 +26,6 @@ import {
   LocationPickerModal,
   type LocationResult,
 } from "../../components/primitives";
-import { useToggleSet } from "../../hooks/useToggleSet";
-import type { SvgProps } from "react-native-svg";
 import { pickCoverImage } from "../../lib/mediaPicker";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
@@ -67,13 +63,14 @@ function toTimeString(d: Date) {
   return `${h}:${min}`;
 }
 
-const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Other"];
-type AmenityIcon = React.FC<SvgProps>;
+const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Swimming", "Cycling", "Other"];
 
-const AMENITIES_LIST: { id: string; Icon: AmenityIcon; label: string }[] = [
-  { id: "shower", Icon: ShowerIcon, label: "Shower" },
-  { id: "locker", Icon: LockerIcon, label: "Locker" },
-  { id: "wifi", Icon: WifiIcon, label: "WiFi" },
+const NYC_NEIGHBORHOODS = [
+  "Harlem", "East Harlem", "Washington Heights", "Inwood",
+  "Upper East Side", "Upper West Side", "Midtown East", "Midtown West",
+  "Chelsea", "Hell's Kitchen", "Greenwich Village", "West Village",
+  "East Village", "Lower East Side", "SoHo", "TriBeCa",
+  "Financial District", "Flatiron", "Gramercy",
 ];
 
 export default function CreateEventScreen() {
@@ -93,9 +90,11 @@ export default function CreateEventScreen() {
   const [maxParticipants, setMaxParticipants] = useState("10");
   const [price, setPrice] = useState("0");
   const [website, setWebsite] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [neighborhoodPickerVisible, setNeighborhoodPickerVisible] = useState(false);
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { selected: amenities, toggle: toggleAmenity } = useToggleSet([]);
 
   async function handleSubmit() {
     if (!title.trim()) {
@@ -128,8 +127,8 @@ export default function CreateEventScreen() {
       form.append("max_participants", maxParticipants);
       form.append("price", price || "0");
       if (website.trim()) form.append("website", website.trim());
-      if (amenities.length > 0)
-        form.append("amenities", JSON.stringify(amenities));
+      if (neighborhood) form.append("neighborhood", neighborhood);
+      form.append("is_private", isPrivate ? "true" : "false");
 
       if (coverUri) {
         const filename = coverUri.split("/").pop() ?? "cover.jpg";
@@ -396,26 +395,63 @@ export default function CreateEventScreen() {
             />
           </FormField>
 
-          <Text style={s.amenitiesTitle}>AMENITIES</Text>
-          <View style={s.amenitiesGrid}>
-            {AMENITIES_LIST.map((a) => {
-              const active = amenities.includes(a.id);
-              const iconColor = active ? Colors.black : Colors.text;
-              return (
-                <TouchableOpacity
-                  key={a.id}
-                  style={[s.amenityChip, active && s.amenityChipActive]}
-                  onPress={() => toggleAmenity(a.id)}
-                >
-                  <a.Icon width={20} height={20} color={iconColor} />
-                  <Text
-                    style={[s.amenityText, active && s.amenityTextActive]}
-                  >
-                    {a.label}
-                  </Text>
+          {/* Neighborhood */}
+          <Text style={s.label}>Neighborhood (optional)</Text>
+          <TouchableOpacity
+            style={[s.pickerField, { marginBottom: 18 }]}
+            onPress={() => setNeighborhoodPickerVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Text style={[s.pickerFieldText, !neighborhood && { color: Colors.textMuted }]}>
+              {neighborhood || "Select NYC neighborhood..."}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Neighborhood picker modal */}
+          <Modal
+            visible={neighborhoodPickerVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setNeighborhoodPickerVisible(false)}
+          >
+            <Pressable style={s.modalBackdrop} onPress={() => setNeighborhoodPickerVisible(false)} />
+            <View style={s.modalSheet}>
+              <View style={s.modalBar}>
+                <TouchableOpacity onPress={() => { setNeighborhood(""); setNeighborhoodPickerVisible(false); }}>
+                  <Text style={s.modalCancel}>Clear</Text>
                 </TouchableOpacity>
-              );
-            })}
+                <Text style={[s.modalDone, { color: Colors.text }]}>Neighborhood</Text>
+                <TouchableOpacity onPress={() => setNeighborhoodPickerVisible(false)}>
+                  <Text style={s.modalDone}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={{ maxHeight: 320 }}>
+                {NYC_NEIGHBORHOODS.map((n) => (
+                  <TouchableOpacity
+                    key={n}
+                    style={[s.neighborhoodRow, neighborhood === n && s.neighborhoodRowActive]}
+                    onPress={() => { setNeighborhood(n); setNeighborhoodPickerVisible(false); }}
+                  >
+                    <Text style={[s.neighborhoodText, neighborhood === n && s.neighborhoodTextActive]}>{n}</Text>
+                    {neighborhood === n && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </Modal>
+
+          {/* Private Event toggle */}
+          <View style={s.toggleRow}>
+            <View style={s.toggleInfo}>
+              <Text style={s.label}>Private Event</Text>
+              <Text style={s.toggleSubtext}>Attendees must request to join</Text>
+            </View>
+            <Switch
+              value={isPrivate}
+              onValueChange={setIsPrivate}
+              trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+              thumbColor={Colors.black}
+            />
           </View>
 
           <TouchableOpacity
@@ -520,36 +556,27 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-  amenitiesTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginBottom: 14,
-  },
-  amenitiesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 26,
-  },
-  amenityChip: {
+  toggleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
+    justifyContent: "space-between",
+    marginBottom: 26,
+    paddingVertical: 4,
   },
-  amenityChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+  toggleInfo: { flex: 1 },
+  toggleSubtext: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  neighborhoodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
   },
-  amenityText: { color: Colors.text, fontSize: 14 },
-  amenityTextActive: { color: Colors.black, fontWeight: "600" },
+  neighborhoodRowActive: { backgroundColor: "rgba(209,255,0,0.08)" },
+  neighborhoodText: { color: Colors.text, fontSize: 15 },
+  neighborhoodTextActive: { color: Colors.primary, fontWeight: "600" },
   confirmBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 50,

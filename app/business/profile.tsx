@@ -34,6 +34,44 @@ import { useAuth } from "../../context/AuthContext";
 import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
 import { EmptyState } from "../../components/primitives";
 
+interface CoachScheduleSlot {
+  id: number;
+  day_of_week: string;
+  time: string;
+  description: string;
+  venue_name?: string | null;
+}
+
+interface CoachOffering {
+  id: number;
+  name: string;
+  description: string;
+  price?: number | null;
+}
+
+interface CoachContactInfo {
+  instagram_handle?: string;
+  email?: string;
+  phone?: string;
+  show_instagram?: boolean;
+  show_email?: boolean;
+  show_phone?: boolean;
+}
+
+interface TrainingLocation {
+  id: number;
+  venue_name: string;
+  venue_address?: string;
+  note?: string;
+}
+
+interface FeaturedReview {
+  id: number;
+  reviewer_name: string;
+  comment: string;
+  rating?: number;
+}
+
 interface BusinessProfile {
   business_name: string;
   business_type: string;
@@ -46,6 +84,15 @@ interface BusinessProfile {
   social_media: { platform: string; link: string }[];
   phone_number?: string;
   rating?: number;
+  // New fields from backend Section 11
+  average_rating?: number;
+  review_count?: number;
+  clients_count?: number | null;
+  schedule_slots?: CoachScheduleSlot[];
+  offerings?: CoachOffering[];
+  contact_info?: CoachContactInfo | null;
+  training_locations?: TrainingLocation[];
+  featured_reviews?: FeaturedReview[];
 }
 
 interface Event {
@@ -388,7 +435,9 @@ export default function BusinessProfileScreen() {
               </View>
             </View>
               <View style={styles.ratingBadge}>
-                <Text style={styles.ratingText}>{businessProfile?.rating || "0.0"}</Text>
+                <Text style={styles.ratingText}>
+                  {businessProfile?.average_rating?.toFixed(1) ?? businessProfile?.rating ?? "0.0"}
+                </Text>
               </View>
               <Text style={styles.statLabel}>Review</Text>
             </View>
@@ -566,6 +615,119 @@ export default function BusinessProfileScreen() {
                     </TouchableOpacity>
                   );
                 })}
+              </>
+            ) : null}
+
+            {/* ── Schedule ──────────────────────────────────────────────── */}
+            {(businessProfile?.schedule_slots?.length ?? 0) > 0 ? (
+              <>
+                <Text style={styles.sectionHeader}>Schedule</Text>
+                {businessProfile!.schedule_slots!.map((slot) => (
+                  <View key={slot.id} style={styles.infoCard}>
+                    <View style={styles.infoIconWrap}>
+                      <Ionicons name="calendar-outline" size={18} color={Colors.primary} />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>
+                        {slot.day_of_week}
+                        {slot.venue_name ? ` · ${slot.venue_name}` : ""}
+                      </Text>
+                      <Text style={styles.infoValue}>{slot.time}{slot.description ? `  —  ${slot.description}` : ""}</Text>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
+            {/* ── Offerings ─────────────────────────────────────────────── */}
+            {(businessProfile?.offerings?.length ?? 0) > 0 ? (
+              <>
+                <Text style={styles.sectionHeader}>Offerings</Text>
+                {businessProfile!.offerings!.map((offer) => (
+                  <View key={offer.id} style={styles.offeringCard}>
+                    <View style={styles.offeringHeader}>
+                      <Text style={styles.offeringName}>{offer.name}</Text>
+                      {offer.price != null && (
+                        <Text style={styles.offeringPrice}>${offer.price}</Text>
+                      )}
+                    </View>
+                    {offer.description ? (
+                      <Text style={styles.offeringDesc}>{offer.description}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </>
+            ) : null}
+
+            {/* ── Contact Info ──────────────────────────────────────────── */}
+            {businessProfile?.contact_info ? (() => {
+              const c = businessProfile.contact_info!;
+              const items: { icon: string; label: string; value: string; link?: string }[] = [];
+              if (c.instagram_handle) items.push({ icon: "logo-instagram", label: "Instagram", value: `@${c.instagram_handle}`, link: `https://instagram.com/${c.instagram_handle}` });
+              if (c.email)            items.push({ icon: "mail-outline",    label: "Email",     value: c.email,               link: `mailto:${c.email}` });
+              if (c.phone)            items.push({ icon: "call-outline",    label: "Phone",     value: c.phone,               link: `tel:${c.phone}` });
+              if (items.length === 0) return null;
+              return (
+                <>
+                  <Text style={styles.sectionHeader}>Contact</Text>
+                  {items.map((item, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.infoCard}
+                      activeOpacity={0.7}
+                      onPress={() => item.link && Linking.openURL(item.link)}
+                    >
+                      <View style={styles.infoIconWrap}>
+                        <Ionicons name={item.icon as any} size={18} color={Colors.primary} />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>{item.label}</Text>
+                        <Text style={styles.infoValue}>{item.value}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                  ))}
+                </>
+              );
+            })() : null}
+
+            {/* ── Training Locations ────────────────────────────────────── */}
+            {(businessProfile?.training_locations?.length ?? 0) > 0 ? (
+              <>
+                <Text style={styles.sectionHeader}>Trains At</Text>
+                {businessProfile!.training_locations!.map((loc) => (
+                  <View key={loc.id} style={styles.infoCard}>
+                    <View style={styles.infoIconWrap}>
+                      <LocationsIcon width={18} height={18} color={Colors.primary} />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoValue}>{loc.venue_name}</Text>
+                      {loc.venue_address ? <Text style={styles.infoLabel}>{loc.venue_address}</Text> : null}
+                      {loc.note ? <Text style={styles.infoLabel}>{loc.note}</Text> : null}
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
+            {/* ── Featured Reviews ──────────────────────────────────────── */}
+            {(businessProfile?.featured_reviews?.length ?? 0) > 0 ? (
+              <>
+                <Text style={styles.sectionHeader}>Featured Reviews</Text>
+                {businessProfile!.featured_reviews!.map((rev) => (
+                  <View key={rev.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <Ionicons name="person-circle-outline" size={22} color={Colors.textSecondary} />
+                      <Text style={styles.reviewerName}>{rev.reviewer_name}</Text>
+                      {rev.rating != null && (
+                        <View style={styles.ratingBadge}>
+                          <Text style={styles.ratingText}>{rev.rating}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.reviewComment}>{rev.comment}</Text>
+                  </View>
+                ))}
               </>
             ) : null}
           </>
@@ -1011,6 +1173,45 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  // Offering card
+  offeringCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: Colors.secondaryCard,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 16,
+  },
+  offeringHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  offeringName: { color: Colors.text, fontSize: 14, fontWeight: "700", flex: 1 },
+  offeringPrice: { color: Colors.primary, fontSize: 14, fontWeight: "700" },
+  offeringDesc: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
+
+  // Review card
+  reviewCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: Colors.secondaryCard,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 16,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  reviewerName: { color: Colors.text, fontSize: 14, fontWeight: "600", flex: 1 },
+  reviewComment: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19 },
 
   // Bio Modal
   modalSheet: {

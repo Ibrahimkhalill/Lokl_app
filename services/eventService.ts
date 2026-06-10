@@ -51,6 +51,24 @@ export const eventService = {
     return api.get(`/events/${id}/share-link/`);
   },
 
+  // ── Private event join request flow ───────────────────────────────────────
+  /** User submits a request to join a private event */
+  requestToJoinEvent(id: number, message?: string) {
+    return api.post(`/events/${id}/join-request/`, { message: message ?? "" });
+  },
+  /** Host lists all join requests for their event */
+  getJoinRequests(id: number) {
+    return api.get(`/events/${id}/join-requests/`);
+  },
+  /** Host approves or declines a specific request */
+  respondToJoinRequest(
+    eventId: number,
+    requestId: number,
+    status: "Approved" | "Declined"
+  ) {
+    return api.patch(`/events/${eventId}/join-requests/${requestId}/`, { status });
+  },
+
   listSocialGroups() {
     return api.get("/groups/");
   },
