@@ -26,6 +26,11 @@ export type ApiAchievementsData = {
   achievements: ApiAchievement[];
 };
 
+// Map non-Ionicons names (e.g. MaterialCommunityIcons) to valid Ionicons equivalents
+const ICON_MAP: Record<string, string> = {
+  "gem-outline": "diamond-outline",
+};
+
 const RARITY_COLORS: Record<string, string> = {
   common: "#888",
   rare: "#4A90E2",
@@ -87,7 +92,7 @@ export function AchievementsTabSection({
           <View key={ach.id} style={styles.achCard}>
             <View style={[styles.achIconWrap, ach.unlocked ? { backgroundColor: rarityBg } : styles.achIconLocked]}>
               {ach.unlocked ? (
-                <Ionicons name={ach.icon as any} size={22} color={rarityColor} />
+                <Ionicons name={(ICON_MAP[ach.icon] ?? ach.icon ?? "star-outline") as any} size={22} color={rarityColor} />
               ) : (
                 <LoackIcon width={22} height={22} color={Colors.textMuted} />
               )}

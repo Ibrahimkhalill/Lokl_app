@@ -7,7 +7,7 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
@@ -27,7 +27,8 @@ const TABS: Tab[] = ["streaks", "achievements", "leaderboard"];
 
 export default function StreaksScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("streaks");
+  const { tab } = useLocalSearchParams<{ tab?: Tab }>();
+  const [activeTab, setActiveTab] = useState<Tab>(TABS.includes(tab as Tab) ? (tab as Tab) : "streaks");
 
   const [streaks, setStreaks] = useState<ApiStreak[]>([]);
   const [achievements, setAchievements] = useState<ApiAchievementsData | null>(null);

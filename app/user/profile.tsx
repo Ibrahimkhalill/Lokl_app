@@ -297,7 +297,7 @@ export default function ProfileScreen() {
           <View style={styles.achRow}>
             <View style={styles.achRowHeader}>
               <Text style={styles.achRowTitle}>ACHIEVEMENTS</Text>
-              <TouchableOpacity onPress={() => router.push("/user/streaks")}>
+              <TouchableOpacity onPress={() => router.push("/user/streaks?tab=achievements")}>
                 <Text style={styles.achRowSeeAll}>See All</Text>
               </TouchableOpacity>
             </View>

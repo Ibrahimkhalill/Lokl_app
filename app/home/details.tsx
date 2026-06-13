@@ -13,7 +13,9 @@ import {
   Pressable,
   Animated,
   PanResponder,
+  Dimensions,
 } from "react-native";
+
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +34,8 @@ import LockerIcon from "../../assets/icons/loack.svg";
 import WifiIcon from "../../assets/icons/wifi.svg";
 import NavigateIcon from "../../assets/icons/navigate.svg";
 import FriendsIcon from "../../assets/icons/friends.svg";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -139,53 +143,47 @@ export default function DetailsScreen() {
 
   // Drag-to-dismiss sheet animation
   const DISMISS_THRESHOLD = 140;
-  const sheetY = useRef(new Animated.Value(600)).current;
+  const sheetY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const closeSheetRef = useRef<() => void>(() => {});
 
   const closeSheet = useCallback(() => {
     Animated.timing(sheetY, {
-      toValue: 600,
+      toValue: SCREEN_HEIGHT,
       duration: 220,
       useNativeDriver: true,
     }).start(() => {
       setShowShareModal(false);
-      sheetY.setValue(600);
     });
   }, [sheetY]);
 
+  useEffect(() => { closeSheetRef.current = closeSheet; }, [closeSheet]);
+
   useEffect(() => {
     if (showShareModal) {
-      sheetY.setValue(600);
+      sheetY.setValue(SCREEN_HEIGHT);
       Animated.spring(sheetY, {
         toValue: 0,
         useNativeDriver: true,
         bounciness: 4,
         speed: 14,
-      }).start();
+      } as any).start();
     }
   }, [showShareModal, sheetY]);
 
   const sheetPan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 5,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 8,
       onPanResponderMove: (_, gs) => {
         if (gs.dy > 0) sheetY.setValue(gs.dy);
       },
       onPanResponderRelease: (_, gs) => {
         if (gs.dy > DISMISS_THRESHOLD || gs.vy > 0.8) {
-          Animated.timing(sheetY, {
-            toValue: 600,
-            duration: 220,
-            useNativeDriver: true,
-          }).start(() => {
-            setShowShareModal(false);
-            sheetY.setValue(600);
-          });
+          closeSheetRef.current();
         } else {
           Animated.spring(sheetY, {
             toValue: 0,
             useNativeDriver: true,
-            bounciness: 8,
+            bounciness: 4,
           }).start();
         }
       },
@@ -1033,10 +1031,14 @@ const styles = StyleSheet.create({
 
   // Share to Group modal
   modalBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: Colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1045,7 +1047,9 @@ const styles = StyleSheet.create({
     maxHeight: "60%",
   },
   modalDragArea: {
+    paddingTop: 12,
     paddingBottom: 4,
+    alignItems: "center",
   },
   modalHandle: {
     width: 40,
@@ -1061,6 +1065,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 16,
+    width: "100%",
+    paddingHorizontal: 20,
   },
   modalEmpty: {
     color: Colors.textSecondary,

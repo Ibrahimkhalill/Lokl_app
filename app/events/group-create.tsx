@@ -530,11 +530,15 @@ const pm = StyleSheet.create({
     maxHeight: "65%",
     paddingBottom: 24,
   },
+  dragArea: {
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignItems: "center",
+  },
   handle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.2)",
-    alignSelf: "center",
-    marginTop: 12, marginBottom: 8,
+    marginBottom: 8,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -544,6 +548,7 @@ const pm = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
+    width: "100%",
   },
   sheetTitle: { color: Colors.text, fontSize: 16, fontWeight: "700" },
   closeBtn: {
