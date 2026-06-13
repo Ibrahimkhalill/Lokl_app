@@ -35,7 +35,7 @@ export default function LocationScreen() {
 
           <Text style={styles.title}>FIND VENUES{"\n"}NEAR YOU</Text>
           <Text style={styles.subtitle}>
-            we&apos;ll show you the best spots based on your location
+            We&apos;ll show you the best spots near you based on your location
           </Text>
         </View>
 

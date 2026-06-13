@@ -16,72 +16,37 @@ import FindIcon from "../../assets/icons/find.svg";
 import SearchIcon from "../../assets/icons/search.svg";
 
 const ALL_TAGS = [
-  "Basketball",
-  "Tennis / pickleball",
-  "Soccer",
-  "Baseball / softball",
+  "Pickleball",
   "Golf",
-  "Driving range",
-  "Skating rink",
-  "Skate park",
-  "Yoga",
-  "Pilates",
-  "Dance",
-  "Barre",
-  "Stretch lab",
-  "Cycling",
+  "Soccer",
   "Boxing",
-  "Martial arts studio",
-  "Climbing gym",
-  "Personal trainer",
-  "Strength coach",
-  "Golf instructor",
-  "Tennis Coach",
-  "Boxing trainer",
-  "Running coach",
-  "Yoga instructor",
-  "Chiropractor",
-  "Physical therapy",
-  "Acupuncture",
-  "Massage therapy",
-  "IV therapy",
-  "Sauna / cold plunge",
-  "Cryotherapy",
-  "Sports recovery center",
-  "Salon",
-  "Barbershop",
-  "Tanning Salon",
-  "Waxing studio",
-  "Makeup Studio",
-  "Strength & conditioning coach",
-  "Weightlifting / powerlifting coach",
-  "Bodybuilding coach",
-  "Cross-training / HIIT coach",
-  "Functional fitness",
-  "Basketball trainer",
-  "Tennis / pickleball coach",
-  "Soccer trainer",
-  "Baseball / softball coach",
-  "Golf instructors",
-  "Cycling coach",
-  "Swimming coach",
-  "Boxing coach",
-  "MMA / martial arts instructor",
-  "Wrestling coach",
-  "Pilates instructor",
-  "Barre instructor",
-  "Dance instructor",
-  "Spin / cycling instructor",
-  "Zumba / cardio dance instructor",
-  "Mobility / flexibility coach",
-  "Stretch therapist",
-  "Breathwork instructor",
-  "Physical therapist",
-  "Massage therapist",
-  "Sports massage specialist",
-  "Acupuncturist",
-  "Cupping therapy practitioner",
-  "IV therapy provider",
+  "Climbing",
+  "Yoga",
+  "Barre",
+  "Cycling",
+  "Training",
+  "Tennis",
+  "Basketball",
+  "Running",
+  "Swimming",
+  "Pilates",
+  "HIIT",
+  "CrossFit",
+  "Martial Arts",
+  "Dance",
+  "Rowing",
+  "Volleyball",
+  "Padel",
+  "Squash",
+  "Softball / Baseball",
+  "Stretching / Mobility",
+  "Wellness",
+  "Meditation",
+  "Aerial / Acrobatics",
+  "Calisthenics",
+  "Outdoor Workouts",
+  "Kayaking",
+  "Rock Climbing",
 ];
 
 export default function WhatAreYouInto() {
@@ -103,7 +68,7 @@ export default function WhatAreYouInto() {
     <Screen>
       <View style={styles.container}>
         <AuthHeaderBlock
-          title="WHAT ARE YOU INTO?"
+          title="Interests"
           subtitle="Select all that apply"
           containerStyle={styles.top}
           titleStyle={styles.title}
@@ -139,11 +104,6 @@ export default function WhatAreYouInto() {
                   onPress={() => toggle(tag)}
                   activeOpacity={0.8}
                 >
-                  <FindIcon
-                    width={13}
-                    height={13}
-                    color={isSelected ? Colors.black : Colors.textSecondary}
-                  />
                   <Text
                     style={[styles.tagText, isSelected && styles.tagTextSelected]}
                   >

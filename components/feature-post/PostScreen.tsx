@@ -65,15 +65,60 @@ function Avatar({ uri, size = 38 }: { uri: string | null; size?: number }) {
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 10;
 const THUMB_SIZE = 34;
-const SLIDER_DEFAULT = 5.0;
+const SLIDER_DEFAULT = 1.0;
 
 export default function PostScreen() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { event_id, venueId, groupId } = useLocalSearchParams<{ event_id?: string; venueId?: string; groupId?: string }>();
+
+  const handleBack = () => {
+    console.log("[PostScreen] handleBack");
+    if (router.canGoBack()) {
+      router.back();
+       console.log("[PostScreen] handleBack - back");
+    } else {
+      router.replace("/(tabs)" as any);
+       console.log("[PostScreen] handleBack - replace");
+    }
+  };
+  const { event_id, venueId, venueName, venueAddress, groupId } = useLocalSearchParams<{
+    event_id?: string;
+    venueId?: string;
+    venueName?: string;
+    venueAddress?: string;
+    groupId?: string;
+  }>();
   const isReview = !!(event_id || venueId);
 
+  // If venueAddress wasn't passed (e.g. from map pin), fetch it from detail API
+  const [resolvedAddress, setResolvedAddress] = useState(venueAddress ?? "");
+  useEffect(() => {
+    if (!venueAddress && venueId) {
+      import("../../lib/api").then(({ api }) => {
+        api.get(`/venues/${venueId}/`).then((res: any) => {
+          const d = res.data?.data ?? res.data;
+          if (d?.address) setResolvedAddress(d.address);
+        }).catch(() => {});
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venueId]);
+
+  // Guard: if this screen is opened without a venue, defer one frame so params
+  // have time to arrive (hot-reload / fast navigation race condition).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!venueId && !event_id) {
+        showToast({ type: "error", title: "No venue selected", message: "Please search for a venue first." });
+        handleBack();
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venueId, event_id]);
+
   const [caption, setCaption] = useState("");
+  const [notes, setNotes] = useState("");
 
   // Slider — Animated values for zero-rerender drag
   const [lokiScore, setLokiScore] = useState(SLIDER_DEFAULT);
@@ -131,6 +176,7 @@ export default function PostScreen() {
 
   const resetForm = () => {
     setCaption("");
+    setNotes("");
     setMediaUri(null);
     setMediaKind("image");
     setVideoThumbnail(null);
@@ -152,6 +198,8 @@ export default function PostScreen() {
     try {
       const form = new FormData();
       form.append("body", caption);
+      form.append("caption", caption);
+      form.append("notes", notes);
       form.append("lokl_score", String(lokiScore.toFixed(1)));
       form.append("is_public", postToPublic ? "true" : "false");
       if (locationName) form.append("location", locationName);
@@ -234,6 +282,14 @@ export default function PostScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Fixed header — outside ScrollView so it never scrolls away */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={20} color={Colors.text} />
+        </TouchableOpacity>
+      </View>
+
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -244,9 +300,22 @@ export default function PostScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color={Colors.text} />
-          </TouchableOpacity>
+          {/* Locked venue card */}
+          {!!venueName && (
+            <View style={styles.venueBanner}>
+              <View style={styles.venueBannerIconWrap}>
+                <Ionicons name="location" size={18} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.venueBannerName} numberOfLines={1}>{venueName}</Text>
+                {!!resolvedAddress && (
+                  <Text style={styles.venueBannerAddress} numberOfLines={2}>{resolvedAddress}</Text>
+                )}
+              </View>
+              {/* <Ionicons name="lock-closed" size={13} color={Colors.textSecondary} /> */}
+            </View>
+          )}
+
           <Text style={styles.title}>Share Your Content</Text>
           <Text style={styles.subtitle}>Share Your Moments With The World</Text>
 
@@ -277,14 +346,26 @@ export default function PostScreen() {
             title="Select a image or video"
           />
 
-          <FormField label="Add a Caption" style={{ marginBottom: 18 }}>
+          <FormField label="Caption" style={{ marginBottom: 18 }}>
             <AppTextInput
-              placeholder="add a caption"
+              placeholder="Add a caption..."
               placeholderTextColor={Colors.textSecondary}
               value={caption}
               onChangeText={setCaption}
               multiline
               numberOfLines={3}
+              style={styles.captionInput}
+            />
+          </FormField>
+
+          <FormField label="Notes" >
+            <AppTextInput
+              placeholder="Share your experience..."
+              placeholderTextColor={Colors.textSecondary}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
               style={styles.captionInput}
             />
           </FormField>
@@ -582,12 +663,17 @@ export default function PostScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  scroll: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+  },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
     borderWidth: 1, borderColor: Colors.cardBorder,
     justifyContent: "center", alignItems: "center",
-    marginBottom: 16,
   },
 
   title: { color: Colors.text, fontSize: 24, fontWeight: "700", marginBottom: 4 },
@@ -605,7 +691,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 90,
     textAlignVertical: "top",
-    marginBottom: 18,
+  },
+  notesInput: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 14,
+    color: Colors.text,
+    fontSize: 14,
+    minHeight: 60,
+    textAlignVertical: "top",
   },
 
   dropdownBtn: {
@@ -766,4 +862,50 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   locationText: { color: Colors.textSecondary, fontSize: 13 },
+  venueBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  venueBannerIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  venueBannerName: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  venueBannerAddress: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
+  venueHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 18,
+  },
+  venueHeaderName: { color: Colors.text, fontSize: 15, fontWeight: "700" },
+  venueHeaderAddress: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
 });

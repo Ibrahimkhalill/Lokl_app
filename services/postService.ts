@@ -16,6 +16,10 @@ export const postService = {
     return api.get("/posts/", { params: { my_groups: true, page, page_size: pageSize } });
   },
 
+  getFriendsFeed(page = 1, pageSize = 10) {
+    return api.get("/posts/", { params: { feed: "friends", page, page_size: pageSize } });
+  },
+
   getGroups() {
     return api.get("/groups/");
   },

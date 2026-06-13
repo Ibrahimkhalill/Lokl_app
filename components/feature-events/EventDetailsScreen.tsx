@@ -24,6 +24,7 @@ import { ReviewListCard } from "../events";
 import PlusIcon from "../../assets/icons/plus.svg";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 type Participant = { id: number; name: string; avatar: string | null };
 type Review = {
@@ -112,14 +113,19 @@ function timeAgo(iso: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+type JoinRequest = { id: number; user_name: string; user_avatar: string | null; message?: string };
+
 export default function EventDetailsScreen() {
   const router = useRouter();
+  const { user: currentUser } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [requestingJoin, setRequestingJoin] = useState(false);
   const [distanceStr, setDistanceStr] = useState<string | null>(null);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [respondingId, setRespondingId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -145,14 +151,35 @@ export default function EventDetailsScreen() {
       const res = await eventService.getEvent(Number(id));
       const data = res.data?.data ?? res.data;
       setEvent(data);
+      // If current user is host, also load pending join requests
+      const hostId = data?.host_id ?? data?.business_id ?? data?.host?.id;
+      if (currentUser?.id && hostId && currentUser.id === hostId) {
+        eventService.getJoinRequests(Number(id)).then((r) => {
+          const d = r.data?.data ?? r.data;
+          setJoinRequests(Array.isArray(d) ? d : []);
+        }).catch(() => {});
+      }
     } catch (e) {
       console.log("[EventDetails] error:", getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, currentUser?.id]);
 
   useFocusEffect(useCallback(() => { fetchEvent(); }, [fetchEvent]));
+
+  const handleRespondToRequest = async (requestId: number, status: "Approved" | "Declined") => {
+    if (!id || respondingId) return;
+    setRespondingId(requestId);
+    try {
+      await eventService.respondToJoinRequest(Number(id), requestId, status);
+      setJoinRequests((prev) => prev.filter((r) => r.id !== requestId));
+    } catch (e) {
+      Alert.alert("Error", getErrorMessage(e));
+    } finally {
+      setRespondingId(null);
+    }
+  };
 
   const handleRegister = async () => {
     if (!event || registering) return;
@@ -284,15 +311,57 @@ export default function EventDetailsScreen() {
             </View>
           )}
 
+          {/* Host: Pending Join Requests */}
+          {joinRequests.length > 0 && (
+            <View style={s.joinRequestsPanel}>
+              <Text style={s.joinRequestsPanelTitle}>
+                PENDING REQUESTS ({joinRequests.length})
+              </Text>
+              {joinRequests.map((req) => (
+                <View key={req.id} style={s.joinRequestRow}>
+                  {req.user_avatar ? (
+                    <Image source={{ uri: req.user_avatar }} style={s.joinRequestAvatar} />
+                  ) : (
+                    <View style={[s.joinRequestAvatar, s.joinRequestAvatarPlaceholder]}>
+                      <Ionicons name="person" size={14} color={Colors.textSecondary} />
+                    </View>
+                  )}
+                  <Text style={s.joinRequestName} numberOfLines={1}>{req.user_name}</Text>
+                  <TouchableOpacity
+                    style={s.joinRequestAcceptBtn}
+                    onPress={() => handleRespondToRequest(req.id, "Approved")}
+                    disabled={respondingId === req.id}
+                  >
+                    {respondingId === req.id
+                      ? <ActivityIndicator size="small" color={Colors.black} />
+                      : <Text style={s.joinRequestAcceptText}>Accept</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.joinRequestDeclineBtn}
+                    onPress={() => handleRespondToRequest(req.id, "Declined")}
+                    disabled={respondingId === req.id}
+                  >
+                    <Text style={s.joinRequestDeclineText}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Title */}
           <Text style={s.title}>{event.title.toUpperCase()}</Text>
 
           {/* Meta row: [9.2]  (N ratings) • Yoga • $$ • price */}
           <View style={s.metaRow}>
-             {event.event_type ? (
+            <View style={[s.metaTypeView, event.is_private ? s.privateBadge : s.publicBadge]}>
+              <Text style={[s.metaText, event.is_private ? s.privateBadgeText : s.publicBadgeText]}>
+                {event.is_private ? "Private" : "Public"}
+              </Text>
+            </View>
+            {event.event_type ? (
               <>
-                <View style={s.metaTypeView} >
-                <Text style={s.metaText}>{event.event_type}</Text>
+                <View style={s.metaTypeView}>
+                  <Text style={s.metaText}>{event.event_type}</Text>
                 </View>
               </>
             ) : null}
@@ -373,7 +442,6 @@ export default function EventDetailsScreen() {
                 e.created_by_id ??
                 e.organizer_id ??
                 e.creator_id;
-                console.log("Determined host ID:", e, hostId);
               if (hostId) router.push(`/business/profile?id=${hostId}`);
             }}
           >
@@ -384,8 +452,12 @@ export default function EventDetailsScreen() {
                 <Ionicons name="person" size={20} color={Colors.textSecondary} />
               </View>
             )}
-            <Text style={s.hostName}>{event.host_display}</Text>
-           
+            <View style={{ flex: 1 }}>
+              <Text style={s.hostName}>{event.host_display}</Text>
+            </View>
+            <View style={s.organizerBadge}>
+              <Text style={s.organizerBadgeText}>ORGANIZER</Text>
+            </View>
           </TouchableOpacity>
 
           {/* Participants (Friends Here card) */}
@@ -645,4 +717,59 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   seeAll: { color: Colors.textSecondary, fontSize: 13 },
+
+  publicBadge: { borderColor: "#05DF72", backgroundColor: "rgba(5,223,114,0.1)" },
+  publicBadgeText: { color: "#05DF72" },
+  privateBadge: { borderColor: Colors.primary, backgroundColor: "rgba(123,97,255,0.1)" },
+  privateBadgeText: { color: Colors.primary },
+
+  organizerBadge: {
+    borderWidth: 1, borderColor: Colors.primary,
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
+  },
+  organizerBadgeText: { color: Colors.primary, fontSize: 11, fontWeight: "700" },
+
+  joinRequestsPanel: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  joinRequestsPanelTitle: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  joinRequestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  joinRequestAvatar: { width: 32, height: 32, borderRadius: 16 },
+  joinRequestAvatarPlaceholder: {
+    backgroundColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  joinRequestName: { color: Colors.text, fontSize: 13, fontWeight: "600", flex: 1 },
+  joinRequestAcceptBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  joinRequestAcceptText: { color: Colors.black, fontSize: 12, fontWeight: "700" },
+  joinRequestDeclineBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  joinRequestDeclineText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "600" },
 });

@@ -23,8 +23,8 @@ export const userService = {
     return api.get("/achievements/");
   },
 
-  getLeaderboard() {
-    return api.get("/leaderboard/");
+  getLeaderboard(mode?: "all" | "friends") {
+    return api.get("/leaderboard/", { params: mode === "friends" ? { mode: "friends" } : undefined });
   },
 
   updateLocation(payload: { latitude: number; longitude: number; location_name: string }) {

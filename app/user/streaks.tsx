@@ -37,8 +37,9 @@ export default function StreaksScreen() {
   const [loadingAchievements, setLoadingAchievements] = useState(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [leaderboardMode, setLeaderboardMode] = useState<"all" | "friends">("all");
 
-  const fetchAll = useCallback(async (refresh = false) => {
+  const fetchAll = useCallback(async (refresh = false, mode: "all" | "friends" = "all") => {
     if (refresh) setRefreshing(true);
     setLoadingStreaks(true);
     setLoadingAchievements(true);
@@ -47,7 +48,7 @@ export default function StreaksScreen() {
     const [streaksRes, achievementsRes, leaderboardRes] = await Promise.allSettled([
       userService.getStreaks(),
       userService.getAchievements(),
-      userService.getLeaderboard(),
+      userService.getLeaderboard(mode),
     ]);
 
     if (streaksRes.status === "fulfilled") {
@@ -77,7 +78,16 @@ export default function StreaksScreen() {
     setRefreshing(false);
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchAll(); }, [fetchAll]));
+  useFocusEffect(useCallback(() => { fetchAll(false, leaderboardMode); }, [fetchAll, leaderboardMode]));
+
+  const handleLeaderboardMode = (mode: "all" | "friends") => {
+    setLeaderboardMode(mode);
+    setLoadingLeaderboard(true);
+    userService.getLeaderboard(mode).then((res) => {
+      const d = res.data?.data ?? res.data;
+      setLeaderboard(d);
+    }).catch(() => {}).finally(() => setLoadingLeaderboard(false));
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -117,7 +127,27 @@ export default function StreaksScreen() {
           <AchievementsTabSection data={achievements} loading={loadingAchievements} />
         )}
         {activeTab === "leaderboard" && (
-          <LeaderboardTabSection data={leaderboard} loading={loadingLeaderboard} />
+          <>
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeBtn, leaderboardMode === "all" && styles.modeBtnActive]}
+                onPress={() => handleLeaderboardMode("all")}
+              >
+                <Text style={[styles.modeBtnText, leaderboardMode === "all" && styles.modeBtnTextActive]}>
+                  All Users
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeBtn, leaderboardMode === "friends" && styles.modeBtnActive]}
+                onPress={() => handleLeaderboardMode("friends")}
+              >
+                <Text style={[styles.modeBtnText, leaderboardMode === "friends" && styles.modeBtnTextActive]}>
+                  Friends
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <LeaderboardTabSection data={leaderboard} loading={loadingLeaderboard} />
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -164,4 +194,21 @@ const styles = StyleSheet.create({
   tabBtnText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
   tabBtnTextActive: { color: Colors.black },
   scroll: { paddingHorizontal: 16, paddingBottom: 100 },
+
+  modeToggle: {
+    flexDirection: "row",
+    backgroundColor: Colors.card,
+    borderRadius: 50,
+    padding: 4,
+    marginBottom: 16,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 50,
+    alignItems: "center",
+  },
+  modeBtnActive: { backgroundColor: Colors.primary },
+  modeBtnText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600" },
+  modeBtnTextActive: { color: Colors.black },
 });

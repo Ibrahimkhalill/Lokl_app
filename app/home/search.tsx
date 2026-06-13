@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Image,
 } from "react-native";
-import type { SvgProps } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,12 +17,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
 import NavigateIcon from "../../assets/icons/navigate.svg";
-import IconYoga from "../../assets/icons/hugeicons_yoga-02.svg";
-import IconClimbing from "../../assets/icons/guidance_climbing-wall.svg";
-import IconPilates from "../../assets/icons/guidance_pilates.svg";
-import IconMedicalPhysio from "../../assets/icons/medical-icon_i-physical-therapy.svg";
-import IconSurfing from "../../assets/icons/material-symbols-light_surfing-rounded.svg";
-import IconCricket from "../../assets/icons/cricket.svg";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 
@@ -67,18 +60,22 @@ async function saveRecent(venue: VenueResult) {
 
 const MANHATTAN = { lat: 40.7831, lng: -73.9712 };
 
-type CategoryIcon = React.FC<SvgProps>;
-type CategoryEntry =
-  | { id: string; label: string; type: string; kind: "svg"; Icon: CategoryIcon }
-  | { id: string; label: string; type: string; kind: "ionicon"; name: React.ComponentProps<typeof Ionicons>["name"] };
+type CategoryEntry = {
+  id: string;
+  label: string;
+  type: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+};
 
 const CATEGORIES: CategoryEntry[] = [
-  { id: "1", label: "Yoga",       type: "Yoga",       kind: "svg", Icon: IconYoga },
-  { id: "2", label: "Boxing",     type: "Boxing",     kind: "svg", Icon: IconMedicalPhysio },
-  { id: "3", label: "Basketball", type: "Basketball", kind: "svg", Icon: IconSurfing },
-  { id: "4", label: "Gym",        type: "Gym",        kind: "svg", Icon: IconClimbing },
-  { id: "5", label: "Golf",       type: "Golf",       kind: "svg", Icon: IconPilates },
-  { id: "6", label: "Cricket",    type: "Cricket",    kind: "svg", Icon: IconCricket },
+  { id: "1", label: "Boxing &\nCombat",        type: "Boxing & Combat",      icon: "fitness-outline" },
+  { id: "2", label: "Yoga &\nPilates",         type: "Yoga & Pilates",       icon: "leaf-outline" },
+  { id: "3", label: "Strength &\nCrossFit",    type: "Strength & CrossFit",  icon: "barbell-outline" },
+  { id: "4", label: "Court\nSports",           type: "Court Sports",         icon: "basketball-outline" },
+  { id: "5", label: "Cycling &\nCardio",       type: "Cycling & Cardio",     icon: "bicycle-outline" },
+  { id: "6", label: "Outdoor &\nAdventure",    type: "Outdoor & Adventure",  icon: "compass-outline" },
+  { id: "7", label: "Classes &\nStudios",      type: "Classes & Studios",    icon: "school-outline" },
+  { id: "8", label: "Wellness &\nRecovery",    type: "Wellness & Recovery",  icon: "heart-outline" },
 ];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -261,11 +258,7 @@ export default function SearchScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={[styles.categoryIconWrap, isActive && styles.categoryIconActive]}>
-                    {cat.kind === "svg" ? (
-                      <cat.Icon width={22} height={22} color={iconColor} />
-                    ) : (
-                      <Ionicons name={cat.name} size={22} color={iconColor} />
-                    )}
+                    <Ionicons name={cat.icon} size={22} color={iconColor} />
                   </View>
                   <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
                     {cat.label}
@@ -362,15 +355,15 @@ const styles = StyleSheet.create({
 
   categorySection: { marginBottom: 20 },
   categoryTitle: { color: Colors.textSecondary, fontSize: 14, fontWeight: "500", marginBottom: 14 },
-  categoryList: { gap: 16, paddingRight: 8 },
-  categoryItem: { alignItems: "center", gap: 4, width: 56 },
+  categoryList: { gap: 12, paddingRight: 8 },
+  categoryItem: { alignItems: "center", gap: 4, width: 68 },
   categoryIconWrap: {
     width: 48, height: 48, borderRadius: 24,
     borderWidth: 1, borderColor: Colors.cardBorder,
     justifyContent: "center", alignItems: "center",
   },
   categoryIconActive: { borderColor: Colors.primary },
-  categoryLabel: { color: Colors.textSecondary, fontSize: 11, fontWeight: "500", textAlign: "center" },
+  categoryLabel: { color: Colors.textSecondary, fontSize: 10, fontWeight: "500", textAlign: "center", lineHeight: 14 },
   categoryLabelActive: { color: Colors.primary },
 
   recentSection: { marginBottom: 8 },

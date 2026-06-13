@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const DISMISS_THRESHOLD = 140;
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -30,73 +31,95 @@ export function BottomSheet({
   children,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  // Keep modal mounted during closing animation
+  const [modalVisible, setModalVisible] = useState(visible);
+
+  // Always-current ref so PanResponder closure stays fresh
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const dismiss = useCallback(() => {
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+      onCloseRef.current();
+    });
+  }, [translateY]);
 
   useEffect(() => {
     if (visible) {
+      setModalVisible(true);
+      translateY.setValue(SCREEN_HEIGHT);
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
         bounciness: 4,
-      }).start();
+        speed: 14,
+      } as any).start();
     } else {
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
-        duration: 250,
+        duration: 220,
         useNativeDriver: true,
-      }).start();
+      }).start(() => setModalVisible(false));
     }
   }, [visible, translateY]);
 
+  const dismissRef = useRef(dismiss);
+  useEffect(() => { dismissRef.current = dismiss; }, [dismiss]);
+
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 10,
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 8,
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 120) {
-          onClose();
+        if (g.dy > DISMISS_THRESHOLD || g.vy > 0.8) {
+          dismissRef.current();
         } else {
           Animated.spring(translateY, {
             toValue: 0,
             useNativeDriver: true,
+            bounciness: 4,
           }).start();
         }
       },
-    }),
+    })
   ).current;
-
-  if (!visible) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={dismiss}
     >
       <TouchableOpacity
         style={sheetStyles.backdrop}
         activeOpacity={1}
-        onPress={onClose}
+        onPress={dismiss}
       />
 
       <Animated.View
         style={[sheetStyles.sheet, { transform: [{ translateY }] }]}
       >
+        {/* Drag handle — only this area triggers the pan gesture */}
         <View {...panResponder.panHandlers} style={sheetStyles.dragArea}>
           <View style={sheetStyles.handle} />
+          <View style={sheetStyles.sheetHeader}>
+            <Text style={sheetStyles.sheetTitle}>{title}</Text>
+            <TouchableOpacity onPress={dismiss} style={sheetStyles.sheetCloseBtn}>
+              <Ionicons name="close" size={20} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+          {subtitle ? (
+            <Text style={sheetStyles.sheetSubtitle}>{subtitle}</Text>
+          ) : null}
         </View>
-
-        <View style={sheetStyles.sheetHeader}>
-          <Text style={sheetStyles.sheetTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={sheetStyles.sheetCloseBtn}>
-            <Ionicons name="close" size={20} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
-        {subtitle ? (
-          <Text style={sheetStyles.sheetSubtitle}>{subtitle}</Text>
-        ) : null}
 
         {children}
       </Animated.View>
@@ -123,15 +146,16 @@ const sheetStyles = StyleSheet.create({
     paddingBottom: 32,
   },
   dragArea: {
-    alignItems: "center",
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 4,
+    alignItems: "center",
   },
   handle: {
     width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: 10,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -139,6 +163,7 @@ const sheetStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 4,
+    width: "100%",
   },
   sheetTitle: { color: Colors.text, fontSize: 17, fontWeight: "700" },
   sheetCloseBtn: {
@@ -154,5 +179,6 @@ const sheetStyles = StyleSheet.create({
     fontSize: 13,
     paddingHorizontal: 20,
     paddingBottom: 12,
+    width: "100%",
   },
 });

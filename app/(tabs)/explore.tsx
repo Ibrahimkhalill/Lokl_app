@@ -20,7 +20,6 @@ import { sharedPostStore } from "../../lib/sharedPostStore";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
-import { GroupFeedCard } from "../../components/feature-explore/GroupFeedCard";
 import { EmptyState } from "../../components/primitives";
 
 const { width } = Dimensions.get("window");
@@ -121,13 +120,13 @@ export default function ExploreScreen() {
     if (refresh) setRefreshingGroupPosts(true);
     else setLoadingGroupPosts(true);
     try {
-      const res = await postService.getGroupFeed(1);
+      const res = await postService.getFriendsFeed(1);
       const { results, pagination } = parsePayload(res);
       setGroupPosts(results);
       setGroupPostsPage(1);
       setGroupPostsHasMore(pagination ? pagination.page < pagination.total_pages : results.length === 10);
     } catch (e) {
-      console.log("[Explore] fetchGroupPosts error:", getErrorMessage(e));
+      console.log("[Explore] fetchFriendsPosts error:", getErrorMessage(e));
     } finally {
       setLoadingGroupPosts(false);
       setRefreshingGroupPosts(false);
@@ -140,13 +139,13 @@ export default function ExploreScreen() {
     setLoadingMore(true);
     try {
       const nextPage = groupPostsPage + 1;
-      const res = await postService.getGroupFeed(nextPage);
+      const res = await postService.getFriendsFeed(nextPage);
       const { results, pagination } = parsePayload(res);
       setGroupPosts((prev) => [...prev, ...results]);
       setGroupPostsPage(nextPage);
       setGroupPostsHasMore(pagination ? nextPage < pagination.total_pages : results.length === 10);
     } catch (e) {
-      console.log("[Explore] fetchMoreGroupPosts error:", getErrorMessage(e));
+      console.log("[Explore] fetchMoreFriendsPosts error:", getErrorMessage(e));
     } finally {
       setLoadingMore(false);
       loadingMoreRef.current = false;
@@ -308,27 +307,20 @@ export default function ExploreScreen() {
   }, []);
 
   const renderGroupPost = useCallback(
-    ({ item }: { item: ApiPost }) => {
-      const groups = item.post_target && item.post_target.length > 0 ? item.post_target : [undefined];
-      return (
-        <>
-          {groups.map((group, idx) => (
-            <GroupFeedCard
-              key={group ? `${item.id}-${group.id}` : `${item.id}-${idx}`}
-              item={item}
-              currentGroup={group}
-              router={router}
-              onLike={handleGroupLike}
-              onSave={handleGroupSave}
-              onShare={handleGroupShare}
-              onComment={handleGroupComment}
-              isVisible={item.id === visibleGroupPostId}
-            />
-          ))}
-        </>
-      );
-    },
-    [router, handleGroupLike, handleGroupSave, handleGroupShare, handleGroupComment, visibleGroupPostId]
+    ({ item }: { item: ApiPost }) => (
+      <PostCard
+        item={item}
+        router={router}
+        onLike={handleGroupLike}
+        onSave={handleGroupSave}
+        onShare={handleGroupShare}
+        onFollow={handleFollow}
+        onComment={handleGroupComment}
+        hideFollowBtn={item.is_author === true}
+        isVisible={item.id === visibleGroupPostId}
+      />
+    ),
+    [router, handleGroupLike, handleGroupSave, handleGroupShare, handleFollow, handleGroupComment, visibleGroupPostId]
   );
 
   const renderFooter = () => {
@@ -375,7 +367,7 @@ export default function ExploreScreen() {
             <Text
               style={[styles.tabText, activeTab === "group" && styles.tabTextActive]}
             >
-              Your Group
+              Friends
             </Text>
           </TouchableOpacity>
         </View>

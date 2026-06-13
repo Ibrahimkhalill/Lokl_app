@@ -52,9 +52,9 @@ export default function ReviewsScreen() {
     try {
       let results: Review[] = [];
       if (resolvedVenueId) {
-        const res = await api.get(`/venues/${resolvedVenueId}/`);
+        const res = await api.get(`/venues/${resolvedVenueId}/reviews/`);
         const payload = res.data?.data ?? res.data;
-        results = Array.isArray(payload?.reviews) ? payload.reviews : [];
+        results = Array.isArray(payload?.results) ? payload.results : Array.isArray(payload) ? payload : [];
       } else {
         const res = await api.get(`/events/${eventId}/reviews/`);
         const payload = res.data?.data ?? res.data;
@@ -77,7 +77,7 @@ export default function ReviewsScreen() {
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>REVIEWS</Text>
+        <Text style={s.headerTitle}>{resolvedVenueId ? "ALL RANKINGS" : "REVIEWS"}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -94,7 +94,11 @@ export default function ReviewsScreen() {
           onRefresh={() => fetchReviews(true)}
           refreshing={refreshing}
           ListEmptyComponent={
-            <EmptyState icon="star-outline" title="No reviews yet" subtitle="Be the first to leave a review" />
+            <EmptyState
+              icon="star-outline"
+              title={resolvedVenueId ? "No rankings yet" : "No reviews yet"}
+              subtitle="Be the first to leave one"
+            />
           }
           renderItem={({ item }) => (
             <ReviewListCard

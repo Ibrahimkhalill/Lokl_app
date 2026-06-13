@@ -63,14 +63,23 @@ function toTimeString(d: Date) {
   return `${h}:${min}`;
 }
 
-const EVENT_TYPES = ["Yoga", "Basketball", "Boxing", "Running", "Gym", "Swimming", "Cycling", "Other"];
+const EVENT_TYPES = [
+  "Boxing & Combat",
+  "Yoga & Pilates",
+  "Strength & CrossFit",
+  "Court Sports",
+  "Cycling & Cardio",
+  "Outdoor & Adventure",
+  "Classes & Studios",
+  "Wellness & Recovery",
+];
 
 const NYC_NEIGHBORHOODS = [
-  "Harlem", "East Harlem", "Washington Heights", "Inwood",
-  "Upper East Side", "Upper West Side", "Midtown East", "Midtown West",
-  "Chelsea", "Hell's Kitchen", "Greenwich Village", "West Village",
-  "East Village", "Lower East Side", "SoHo", "TriBeCa",
-  "Financial District", "Flatiron", "Gramercy",
+  "West Village", "FiDi", "East Village", "Lower East Side",
+  "Tribeca", "Midtown", "Murray Hill", "Chelsea",
+  "SoHo", "NoHo", "Nolita", "Battery Park",
+  "Flatiron", "Gramercy", "Hudson Square", "Hudson Yards",
+  "Greenwich Village", "Upper West Side", "Upper East Side",
 ];
 
 export default function CreateEventScreen() {

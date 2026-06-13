@@ -14,86 +14,84 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SLIDER_WIDTH = SCREEN_WIDTH - 40; // paddingHorizontal: 20 each side
+const SLIDER_WIDTH = SCREEN_WIDTH - 40;
 
 const CATEGORIES = [
-  "Gym", "Yoga", "Boxing", "Basketball", "Tennis",
-  "CrossFit", "Pilates", "Martial Arts", "Swimming",
-  "Climbing", "Cycling", "Golf", "Cricket", "Sports",
+  "Boxing & Combat",
+  "Yoga & Pilates",
+  "Strength & CrossFit",
+  "Court Sports",
+  "Cycling & Cardio",
+  "Outdoor & Adventure",
+  "Classes & Studios",
+  "Wellness & Recovery",
+];
+
+const NEIGHBORHOODS = [
+  "West Village",
+  "FiDi",
+  "East Village",
+  "Lower East Side",
+  "Tribeca",
+  "Midtown",
+  "Murray Hill",
+  "Chelsea",
+  "SoHo",
+  "NoHo",
+  "Nolita",
+  "Battery Park",
+  "Flatiron",
+  "Gramercy",
+  "Hudson Square",
+  "Hudson Yards",
+  "Greenwich Village",
+  "Upper West Side",
+  "Upper East Side",
 ];
 
 const RATINGS: { label: string; value: string }[] = [
-  { label: "Any",  value: "" },
-  { label: "6+",   value: "6" },
-  { label: "7+",   value: "7" },
-  { label: "8+",   value: "8" },
-  { label: "9+",   value: "9" },
-];
-
-const PRICES: { label: string; value: string }[] = [
-  { label: "$",    value: "$" },
-  { label: "$$",   value: "$$" },
-  { label: "$$$",  value: "$$$" },
-  { label: "$$$$", value: "$$$$" },
-];
-
-const AMENITIES = [
-  { icon: "car-outline",        label: "Parking", value: "parking" },
-  { icon: "water-outline",      label: "Shower",  value: "shower"  },
-  { icon: "lock-closed-outline",label: "Locker",  value: "locker"  },
-  { icon: "wifi-outline",       label: "WiFi",    value: "wifi"    },
+  { label: "Any", value: "" },
+  { label: "6+",  value: "6" },
+  { label: "7+",  value: "7" },
+  { label: "8+",  value: "8" },
+  { label: "9+",  value: "9" },
 ];
 
 export default function FiltersScreen() {
   const router = useRouter();
 
-  // Read any existing params from home screen (so filters persist)
   const existing = useLocalSearchParams<{
     type?: string;
     min_rating?: string;
-    price_level?: string;
-    amenities?: string;
     plan_tier?: string;
     radius_km?: string;
+    neighborhood?: string;
   }>();
 
-  const [distance,         setDistance]         = useState(Number(existing.radius_km) || 10);
-  const [planTier,         setPlanTier]          = useState(existing.plan_tier ?? "");
-  const [activeCategory,   setActiveCategory]    = useState(existing.type ?? "");
-  const [activeRating,     setActiveRating]      = useState(existing.min_rating ?? "");
-  const [activePrice,      setActivePrice]       = useState(existing.price_level ?? "");
-  const [activeAmenities,  setActiveAmenities]   = useState<string[]>(
-    existing.amenities ? existing.amenities.split(",") : []
-  );
-
-  const toggleAmenity = (val: string) =>
-    setActiveAmenities((prev) =>
-      prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]
-    );
+  const [distance,       setDistance]       = useState(Number(existing.radius_km) || 10);
+  const [planTier,       setPlanTier]        = useState(existing.plan_tier ?? "");
+  const [activeCategory, setActiveCategory]  = useState(existing.type ?? "");
+  const [activeRating,   setActiveRating]    = useState(existing.min_rating ?? "");
+  const [neighborhood,   setNeighborhood]    = useState(existing.neighborhood ?? "");
 
   function reset() {
     setDistance(10);
     setPlanTier("");
     setActiveCategory("");
     setActiveRating("");
-    setActivePrice("");
-    setActiveAmenities([]);
+    setNeighborhood("");
   }
 
   function apply() {
     const params: Record<string, string> = {};
-    if (activeCategory)          params.type        = activeCategory;
-    if (activeRating)            params.min_rating  = activeRating;
-    if (activePrice)             params.price_level = activePrice;
-    if (activeAmenities.length)  params.amenities   = activeAmenities.join(",");
-    if (planTier)                params.plan_tier   = planTier;
+    if (activeCategory) params.type         = activeCategory;
+    if (activeRating)   params.min_rating   = activeRating;
+    if (planTier)       params.plan_tier    = planTier;
+    if (neighborhood)   params.neighborhood = neighborhood;
     params.radius_km = String(distance);
-
-    // Navigate to home tab with filter params — home screen reads them via useLocalSearchParams
     router.push({ pathname: "/(tabs)" as any, params });
   }
 
-  // ── Simple drag slider ───────────────────────────────────────────────────
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gs) => {
@@ -102,7 +100,7 @@ export default function FiltersScreen() {
     },
   });
 
-  const thumbLeft = ((distance / 10) * (SLIDER_WIDTH - 20));
+  const thumbLeft = (distance / 10) * (SLIDER_WIDTH - 20);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -124,19 +122,19 @@ export default function FiltersScreen() {
         {/* ── Distance ─────────────────────────────────────────────── */}
         <Text style={styles.label}>
           Distance:{" "}
-          <Text style={styles.highlight}>{distance} km</Text>
-          <Text style={styles.labelSub}> / 10 km</Text>
+          <Text style={styles.highlight}>{distance} mi</Text>
+          <Text style={styles.labelSub}> / 10 mi</Text>
         </Text>
         <View style={styles.sliderTrack} {...panResponder.panHandlers}>
           <View style={[styles.sliderFill, { width: `${distance * 10}%` }]} />
           <View style={[styles.sliderThumb, { left: thumbLeft }]} />
         </View>
 
-        {/* ── Plan Tiers ───────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Plan tiers</Text>
+        {/* ── Accessibility ────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Accessibility</Text>
         {[
-          { label: "Free",  value: "free" },
-          { label: "Paid",  value: "paid" },
+          { label: "Public",  value: "public" },
+          { label: "Private", value: "private" },
         ].map((tier) => (
           <TouchableOpacity
             key={tier.value}
@@ -159,8 +157,8 @@ export default function FiltersScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* ── Sport Categories ─────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Sport Categories</Text>
+        {/* ── Categories ───────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Categories</Text>
         <View style={styles.chipGrid}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
@@ -180,6 +178,27 @@ export default function FiltersScreen() {
                 ]}
               >
                 {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Neighborhood ─────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Neighborhood</Text>
+        <View style={styles.chipGrid}>
+          {NEIGHBORHOODS.map((n) => (
+            <TouchableOpacity
+              key={n}
+              style={[styles.chip, neighborhood === n && styles.chipActive]}
+              onPress={() => setNeighborhood((prev) => (prev === n ? "" : n))}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  neighborhood === n && styles.chipTextActive,
+                ]}
+              >
+                {n}
               </Text>
             </TouchableOpacity>
           ))}
@@ -212,61 +231,6 @@ export default function FiltersScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* ── Price Range ──────────────────────────────────────────── */}
-        {/* <Text style={styles.sectionLabel}>Price Range</Text>
-        <View style={styles.chipRow}>
-          {PRICES.map((p) => (
-            <TouchableOpacity
-              key={p.value}
-              style={[
-                styles.chip,
-                activePrice === p.value && styles.chipActive,
-              ]}
-              onPress={() =>
-                setActivePrice((prev) => (prev === p.value ? "" : p.value))
-              }
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  activePrice === p.value && styles.chipTextActive,
-                ]}
-              >
-                {p.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View> */}
-
-        {/* ── Amenities ────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Amenities</Text>
-        <View style={styles.chipGrid}>
-          {AMENITIES.map((a) => {
-            const active = activeAmenities.includes(a.value);
-            return (
-              <TouchableOpacity
-                key={a.value}
-                style={[styles.amenityChip, active && styles.chipActive]}
-                onPress={() => toggleAmenity(a.value)}
-              >
-                <Ionicons
-                  name={a.icon as any}
-                  size={16}
-                  color={active ? Colors.black : Colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.chipText,
-                    active && styles.chipTextActive,
-                  ]}
-                >
-                  {a.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
         </View>
       </ScrollView>
 
@@ -393,18 +357,6 @@ const styles = StyleSheet.create({
   },
   chipText:       { color: Colors.text, fontSize: 14, fontWeight: "500" },
   chipTextActive: { color: Colors.black, fontWeight: "700" },
-
-  amenityChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
-  },
 
   applyWrap: {
     paddingHorizontal: 20,

@@ -26,6 +26,8 @@ export type ApiPost = {
   type?: string;
   tag?: string;
   body?: string;
+  caption?: string;
+  notes?: string;
   location?: string;
   image_url?: string | null;
   video_url?: string | null;
@@ -41,16 +43,26 @@ export type ApiPost = {
   is_author?: boolean;
   tagged_groups?: { id: number; name: string }[];
   post_target?: { id: number; name: string; photo?: string | null }[];
+  venue_id?: number | null;
+  venue_name?: string | null;
+  venue_address?: string | null;
 };
 
-function ExpandableBody({ body }: { body: string }) {
+function ExpandableBody({ body, isNotes = false }: { body: string; isNotes?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
   return (
-    <View style={styles.bodyWrap}>
-      <Text style={styles.content} numberOfLines={expanded ? undefined : 3}>
+    <View style={isNotes ? styles.notesWrap : styles.bodyWrap}>
+      <Text
+        style={isNotes ? styles.notesText : styles.content}
+        numberOfLines={expanded ? undefined : 3}
+        onTextLayout={(e) => {
+          if (!expanded) setIsTruncated(e.nativeEvent.lines.length > 3);
+        }}
+      >
         {body}
       </Text>
-      {!expanded && body.length > 120 && (
+      {!expanded && isTruncated && (
         <TouchableOpacity onPress={() => setExpanded(true)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
           <Text style={styles.readMore}>Read more</Text>
         </TouchableOpacity>
@@ -129,7 +141,20 @@ export const PostCard = React.memo(function PostCard({
           activeOpacity={0.8}
         >
           <Avatar uri={item.author_avatar} size={42} borderWidth={2} />
-          <Text style={styles.userName}>{item.author_name || ""}</Text>
+          <View>
+            <Text style={styles.userName}>{item.author_name || ""}</Text>
+            {!!item.venue_name && (
+              <TouchableOpacity
+                onPress={() => router.push(`/home/details?id=${item.venue_id}`)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.venueNameRow}>
+                  <LocationIcon width={11} height={11} color={Colors.primary} />
+                  <Text style={styles.venueNameText} numberOfLines={1}>{item.venue_name}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         </TouchableOpacity>
         {!hideFollowBtn && (
           <TouchableOpacity
@@ -168,7 +193,10 @@ export const PostCard = React.memo(function PostCard({
         )}
       </View>
 
-      {!!item.body && <ExpandableBody body={item.body} />}
+      {!!(item.caption || item.body) && (
+        <ExpandableBody body={item.caption || item.body || ""} />
+      )}
+      {!!item.notes && <ExpandableBody body={item.notes} isNotes />}
 
       {!!item.image_url && (
         <View style={styles.imageWrap}>
@@ -261,6 +289,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   userName: { color: Colors.text, fontSize: 15, fontWeight: "700" },
+  venueNameRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  venueNameText: { color: Colors.primary, fontSize: 11, fontWeight: "600" },
   followBtn: {
     borderWidth: 1,
     borderColor: Colors.white,
@@ -275,13 +305,20 @@ const styles = StyleSheet.create({
   followText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
   followingText: { color: Colors.primary },
   groupTagText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
-  bodyWrap: { paddingHorizontal: 16, marginBottom: 10 },
+  bodyWrap: { paddingHorizontal: 16, marginBottom: 6 },
   content: {
     color: Colors.text,
     fontSize: 14,
     lineHeight: 20,
+    fontWeight: "500",
   },
   readMore: { color: Colors.primary, fontSize: 13, fontWeight: "600", marginTop: 4 },
+  notesWrap: { paddingHorizontal: 16, marginBottom: 10 },
+  notesText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   imageWrap: {
     marginHorizontal: 16,
     borderRadius: 16,

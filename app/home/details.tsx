@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,11 @@ import {
   Image,
   ActivityIndicator,
   Linking,
+  Modal,
+  FlatList,
+  Pressable,
+  Animated,
+  PanResponder,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -79,7 +84,10 @@ interface Friend {
   id: number;
   name: string;
   profile_picture: string | null;
-  rating: string;
+  rating: number | null;
+  comment?: string;
+  image_url?: string | null;
+  created_at?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -123,6 +131,93 @@ export default function DetailsScreen() {
   const [userDistance, setUserDistance] = useState<string | null>(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarking, setBookmarking] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [groups, setGroups] = useState<{ id: number; name: string; photo_url?: string | null }[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
+  const [sharingToGroup, setSharingToGroup] = useState<number | null>(null);
+
+  // Drag-to-dismiss sheet animation
+  const DISMISS_THRESHOLD = 140;
+  const sheetY = useRef(new Animated.Value(600)).current;
+
+  const closeSheet = useCallback(() => {
+    Animated.timing(sheetY, {
+      toValue: 600,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowShareModal(false);
+      sheetY.setValue(600);
+    });
+  }, [sheetY]);
+
+  useEffect(() => {
+    if (showShareModal) {
+      sheetY.setValue(600);
+      Animated.spring(sheetY, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 4,
+        speed: 14,
+      }).start();
+    }
+  }, [showShareModal, sheetY]);
+
+  const sheetPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 5,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) sheetY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > DISMISS_THRESHOLD || gs.vy > 0.8) {
+          Animated.timing(sheetY, {
+            toValue: 600,
+            duration: 220,
+            useNativeDriver: true,
+          }).start(() => {
+            setShowShareModal(false);
+            sheetY.setValue(600);
+          });
+        } else {
+          Animated.spring(sheetY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleOpenShareToGroup = async () => {
+    setShowShareModal(true);
+    if (!groupsLoaded) {
+      setLoadingGroups(true);
+      try {
+        const res = await api.get("/groups/?my=true&page_size=50");
+        const data = res.data?.data ?? res.data;
+        const list = Array.isArray(data) ? data : (data?.results ?? []);
+        setGroups(list.map((g: any) => ({ id: g.id, name: g.name, photo_url: g.photo_url ?? g.cover_image ?? null })));
+        setGroupsLoaded(true);
+      } catch { /* ignore */ } finally {
+        setLoadingGroups(false);
+      }
+    }
+  };
+
+  const handleShareToGroup = async (groupId: number) => {
+    if (!venue) return;
+    setSharingToGroup(groupId);
+    try {
+      await api.post(`/groups/${groupId}/share_venue/`, { venue_id: venue.id });
+    } catch { /* ignore */ } finally {
+      setSharingToGroup(null);
+      closeSheet();
+    }
+  };
 
   const handleToggleBookmark = async () => {
     if (!venue || bookmarking) return;
@@ -233,9 +328,9 @@ export default function DetailsScreen() {
     ? venue.amenities.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean)
     : [];
 
-  // Today's hours
+  // Opening hours — one line per day
   const allHours = Array.isArray(venue.hours) && venue.hours.length > 0
-    ? venue.hours.join(", ")
+    ? venue.hours.join("\n")
     : null;
 
   return (
@@ -324,16 +419,10 @@ export default function DetailsScreen() {
               </Text>
             </View>
             <Text style={styles.metaText}>
-              ({venue.ratings_count.toLocaleString()} ratings)
+              ({venue.ratings_count.toLocaleString()} {venue.ratings_count === 1 ? "rating" : "ratings"})
             </Text>
             <View style={styles.metaDot} />
             <Text style={styles.metaText}>{venue.type}</Text>
-            {!!venue.price_level && (
-              <>
-                <View style={styles.metaDot} />
-                <Text style={styles.metaText}>{venue.price_level}</Text>
-              </>
-            )}
             {!!(userDistance || venue.distance) && (
               <>
                 <View style={styles.metaDot} />
@@ -371,8 +460,15 @@ export default function DetailsScreen() {
                 <Text style={styles.actionBtnText}>Share</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={[styles.actionBtn, styles.shareGroupBtn]}
+                onPress={handleOpenShareToGroup}
+              >
+                <Ionicons name="people-outline" size={14} color={Colors.black} />
+                <Text style={[styles.actionBtnText]}>Share to Group</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.actionIconBtn}
-                onPress={() => router.push(`/home/post?venueId=${venue.id}`)}
+                onPress={() => router.push(`/home/post?venueId=${venue.id}&venueName=${encodeURIComponent(venue.name)}&venueAddress=${encodeURIComponent(venue.address ?? "")}`)}
               >
                 <PlusIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
@@ -514,10 +610,49 @@ export default function DetailsScreen() {
             </>
           )}
 
-          {/* Reviews */}
+          {/* Friends' Rankings — shown above All Rankings */}
+          {friends.length > 0 && (
+            <>
+              <View style={styles.reviewsHeader}>
+                <Text style={styles.sectionTitle}>{"FRIENDS' RANKINGS"}</Text>
+              </View>
+              {friends.map((f) => (
+                <View key={f.id} style={styles.reviewCard}>
+                  <View style={styles.reviewTop}>
+                    {f.profile_picture ? (
+                      <Image source={{ uri: f.profile_picture }} style={styles.reviewAvatar} />
+                    ) : (
+                      <View style={[styles.reviewAvatar, styles.avatarPlaceholder]}>
+                        <Ionicons name="person" size={18} color={Colors.textSecondary} />
+                      </View>
+                    )}
+                    <View style={styles.reviewInfo}>
+                      <Text style={styles.reviewName}>{f.name}</Text>
+                      <Text style={styles.reviewTime}>
+                        {f.created_at ? timeAgo(f.created_at) : "Friend"}
+                      </Text>
+                      {!!f.comment && (
+                        <Text style={styles.reviewText}>{f.comment}</Text>
+                      )}
+                      {!!f.image_url && (
+                        <Image source={{ uri: f.image_url }} style={styles.reviewImage} resizeMode="cover" />
+                      )}
+                    </View>
+                    {f.rating != null && (
+                      <View style={styles.reviewRatingBadge}>
+                        <Text style={styles.reviewRatingText}>{Number(f.rating).toFixed(1)}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
+
+          {/* All Rankings */}
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionTitle}>
-              REVIEWS ({venue.ratings_count})
+              ALL RANKINGS ({venue.ratings_count})
             </Text>
             <TouchableOpacity
               onPress={() => router.push(`/events/reviews?venueId=${venue.id}`)}
@@ -528,7 +663,7 @@ export default function DetailsScreen() {
 
           {reviews.length === 0 ? (
             <Text style={styles.noReviews}>
-              No reviews yet. Be the first!
+              No Raking yet. Be the first!
             </Text>
           ) : (
             reviews.slice(0, 3).map((review) => (
@@ -562,6 +697,54 @@ export default function DetailsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Share to Group modal — drag-to-dismiss */}
+      <Modal visible={showShareModal} transparent animationType="none" onRequestClose={closeSheet}>
+        <Pressable style={styles.modalBackdrop} onPress={closeSheet} />
+        <Animated.View
+          style={[styles.modalSheet, { transform: [{ translateY: sheetY }] }]}
+        >
+          {/* Drag handle — pan responder lives here */}
+          <View style={styles.modalDragArea} {...sheetPan.panHandlers}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Share to Group</Text>
+          </View>
+
+          {loadingGroups ? (
+            <ActivityIndicator
+              size="large"
+              color={Colors.primary}
+              style={{ marginVertical: 32 }}
+            />
+          ) : groups.length === 0 ? (
+            <Text style={styles.modalEmpty}>You haven't joined any groups yet.</Text>
+          ) : (
+            <FlatList
+              data={groups}
+              keyExtractor={(g) => String(g.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.groupRow}
+                  onPress={() => handleShareToGroup(item.id)}
+                  disabled={sharingToGroup === item.id}
+                >
+                  {item.photo_url ? (
+                    <Image source={{ uri: item.photo_url }} style={styles.groupPhoto} />
+                  ) : (
+                    <View style={styles.groupIcon}>
+                      <Ionicons name="people-outline" size={18} color={Colors.primary} />
+                    </View>
+                  )}
+                  <Text style={styles.groupName}>{item.name}</Text>
+                  {sharingToGroup === item.id
+                    ? <ActivityIndicator size="small" color={Colors.primary} />
+                    : <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />}
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </Animated.View>
+      </Modal>
     </View>
   );
 }
@@ -839,5 +1022,77 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 10,
     marginTop: 8,
+  },
+
+  shareGroupBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    // borderColor: Colors.primary,
+  },
+
+  // Share to Group modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: "60%",
+  },
+  modalDragArea: {
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.cardBorder,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+  modalEmpty: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 24,
+  },
+  groupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  groupIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  groupPhoto: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  groupName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

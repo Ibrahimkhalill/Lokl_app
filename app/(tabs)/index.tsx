@@ -13,7 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { api } from "../../lib/api";
@@ -28,50 +28,49 @@ const MANHATTAN_REGION = {
   longitudeDelta: 0.03,
 };
 
+// Rough bounding box for the contiguous USA + Alaska + Hawaii
+function isInUSA(lat: number, lng: number): boolean {
+  // Contiguous US
+  if (lat >= 24.5 && lat <= 49.5 && lng >= -125.0 && lng <= -66.9) return true;
+  // Alaska
+  if (lat >= 54.0 && lat <= 71.5 && lng >= -168.0 && lng <= -141.0) return true;
+  // Hawaii
+  if (lat >= 18.9 && lat <= 22.2 && lng >= -160.3 && lng <= -154.8) return true;
+  return false;
+}
+
+// Uber-style dark map — matched to app's #14161A charcoal palette
 const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0d1117" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1f2e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#212a37" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#746855" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#17263c" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#515c6d" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1f2e" }],
-  },
-  {
-    featureType: "transit",
-    elementType: "geometry",
-    stylers: [{ color: "#2f3948" }],
-  },
-  {
-    featureType: "administrative",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1f2e" }],
-  },
+  // Base land — app background color
+  { elementType: "geometry",            stylers: [{ color: "#14161A" }] },
+  { elementType: "labels.text.stroke",  stylers: [{ color: "#14161A" }] },
+  { elementType: "labels.text.fill",    stylers: [{ color: "#6B7280" }] },
+  // Roads — slightly lighter than background
+  { featureType: "road",                elementType: "geometry",        stylers: [{ color: "#1E2128" }] },
+  { featureType: "road",                elementType: "geometry.stroke", stylers: [{ color: "#2A2D35" }] },
+  { featureType: "road",                elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
+  // Highways a bit brighter
+  { featureType: "road.highway",        elementType: "geometry",        stylers: [{ color: "#252830" }] },
+  { featureType: "road.highway",        elementType: "geometry.stroke", stylers: [{ color: "#2A2D35" }] },
+  // Local roads thin
+  { featureType: "road.local",          elementType: "geometry",        stylers: [{ color: "#1A1D23" }] },
+  // Water — darker than land for contrast
+  { featureType: "water",               elementType: "geometry",        stylers: [{ color: "#0C0E11" }] },
+  { featureType: "water",               elementType: "labels.text.fill", stylers: [{ color: "#3B4550" }] },
+  // Parks — very dark green
+  { featureType: "poi.park",            elementType: "geometry",        stylers: [{ color: "#141A14" }] },
+  { featureType: "poi.park",            elementType: "labels.text.fill", stylers: [{ color: "#3D5C3D" }] },
+  // All other POI hidden — no restaurant/store clutter
+  { featureType: "poi",                 elementType: "geometry",        stylers: [{ color: "#1A1D23" }] },
+  { featureType: "poi",                 elementType: "labels",          stylers: [{ visibility: "off" }] },
+  // Transit hidden
+  { featureType: "transit",             elementType: "geometry",        stylers: [{ color: "#1A1D23" }] },
+  { featureType: "transit",             elementType: "labels",          stylers: [{ visibility: "off" }] },
+  // Admin borders using card border color
+  { featureType: "administrative",      elementType: "geometry",        stylers: [{ color: "#2A2D35" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
+  // Neighborhood labels hidden
+  { featureType: "administrative.neighborhood", elementType: "labels", stylers: [{ visibility: "off" }] },
 ];
 
 const TYPE_ICON: Record<string, string> = {
@@ -138,8 +137,11 @@ interface VenuePin {
   price_level: string;
 }
 
+const TAB_BAR_HEIGHT = 65;
+
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     type?: string;
     min_rating?: string;
@@ -153,9 +155,42 @@ export default function HomeScreen() {
   const [venues, setVenues] = useState<VenuePin[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [cardFriends, setCardFriends] = useState<{ id: number; name: string; profile_picture: string | null }[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [tracksChanges, setTracksChanges] = useState(false);
   const tracksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const [zoomRegion, setZoomRegion] = useState<typeof MANHATTAN_REGION | null>(null);
+
+  // Request GPS on mount — store user region or fall back to Manhattan
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setZoomRegion(MANHATTAN_REGION);
+          return;
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude, longitude } = pos.coords;
+        if (!isInUSA(latitude, longitude)) {
+          setZoomRegion(MANHATTAN_REGION);
+          return;
+        }
+        userCoordsRef.current = { latitude, longitude };
+        setZoomRegion({ latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.03 });
+      } catch {
+        setZoomRegion(MANHATTAN_REGION);
+      }
+    })();
+  }, []);
+
+  // Zoom to location once map is ready and we have a region
+  useEffect(() => {
+    if (mapReady && zoomRegion) {
+      mapRef.current?.animateToRegion(zoomRegion, 800);
+    }
+  }, [mapReady, zoomRegion]);
 
   const selectVenue = useCallback((id: number) => {
     if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
@@ -187,6 +222,15 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // Re-zoom to location every time the user visits the home tab
+  useFocusEffect(
+    useCallback(() => {
+      if (mapReady && zoomRegion) {
+        mapRef.current?.animateToRegion(zoomRegion, 600);
+      }
+    }, [mapReady, zoomRegion])
+  );
+
   // Load venues whenever filter params change
   useEffect(() => {
     loadVenues();
@@ -199,7 +243,7 @@ export default function HomeScreen() {
     params.radius_km,
   ]);
 
-  async function loadVenues() {
+  async function loadVenues(attempt = 0) {
     setLoading(true);
     try {
       const queryParams: Record<string, any> = {};
@@ -209,10 +253,10 @@ export default function HomeScreen() {
       if (params.amenities)   queryParams.amenities   = params.amenities;
       if (params.plan_tier)   queryParams.plan_tier   = params.plan_tier;
 
-      // Always filter by location — default Manhattan center, 5 km radius.
-      // User can override radius via the Filters screen (radius_km param).
-      queryParams.lat       = MANHATTAN_REGION.latitude;
-      queryParams.lng       = MANHATTAN_REGION.longitude;
+      // Use GPS coords if available, otherwise fall back to Manhattan center.
+      const center = userCoordsRef.current ?? MANHATTAN_REGION;
+      queryParams.lat       = center.latitude;
+      queryParams.lng       = center.longitude;
       queryParams.radius_km = params.radius_km ?? "4000";
 
       const res = await api.get("/venues/", { params: queryParams });
@@ -274,7 +318,12 @@ export default function HomeScreen() {
         setSelectedId(data[0].id);
         setTimeout(() => setTracksChanges(false), 400);
       }
-    } catch (err) {
+    } catch (err: any) {
+      const isNetworkErr = err?.message === "Network Error" || err?.code === "ERR_NETWORK";
+      if (isNetworkErr && attempt < 2) {
+        setTimeout(() => loadVenues(attempt + 1), 1200);
+        return;
+      }
       console.error("[HomeScreen] loadVenues error:", err);
     } finally {
       setLoading(false);
@@ -286,6 +335,14 @@ export default function HomeScreen() {
   const fitMapToVenues = useCallback(() => {}, []);
 
   const selectedVenue = venues.find((v) => v.id === selectedId);
+
+  useEffect(() => {
+    if (!selectedId) { setCardFriends([]); return; }
+    api.get(`/venues/${selectedId}/friends/`).then((res) => {
+      const d = res.data?.data ?? res.data;
+      setCardFriends(Array.isArray(d?.friends) ? d.friends : Array.isArray(d) ? d : []);
+    }).catch(() => setCardFriends([]));
+  }, [selectedId]);
 
   return (
     <View style={styles.container}>
@@ -372,7 +429,7 @@ export default function HomeScreen() {
       </SafeAreaView>
 
       {/* Venue Card */}
-      <View style={styles.venueSheet}>
+      <View style={[styles.venueSheet, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT }]}>
         {loading ? (
           <View style={[styles.venueCard, styles.centeredCard]}>
             <ActivityIndicator color={Colors.primary} size="large" />
@@ -429,21 +486,47 @@ export default function HomeScreen() {
                   </View>
                   {selectedVenue.ratings_count > 0 && (
                     <Text style={styles.venueMetaText}>
-                      ({selectedVenue.ratings_count.toLocaleString()} ratings)
+                      ({selectedVenue.ratings_count.toLocaleString()} {selectedVenue.ratings_count === 1 ? "rating" : "ratings"})
                     </Text>
                   )}
                   <View style={styles.dot} />
                   <Text style={styles.venueMetaText}>{selectedVenue.type}</Text>
-                  {!!selectedVenue.price_level && (
+                  {/* {!!selectedVenue.price_level && (
                     <>
                       <View style={styles.dot} />
                       <Text style={styles.venueMetaText}>
                         {selectedVenue.price_level}
                       </Text>
                     </>
-                  )}
+                  )} */}
                 </View>
               </View>
+
+            {/* Friend Avatars */}
+            {cardFriends.length > 0 && (
+              <View style={styles.cardFriendsRow}>
+                <View style={styles.cardFriendAvatars}>
+                  {cardFriends.slice(0, 3).map((f, idx) => (
+                    f.profile_picture ? (
+                      <Image
+                        key={f.id}
+                        source={{ uri: f.profile_picture }}
+                        style={[styles.cardFriendAvatar, { marginLeft: idx === 0 ? 0 : -10 }]}
+                      />
+                    ) : (
+                      <View key={f.id} style={[styles.cardFriendAvatar, styles.cardFriendAvatarPlaceholder, { marginLeft: idx === 0 ? 0 : -10 }]}>
+                        <Ionicons name="person" size={12} color={Colors.textSecondary} />
+                      </View>
+                    )
+                  ))}
+                </View>
+                <Text style={styles.cardFriendsText}>
+                  {cardFriends.length === 1
+                    ? `${cardFriends[0].name} visited`
+                    : `${cardFriends[0].name} + ${cardFriends.length - 1} friend${cardFriends.length - 1 > 1 ? "s" : ""} visited`}
+                </Text>
+              </View>
+            )}
 
             {/* Action Buttons */}
             <View style={styles.venueActions}>
@@ -459,7 +542,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.reviewBtn}
                 onPress={() =>
-                  router.push(`/home/post?venueId=${selectedVenue.id}`)
+                  router.push(`/home/post?venueId=${selectedVenue.id}&venueName=${encodeURIComponent(selectedVenue.name)}&venueAddress=${encodeURIComponent((selectedVenue as any).address ?? "")}`)
                 }
                 activeOpacity={0.85}
               >
@@ -551,9 +634,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 450,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 16,
   },
 
@@ -664,4 +744,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   reviewBtnText: { color: Colors.black, fontSize: 15, fontWeight: "700" },
+
+  cardFriendsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  cardFriendAvatars: { flexDirection: "row" },
+  cardFriendAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: Colors.card,
+  },
+  cardFriendAvatarPlaceholder: {
+    backgroundColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardFriendsText: { color: Colors.textSecondary, fontSize: 11, flex: 1 },
 });

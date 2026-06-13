@@ -11,10 +11,10 @@ import { useToast } from "../../context/ToastContext";
 
 const OPTIONS = [
   "Classes & Training",
-  "Courts & Facilities",
+  "Courts and Fields",
   "Trainer",
   "Community & Events",
-  "Solo Workouts",
+  "Studios and Gyms",
 ];
 
 export default function WhatLookingFor() {

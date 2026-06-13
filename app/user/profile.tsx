@@ -27,6 +27,7 @@ import { getErrorMessage } from "../../lib/api";
 import { Avatar } from "../../components/primitives/Avatar";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
+import type { ApiAchievementsData } from "../../components/feature-profile/streaks";
 
 type MeProfile = {
   id: number;
@@ -37,6 +38,7 @@ type MeProfile = {
   location: string;
   joined: string;
   role: string;
+  sports_interests?: string[];
 };
 
 type MeStats = { posts: number; followers: number; following: number };
@@ -77,14 +79,23 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
+  const [achievements, setAchievements] = useState<ApiAchievementsData | null>(null);
 
   const fetchMe = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const res = await userService.getMe();
-      const d = res.data?.data ?? res.data;
-      setMeData(d);
+      const [meRes, achRes] = await Promise.allSettled([
+        userService.getMe(),
+        userService.getAchievements(),
+      ]);
+      if (meRes.status === "fulfilled") {
+        setMeData(meRes.value.data?.data ?? meRes.value.data);
+      }
+      if (achRes.status === "fulfilled") {
+        const d = achRes.value.data?.data ?? achRes.value.data;
+        setAchievements(d);
+      }
     } catch (e) {
       console.log("[Profile] error:", getErrorMessage(e));
     } finally {
@@ -222,6 +233,20 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Interests */}
+        {(profile?.sports_interests ?? []).length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>INTERESTS</Text>
+            <View style={styles.interestsTags}>
+              {profile!.sports_interests!.map((tag) => (
+                <View key={tag} style={styles.interestTag}>
+                  <Text style={styles.interestTagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={styles.statsGridItem}>
@@ -267,6 +292,33 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Achievements mini-row */}
+        {achievements && achievements.unlocked > 0 && (
+          <View style={styles.achRow}>
+            <View style={styles.achRowHeader}>
+              <Text style={styles.achRowTitle}>ACHIEVEMENTS</Text>
+              <TouchableOpacity onPress={() => router.push("/user/streaks")}>
+                <Text style={styles.achRowSeeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.achBadges}>
+              {achievements.achievements
+                .filter((a) => a.unlocked)
+                .slice(0, 6)
+                .map((a) => (
+                  <View key={a.id} style={styles.achBadge}>
+                    <Ionicons name={a.icon as any} size={20} color={Colors.primary} />
+                  </View>
+                ))}
+              {achievements.unlocked > 6 && (
+                <View style={[styles.achBadge, styles.achBadgeMore]}>
+                  <Text style={styles.achBadgeMoreText}>+{achievements.unlocked - 6}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Posts / Saved Tabs */}
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -279,7 +331,7 @@ export default function ProfileScreen() {
             style={[styles.tabBtn, activeTab === "saved" && styles.tabBtnActive]}
             onPress={() => setActiveTab("saved")}
           >
-            <Text style={[styles.tabBtnText, activeTab === "saved" && styles.tabBtnTextActive]}>Saved</Text>
+            <Text style={[styles.tabBtnText, activeTab === "saved" && styles.tabBtnTextActive]}>Want to Try</Text>
           </TouchableOpacity>
         </View>
 
@@ -513,4 +565,31 @@ const styles = StyleSheet.create({
 
   emptyPosts: { alignItems: "center", gap: 10, paddingVertical: 40 },
   emptyText: { color: Colors.textSecondary, fontSize: 15 },
+
+  achRow: {
+    marginHorizontal: 20, marginBottom: 20, backgroundColor: Colors.secondaryCard,
+    borderRadius: 16, borderWidth: 1, borderColor: Colors.cardBorder, padding: 14,
+  },
+  achRowHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  achRowTitle: { color: Colors.text, fontSize: 13, fontWeight: "800", letterSpacing: 1 },
+  achRowSeeAll: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+  achBadges: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  achBadge: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "rgba(209,255,0,0.12)", borderWidth: 1, borderColor: "rgba(209,255,0,0.25)",
+    justifyContent: "center", alignItems: "center",
+  },
+  achBadgeMore: { backgroundColor: Colors.card },
+  achBadgeMoreText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "700" },
+
+  interestsTags: {
+    flexDirection: "row", flexWrap: "wrap", gap: 8,
+    paddingHorizontal: 20, marginBottom: 20,
+  },
+  interestTag: {
+    backgroundColor: Colors.secondaryCard, borderRadius: 999,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+    paddingHorizontal: 14, paddingVertical: 7,
+  },
+  interestTagText: { color: Colors.text, fontSize: 13, fontWeight: "500" },
 });

@@ -91,6 +91,16 @@ export default function PrivacySecurityScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {visibility === "private" && (
+            <Text style={s.visibilityDesc}>
+              Only people you approve can see your profile and posts.
+            </Text>
+          )}
+          {visibility === "followers" && (
+            <Text style={s.visibilityDesc}>
+              Anyone who follows you can see your profile and posts.
+            </Text>
+          )}
         </View>
       </View>
 
@@ -224,6 +234,12 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   rowSub: { color: Colors.textSecondary, fontSize: 12 },
+  visibilityDesc: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 10,
+    lineHeight: 17,
+  },
   divider: {
     height: 1,
     backgroundColor: Colors.cardBorder,

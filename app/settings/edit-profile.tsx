@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,6 +28,7 @@ import {
 import { pickAvatarImage } from "../../lib/mediaPicker";
 import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
+import { userService } from "../../services/userService";
 import { businessService } from "../../services/businessService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
@@ -353,17 +355,35 @@ function UserEditForm() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+
+  const ALL_INTEREST_TAGS = [
+    "Pickleball","Golf","Soccer","Boxing","Climbing","Yoga","Barre","Cycling",
+    "Training","Tennis","Basketball","Running","Swimming","Pilates","HIIT",
+    "CrossFit","Martial Arts","Dance","Rowing","Volleyball","Padel","Squash",
+    "Softball / Baseball","Stretching / Mobility","Wellness","Meditation",
+    "Aerial / Acrobatics","Calisthenics","Outdoor Workouts","Kayaking","Rock Climbing",
+  ];
 
   useEffect(() => {
     (async () => {
       try {
-        const response = await settingService.getOwnProfile();
-        const data = response.data?.data || response.data;
-        setName(data.name || "");
-        setBio(data.bio || "");
-        setPhone(data.phone || "");
-        setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
-        setAvatarUri(data.avatar || data.avatar_url || null);
+        const [profileRes, meRes] = await Promise.allSettled([
+          settingService.getOwnProfile(),
+          userService.getMe(),
+        ]);
+        if (profileRes.status === "fulfilled") {
+          const data = profileRes.value.data?.data || profileRes.value.data;
+          setName(data.name || "");
+          setBio(data.bio || "");
+          setPhone(data.phone || "");
+          setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
+          setAvatarUri(data.avatar || data.avatar_url || null);
+        }
+        if (meRes.status === "fulfilled") {
+          const me = meRes.value.data?.data || meRes.value.data;
+          setSelectedInterests(Array.isArray(me.sports_interests) ? me.sports_interests : []);
+        }
       } catch (error) {
         showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
       } finally {
@@ -371,6 +391,12 @@ function UserEditForm() {
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleInterest(tag: string) {
+    setSelectedInterests((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
 
   async function handleSave() {
     if (!name.trim()) {
@@ -392,6 +418,7 @@ function UserEditForm() {
         } as any);
       }
       await settingService.updateProfile(formData);
+      await settingService.updateInterests(selectedInterests);
       showToast({ type: "success", title: "Success", message: "Profile updated successfully" });
       router.back();
     } catch (error) {
@@ -411,19 +438,28 @@ function UserEditForm() {
 
   return (
     <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <Text style={s.fieldLabel}>Profile Photo</Text>
-      <MediaPickerCard
-        height={150}
-        previewUri={avatarUri}
-        previewKind="image"
-        onPress={async () => {
-          const picked = await pickAvatarImage();
-          if (picked) setAvatarUri(picked.uri);
-        }}
-        icon={<Ionicons name="image-outline" size={40} color={Colors.textSecondary} />}
-        title="Change Photo"
-        subtitle="tap to update"
-      />
+      <View style={s.circlePhotoSection}>
+        <TouchableOpacity
+          style={s.circlePhotoWrap}
+          onPress={async () => {
+            const picked = await pickAvatarImage();
+            if (picked) setAvatarUri(picked.uri);
+          }}
+          activeOpacity={0.8}
+        >
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={s.circlePhoto} />
+          ) : (
+            <View style={[s.circlePhoto, s.circlePhotoPlaceholder]}>
+              <Ionicons name="person" size={40} color={Colors.textSecondary} />
+            </View>
+          )}
+          <View style={s.circlePhotoCameraBtn}>
+            <Ionicons name="camera" size={16} color={Colors.black} />
+          </View>
+        </TouchableOpacity>
+        <Text style={s.circlePhotoHint}>Tap to change photo</Text>
+      </View>
 
       <FormField label="Name" labelStyle={s.fieldLabel}>
         <AppTextInput placeholder="Enter your name" value={name} onChangeText={setName} />
@@ -444,6 +480,23 @@ function UserEditForm() {
           textAlignVertical="top"
         />
       </FormField>
+
+      <Text style={[s.fieldLabel, { marginTop: 8 }]}>Interests</Text>
+      <View style={s.interestsWrap}>
+        {ALL_INTEREST_TAGS.map((tag) => {
+          const active = selectedInterests.includes(tag);
+          return (
+            <TouchableOpacity
+              key={tag}
+              style={[s.interestChip, active && s.interestChipActive]}
+              onPress={() => toggleInterest(tag)}
+              activeOpacity={0.75}
+            >
+              <Text style={[s.interestChipText, active && s.interestChipTextActive]}>{tag}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <TouchableOpacity style={[s.saveBtn, saving && s.disabledBtn]} onPress={handleSave} disabled={saving}>
         {saving ? <ActivityIndicator color={Colors.black} /> : <Text style={s.saveBtnText}>Save Profile</Text>}
@@ -528,6 +581,30 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
   saveBtnText: { color: Colors.black, fontSize: 17, fontWeight: "700" },
+  circlePhotoSection: { alignItems: "center", marginBottom: 24, marginTop: 8 },
+  circlePhotoWrap: { position: "relative" },
+  circlePhoto: { width: 100, height: 100, borderRadius: 50 },
+  circlePhotoPlaceholder: {
+    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder,
+    justifyContent: "center", alignItems: "center",
+  },
+  circlePhotoCameraBtn: {
+    position: "absolute", bottom: 0, right: 0,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: Colors.background,
+  },
+  circlePhotoHint: { color: Colors.textSecondary, fontSize: 12, marginTop: 8 },
+
   disabledBtn: { opacity: 0.6 },
+
+  interestsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 },
+  interestChip: {
+    borderRadius: 999, borderWidth: 1.5, borderColor: Colors.cardBorder,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  interestChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  interestChipText: { color: Colors.textSecondary, fontSize: 13, fontWeight: "500" },
+  interestChipTextActive: { color: Colors.black, fontWeight: "700" },
 });
 

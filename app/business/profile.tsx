@@ -401,21 +401,29 @@ export default function BusinessProfileScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{displayName}</Text>
               <Text style={styles.role}>{displayBusinessName}</Text>
+              {!!displayRole && displayRole !== "—" && (
+                <View style={styles.accountTypeBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color={Colors.black} />
+                  <Text style={styles.accountTypeBadgeText}>{displayRole}</Text>
+                </View>
+              )}
             </View>
           </View>
 
           <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <View style={styles.statIconCircle}>
-                <StudentsIcon width={16} height={16} color={Colors.primary} />
+            {isOwner && (
+              <View style={styles.statItem}>
+                <View style={styles.statIconCircle}>
+                  <StudentsIcon width={16} height={16} color={Colors.primary} />
+                </View>
+                <Text style={styles.statValue}>
+                  {totalStudents > 999
+                    ? `${(totalStudents / 1000).toFixed(1)}k`
+                    : totalStudents}
+                </Text>
+                <Text style={styles.statLabel}>Reviews</Text>
               </View>
-              <Text style={styles.statValue}>
-                {totalStudents > 999
-                  ? `${(totalStudents / 1000).toFixed(1)}k`
-                  : totalStudents}
-              </Text>
-              <Text style={styles.statLabel}>People</Text>
-            </View>
+            )}
             <View style={styles.statItem}>
               <View style={styles.statIconCircle}>
                 <CourseIcon width={16} height={16} color={Colors.primary} />
@@ -985,6 +993,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   coachPillText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
+  accountTypeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: Colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+  },
+  accountTypeBadgeText: { color: Colors.black, fontSize: 11, fontWeight: "700" },
 
   createBtn: {
     height: 52,
