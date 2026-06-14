@@ -15,7 +15,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Dimensions,
+  Switch,
 } from "react-native";
+
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,14 +28,77 @@ import StudentsIcon from "../../assets/icons/students.svg";
 import CourseIcon from "../../assets/icons/course.svg";
 import DollarIcon from "../../assets/icons/dollar.svg";
 import WebsiteIcon from "../../assets/icons/website.svg";
-import EmailIcon from "../../assets/icons/email.svg";
-import PhoneIcon from "../../assets/icons/call.svg";
 import StarIcon from "../../assets/icons/star.svg";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
 import { EmptyState } from "../../components/primitives";
+import DateTimePicker from "@react-native-community/datetimepicker";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const GRID_GAP = 2;
+const GRID_COLS = 3;
+const CELL_SIZE = (SCREEN_WIDTH - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+const SOCIAL_PLATFORMS = [
+  { key: "instagram", label: "Instagram",  placeholder: "@yourhandle" },
+  { key: "tiktok",    label: "TikTok",     placeholder: "@yourhandle" },
+  { key: "youtube",   label: "YouTube",    placeholder: "@yourchannel" },
+  { key: "x",         label: "X (Twitter)", placeholder: "@yourhandle" },
+  { key: "threads",   label: "Threads",    placeholder: "@yourhandle" },
+  { key: "facebook",  label: "Facebook",   placeholder: "facebook.com/yourpage" },
+  { key: "pinterest", label: "Pinterest",  placeholder: "@yourhandle" },
+  { key: "snapchat",  label: "Snapchat",   placeholder: "@yourhandle" },
+];
+
+function formatTimeForApi(d: Date) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function formatTimeDisplay(d: Date) {
+  const h = d.getHours(), m = d.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+function slotTimeDisplay(t: string) {
+  const [hh, mm] = t.split(":").map(Number);
+  const ampm = (hh ?? 0) >= 12 ? "PM" : "AM";
+  return `${(hh ?? 0) % 12 || 12}:${String(mm ?? 0).padStart(2, "0")} ${ampm}`;
+}
+
+function socialIcon(platform: string): string {
+  const p = (platform ?? "").toLowerCase();
+  if (p.includes("instagram")) return "logo-instagram";
+  if (p.includes("facebook"))  return "logo-facebook";
+  if (p.includes("youtube"))   return "logo-youtube";
+  if (p.includes("twitter") || p.includes(" x")) return "logo-twitter";
+  if (p.includes("snapchat"))  return "logo-snapchat";
+  if (p.includes("pinterest")) return "logo-pinterest";
+  return "share-social-outline";
+}
+
+function socialLink(platform: string, handle: string): string {
+  const p = (platform ?? "").toLowerCase();
+  const h = handle.replace(/^@/, "");
+  if (p.includes("instagram")) return `https://instagram.com/${h}`;
+  if (p.includes("tiktok"))    return `https://tiktok.com/@${h}`;
+  if (p.includes("youtube"))   return `https://youtube.com/@${h}`;
+  if (p.includes("twitter") || p.includes(" x")) return `https://x.com/${h}`;
+  if (p.includes("threads"))   return `https://threads.net/@${h}`;
+  return handle.startsWith("http") ? handle : `https://${handle}`;
+}
+
+function extractHandle(link: string): string {
+  try {
+    const url = new URL(link.startsWith("http") ? link : `https://${link}`);
+    const parts = url.pathname.replace(/^\/+|\/+$/g, "").split("/");
+    return "@" + (parts[parts.length - 1] || "").replace(/^@/, "");
+  } catch {
+    return link;
+  }
+}
 
 interface CoachScheduleSlot {
   id: number;
@@ -50,16 +116,18 @@ interface CoachOffering {
 }
 
 interface CoachContactInfo {
-  instagram_handle?: string;
+  social_platform?: string;
+  social_handle?: string;
+  show_social?: boolean;
   email?: string;
   phone?: string;
-  show_instagram?: boolean;
   show_email?: boolean;
   show_phone?: boolean;
 }
 
 interface TrainingLocation {
   id: number;
+  venue?: number;
   venue_name: string;
   venue_address?: string;
   note?: string;
@@ -68,11 +136,21 @@ interface TrainingLocation {
 interface FeaturedReview {
   id: number;
   reviewer_name: string;
-  comment: string;
-  rating?: number;
+  review_comment?: string;
+  review_rating?: number;
+  review_date?: string;
+}
+
+interface CoachPost {
+  id: number;
+  image_url?: string | null;
+  video_url?: string | null;
+  type?: string;
 }
 
 interface BusinessProfile {
+  id?: number;
+  user_id?: number;
   business_name: string;
   business_type: string;
   owner_name: string;
@@ -84,7 +162,6 @@ interface BusinessProfile {
   social_media: { platform: string; link: string }[];
   phone_number?: string;
   rating?: number;
-  // New fields from backend Section 11
   average_rating?: number;
   review_count?: number;
   clients_count?: number | null;
@@ -146,6 +223,7 @@ export default function BusinessProfileScreen() {
   const [businessProfile, setBusinessProfile] =
     useState<BusinessProfile | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [coachPosts, setCoachPosts] = useState<CoachPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -161,6 +239,48 @@ export default function BusinessProfileScreen() {
   const [bioInput, setBioInput] = useState("");
   const [savingBio, setSavingBio] = useState(false);
 
+  // Schedule modal
+  const [slotModalVisible, setSlotModalVisible] = useState(false);
+  const [slotDay, setSlotDay] = useState("Monday");
+  const [slotTimeDate, setSlotTimeDate] = useState<Date>(() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; });
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [slotDesc, setSlotDesc] = useState("");
+  const [savingSlot, setSavingSlot] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<number | null>(null);
+  const [deletingSlotId, setDeletingSlotId] = useState<number | null>(null);
+  const [dayPickerVisible, setDayPickerVisible] = useState(false);
+
+  // Offerings modal
+  const [offeringModalVisible, setOfferingModalVisible] = useState(false);
+  const [offeringName, setOfferingName] = useState("");
+  const [offeringDesc, setOfferingDesc] = useState("");
+  const [offeringPrice, setOfferingPrice] = useState("");
+  const [savingOffering, setSavingOffering] = useState(false);
+  const [deletingOfferingId, setDeletingOfferingId] = useState<number | null>(null);
+
+  // Contact modal
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [contactSocialPlatform, setContactSocialPlatform] = useState("");
+  const [contactSocial, setContactSocial] = useState("");
+  const [showSocial, setShowSocial] = useState(false);
+  const [socialPickerVisible, setSocialPickerVisible] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [showEmail, setShowEmail] = useState(true);
+  const [showPhone, setShowPhone] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+
+  // Deletion states
+  const [deletingLocationId, setDeletingLocationId] = useState<number | null>(null);
+  const [unfeatuingId, setUnfeaturingId] = useState<number | null>(null);
+
+  // Feature review picker
+  const [reviewPickerVisible, setReviewPickerVisible] = useState(false);
+  const [availableReviews, setAvailableReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [featuringReviewId, setFeaturingReviewId] = useState<number | null>(null);
+
+
   const fetchData = useCallback(async () => {
     try {
       const [bpRes, evRes] = await Promise.all([
@@ -173,6 +293,33 @@ export default function BusinessProfileScreen() {
       ]);
       const bpData = bpRes.data?.data ?? bpRes.data;
       setBusinessProfile(bpData);
+
+      // Owner endpoint lacks nested data — fetch full public profile to get
+      // schedule_slots, offerings, contact_info, training_locations, featured_reviews
+      if (isOwner && bpData?.id) {
+        try {
+          const fullRes = await businessService.getBusinessProfileById(bpData.id);
+          const full = fullRes.data?.data ?? fullRes.data;
+          setBusinessProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  schedule_slots: full.schedule ?? full.schedule_slots ?? [],
+                  offerings: full.offerings ?? [],
+                  contact_info: full.contact_info ?? null,
+                  training_locations: full.training_locations ?? [],
+                  featured_reviews: full.featured_reviews ?? [],
+                  average_rating: full.average_rating,
+                  review_count: full.review_count,
+                  clients_count: full.clients_count,
+                }
+              : prev
+          );
+        } catch {
+          // non-critical — profile still renders without nested data
+        }
+      }
+
       const evPayload = evRes.data?.data ?? evRes.data;
       const raw = Array.isArray(evPayload)
         ? evPayload
@@ -182,6 +329,23 @@ export default function BusinessProfileScreen() {
         ? evPayload.results
         : [];
       setEvents(raw);
+
+      // Fetch posts for the grid using user_id from profile
+      const ownerUserId = bpData?.user_id;
+      if (ownerUserId) {
+        try {
+          const postsRes = await businessService.getBusinessPosts(ownerUserId);
+          const postsPayload = postsRes.data?.data ?? postsRes.data;
+          const rawPosts = Array.isArray(postsPayload)
+            ? postsPayload
+            : Array.isArray(postsPayload?.posts)
+            ? postsPayload.posts
+            : [];
+          setCoachPosts(rawPosts);
+        } catch {
+          // posts grid is non-critical
+        }
+      }
     } catch (err) {
       Alert.alert("Error", getErrorMessage(err));
     } finally {
@@ -275,10 +439,231 @@ export default function BusinessProfileScreen() {
     ]);
   }
 
-  const totalStudents = events.reduce(
-    (sum, e) => sum + (e.registered ?? 0),
-    0
-  );
+  function openSlotModal(slot?: CoachScheduleSlot) {
+    if (slot) {
+      setEditingSlotId(slot.id);
+      setSlotDay(slot.day_of_week);
+      const [hh, mm] = slot.time.split(":").map(Number);
+      const d = new Date();
+      d.setHours(hh ?? 9, mm ?? 0, 0, 0);
+      setSlotTimeDate(d);
+      setSlotDesc(slot.description || "");
+    } else {
+      setEditingSlotId(null);
+      setSlotDay("Monday");
+      const d = new Date(); d.setHours(9, 0, 0, 0);
+      setSlotTimeDate(d);
+      setSlotDesc("");
+    }
+    setSlotModalVisible(true);
+  }
+
+  async function handleSaveSlot() {
+    setSavingSlot(true);
+    const payload = {
+      day_of_week: slotDay,
+      time: formatTimeForApi(slotTimeDate),
+      description: slotDesc.trim(),
+    };
+    try {
+      if (editingSlotId) {
+        await businessService.updateScheduleSlot(businessProfile!.id!, editingSlotId, payload);
+      } else {
+        await businessService.addScheduleSlot(businessProfile!.id!, payload);
+      }
+      setSlotModalVisible(false);
+      fetchData();
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setSavingSlot(false);
+    }
+  }
+
+  function handleDeleteSlot(slotId: number) {
+    Alert.alert("Delete Slot", "Remove this schedule slot?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          setDeletingSlotId(slotId);
+          try {
+            await businessService.deleteScheduleSlot(businessProfile!.id!, slotId);
+            setBusinessProfile((prev) =>
+              prev ? { ...prev, schedule_slots: prev.schedule_slots?.filter((s) => s.id !== slotId) } : prev
+            );
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setDeletingSlotId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleAddOffering() {
+    if (!offeringName.trim()) {
+      Alert.alert("Required", "Please enter a service name.");
+      return;
+    }
+    setSavingOffering(true);
+    try {
+      await businessService.addOffering(businessProfile!.id!, {
+        name: offeringName.trim(),
+        description: offeringDesc.trim(),
+        price: offeringPrice ? Number(offeringPrice) : null,
+      });
+      setOfferingModalVisible(false);
+      setOfferingName("");
+      setOfferingDesc("");
+      setOfferingPrice("");
+      fetchData();
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setSavingOffering(false);
+    }
+  }
+
+  function handleDeleteOffering(offeringId: number) {
+    Alert.alert("Delete Offering", "Remove this offering?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          setDeletingOfferingId(offeringId);
+          try {
+            await businessService.deleteOffering(businessProfile!.id!, offeringId);
+            setBusinessProfile((prev) =>
+              prev ? { ...prev, offerings: prev.offerings?.filter((o) => o.id !== offeringId) } : prev
+            );
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setDeletingOfferingId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function openContactModal() {
+    const c = businessProfile?.contact_info;
+
+    // Default platform: use what's saved, or first social media they have
+    const firstSocial = businessProfile?.social_media?.[0];
+    const defaultPlatform = c?.social_platform || firstSocial?.platform?.toLowerCase() || "";
+    const defaultHandle = c?.social_handle ||
+      (firstSocial ? extractHandle(firstSocial.link) : "");
+
+    setContactSocialPlatform(defaultPlatform);
+    setContactSocial(defaultHandle);
+    setShowSocial(c?.show_social ?? false);
+    setContactEmail(c?.email || user?.email || "");
+    setContactPhone(c?.phone || businessProfile?.phone_number || "");
+    setShowEmail(c?.show_email ?? true);
+    setShowPhone(c?.show_phone ?? false);
+    setContactModalVisible(true);
+  }
+
+  async function handleSaveContact() {
+    setSavingContact(true);
+    try {
+      await businessService.updateContact(businessProfile!.id!, {
+        social_platform: contactSocialPlatform.toLowerCase(),
+        social_handle: contactSocial.trim(),
+        show_social: showSocial,
+        email: contactEmail.trim(),
+        phone: contactPhone.trim(),
+        show_email: showEmail,
+        show_phone: showPhone,
+      });
+      setContactModalVisible(false);
+      fetchData();
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
+  function handleDeleteLocation(lid: number) {
+    Alert.alert("Remove Location", "Remove this training location?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove", style: "destructive",
+        onPress: async () => {
+          setDeletingLocationId(lid);
+          try {
+            await businessService.deleteTrainingLocation(businessProfile!.id!, lid);
+            setBusinessProfile((prev) =>
+              prev ? { ...prev, training_locations: prev.training_locations?.filter((l) => l.id !== lid) } : prev
+            );
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setDeletingLocationId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function handleUnfeatureReview(fid: number) {
+    Alert.alert("Unpin Review", "Remove this review from your profile?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Unpin", style: "destructive",
+        onPress: async () => {
+          setUnfeaturingId(fid);
+          try {
+            await businessService.deleteFeaturedReview(businessProfile!.id!, fid);
+            setBusinessProfile((prev) =>
+              prev ? { ...prev, featured_reviews: prev.featured_reviews?.filter((r) => r.id !== fid) } : prev
+            );
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setUnfeaturingId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function openReviewPicker() {
+    setReviewPickerVisible(true);
+    setLoadingReviews(true);
+    try {
+      const res = await businessService.getAvailableReviews(businessProfile!.id!);
+      const data = res.data?.data ?? res.data;
+      setAvailableReviews(Array.isArray(data) ? data : []);
+    } catch {
+      setAvailableReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }
+
+  async function handleFeatureReview(reviewId: number) {
+    setFeaturingReviewId(reviewId);
+    try {
+      const res = await businessService.addFeaturedReview(businessProfile!.id!, reviewId);
+      const newFeatured = res.data?.data ?? res.data;
+      setBusinessProfile((prev) =>
+        prev ? { ...prev, featured_reviews: [...(prev.featured_reviews ?? []), newFeatured] } : prev
+      );
+      setAvailableReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      if ((businessProfile?.featured_reviews?.length ?? 0) + 1 >= 3) {
+        setReviewPickerVisible(false);
+      }
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    } finally {
+      setFeaturingReviewId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -303,8 +688,6 @@ export default function BusinessProfileScreen() {
   const displayAddress = businessProfile?.address || "";
   const displayWebsite = businessProfile?.website || "";
   const displaySocials = businessProfile?.social_media || [];
-  const bussinesPhone = businessProfile?.phone_number || "";
-  const displayEmail = user?.email || "";
 
   const coverUri =
     localCoverUri ?? businessProfile?.cover_photo_url ?? null;
@@ -396,34 +779,49 @@ export default function BusinessProfileScreen() {
                   )}
                 </View>
               )}
+            
             </TouchableOpacity>
 
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{displayName}</Text>
-              <Text style={styles.role}>{displayBusinessName}</Text>
-              {!!displayRole && displayRole !== "—" && (
+              <Text style={styles.role}>{displayRole}</Text>
+              {/* {!!displayRole && displayRole !== "—" && (
                 <View style={styles.accountTypeBadge}>
-                  <Ionicons name="checkmark-circle" size={12} color={Colors.black} />
                   <Text style={styles.accountTypeBadgeText}>{displayRole}</Text>
                 </View>
-              )}
+              )} */}
             </View>
           </View>
 
           <View style={styles.statsRow}>
+            {/* Reviews — visible to everyone */}
+            <View style={styles.statItem}>
+              <View style={styles.statIconCircle}>
+                <StudentsIcon width={16} height={16} color={Colors.primary} />
+              </View>
+              <Text style={styles.statValue}>
+                {(businessProfile?.review_count ?? 0) > 999
+                  ? `${((businessProfile?.review_count ?? 0) / 1000).toFixed(1)}k`
+                  : businessProfile?.review_count ?? 0}
+              </Text>
+              <Text style={styles.statLabel}>Reviews</Text>
+            </View>
+
+            {/* Clients — owner only */}
             {isOwner && (
               <View style={styles.statItem}>
                 <View style={styles.statIconCircle}>
-                  <StudentsIcon width={16} height={16} color={Colors.primary} />
+                  <Ionicons name="people-outline" size={16} color={Colors.primary} />
                 </View>
                 <Text style={styles.statValue}>
-                  {totalStudents > 999
-                    ? `${(totalStudents / 1000).toFixed(1)}k`
-                    : totalStudents}
+                  {(businessProfile?.clients_count ?? 0) > 999
+                    ? `${((businessProfile?.clients_count ?? 0) / 1000).toFixed(1)}k`
+                    : businessProfile?.clients_count ?? 0}
                 </Text>
-                <Text style={styles.statLabel}>Reviews</Text>
+                <Text style={styles.statLabel}>Clients</Text>
               </View>
             )}
+
             <View style={styles.statItem}>
               <View style={styles.statIconCircle}>
                 <CourseIcon width={16} height={16} color={Colors.primary} />
@@ -433,21 +831,21 @@ export default function BusinessProfileScreen() {
               </Text>
               <Text style={styles.statLabel}>Events</Text>
             </View>
+
             <View style={styles.statItem}>
-            <View style={styles.scoreBlock}>
-              <View style={styles.coachPill}>
-                <Text style={styles.coachPillText}>
-                  {businessProfile?.business_type || "Business"}
-                </Text>
-               
+              <View style={styles.scoreBlock}>
+                <View style={styles.coachPill}>
+                  <Text style={styles.coachPillText} numberOfLines={1}>
+                    {"Business"}
+                  </Text>
+                </View>
               </View>
-            </View>
               <View style={styles.ratingBadge}>
                 <Text style={styles.ratingText}>
                   {businessProfile?.average_rating?.toFixed(1) ?? businessProfile?.rating ?? "0.0"}
                 </Text>
               </View>
-              <Text style={styles.statLabel}>Review</Text>
+              <Text style={styles.statLabel}>Rating</Text>
             </View>
           </View>
 
@@ -493,6 +891,44 @@ export default function BusinessProfileScreen() {
 
         {tab === "about" ? (
           <>
+            {/* ── Section 1: Posts / Class Clips Grid ─────────────────── */}
+            {coachPosts.length > 0 && (
+              <>
+                <Text style={styles.sectionHeader}>Posts & Class Clips</Text>
+                <View style={styles.postsGrid}>
+                  {coachPosts.slice(0, 12).map((post) => (
+                    <TouchableOpacity
+                      key={post.id}
+                      style={styles.gridCell}
+                      activeOpacity={0.85}
+                    >
+                      {post.image_url ? (
+                        <Image
+                          source={{ uri: post.image_url }}
+                          style={styles.gridCellImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.gridCellImage, styles.gridCellPlaceholder]}>
+                          <Ionicons
+                            name={post.video_url ? "play-circle-outline" : "image-outline"}
+                            size={22}
+                            color={Colors.textMuted}
+                          />
+                        </View>
+                      )}
+                      {post.video_url && (
+                        <View style={styles.videoIndicator}>
+                          <Ionicons name="play" size={10} color={Colors.white} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* ── Bio ─────────────────────────────────────────────────── */}
             <View style={styles.aboutCard}>
               <View style={styles.aboutHeader}>
                 <Text style={styles.aboutTitle}>Bio</Text>
@@ -529,29 +965,6 @@ export default function BusinessProfileScreen() {
               </View>
             ) : null}
 
-            {displayEmail ? (
-              <View style={styles.infoCard}>
-                <View style={styles.infoIconWrap}>
-                  <EmailIcon width={18} height={18} color={Colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Email</Text>
-                  <Text style={styles.infoValue}>{displayEmail}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            {bussinesPhone ? (
-              <View style={styles.infoCard}>
-                <View style={styles.infoIconWrap}>
-                  <PhoneIcon width={18} height={18} color={Colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Business Phone</Text>
-                  <Text style={styles.infoValue}>{bussinesPhone}</Text>
-                </View>
-              </View>
-            ) : null}
 
             {displayAddress ? (
               <View style={styles.infoCard}>
@@ -626,85 +1039,185 @@ export default function BusinessProfileScreen() {
               </>
             ) : null}
 
-            {/* ── Schedule ──────────────────────────────────────────────── */}
-            {(businessProfile?.schedule_slots?.length ?? 0) > 0 ? (
+            {/* ── Schedule ─────────────────────────────────────────── */}
+            {(isOwner || (businessProfile?.schedule_slots?.length ?? 0) > 0) && (
               <>
-                <Text style={styles.sectionHeader}>Schedule</Text>
-                {businessProfile!.schedule_slots!.map((slot) => (
-                  <View key={slot.id} style={styles.infoCard}>
-                    <View style={styles.infoIconWrap}>
-                      <Ionicons name="calendar-outline" size={18} color={Colors.primary} />
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeader}>Schedule</Text>
+                  {isOwner && (
+                    <TouchableOpacity style={styles.sectionAddBtn} onPress={() => openSlotModal()}>
+                      <Ionicons name="add" size={14} color={Colors.primary} />
+                      <Text style={styles.sectionAddBtnText}>Add</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {(businessProfile?.schedule_slots?.length ?? 0) === 0 && isOwner ? (
+                  <TouchableOpacity style={styles.addPlaceholder} onPress={() => openSlotModal()}>
+                    <View style={styles.addPlaceholderIcon}>
+                      <Ionicons name="calendar-outline" size={26} color={Colors.primary} />
                     </View>
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>
-                        {slot.day_of_week}
-                        {slot.venue_name ? ` · ${slot.venue_name}` : ""}
-                      </Text>
-                      <Text style={styles.infoValue}>{slot.time}{slot.description ? `  —  ${slot.description}` : ""}</Text>
+                    <Text style={styles.addPlaceholderTitle}>Add Your Schedule</Text>
+                    <Text style={styles.addPlaceholderText}>Let clients know when you train</Text>
+                  </TouchableOpacity>
+                ) : (
+                  businessProfile!.schedule_slots!.map((slot) => (
+                    <View key={slot.id} style={styles.slotCard}>
+                      <View style={styles.slotAccent} />
+                      <View style={styles.slotBody}>
+                        <View style={styles.slotTopRow}>
+                          <Text style={styles.slotDay}>{slot.day_of_week.toUpperCase()}</Text>
+                          {isOwner && (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                              <TouchableOpacity onPress={() => openSlotModal(slot)} hitSlop={8}>
+                                <Ionicons name="create-outline" size={16} color={Colors.primary} />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => handleDeleteSlot(slot.id)}
+                                hitSlop={8}
+                                disabled={deletingSlotId === slot.id}
+                              >
+                                {deletingSlotId === slot.id ? (
+                                  <ActivityIndicator size="small" color="#FF3B30" />
+                                ) : (
+                                  <Ionicons name="trash-outline" size={15} color="#FF3B30" />
+                                )}
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.slotTime}>{slotTimeDisplay(slot.time)}</Text>
+                        {slot.description ? <Text style={styles.slotDesc}>{slot.description}</Text> : null}
+                        {slot.venue_name ? <Text style={styles.slotVenue}>{slot.venue_name}</Text> : null}
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  ))
+                )}
               </>
-            ) : null}
+            )}
 
-            {/* ── Offerings ─────────────────────────────────────────────── */}
-            {(businessProfile?.offerings?.length ?? 0) > 0 ? (
+            {/* ── Offerings ────────────────────────────────────────── */}
+            {(isOwner || (businessProfile?.offerings?.length ?? 0) > 0) && (
               <>
-                <Text style={styles.sectionHeader}>Offerings</Text>
-                {businessProfile!.offerings!.map((offer) => (
-                  <View key={offer.id} style={styles.offeringCard}>
-                    <View style={styles.offeringHeader}>
-                      <Text style={styles.offeringName}>{offer.name}</Text>
-                      {offer.price != null && (
-                        <Text style={styles.offeringPrice}>${offer.price}</Text>
-                      )}
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeader}>Offerings</Text>
+                  {isOwner && (
+                    <TouchableOpacity style={styles.sectionAddBtn} onPress={() => setOfferingModalVisible(true)}>
+                      <Ionicons name="add" size={14} color={Colors.primary} />
+                      <Text style={styles.sectionAddBtnText}>Add</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {(businessProfile?.offerings?.length ?? 0) === 0 && isOwner ? (
+                  <TouchableOpacity style={styles.addPlaceholder} onPress={() => setOfferingModalVisible(true)}>
+                    <View style={styles.addPlaceholderIcon}>
+                      <Ionicons name="pricetag-outline" size={26} color={Colors.primary} />
                     </View>
-                    {offer.description ? (
-                      <Text style={styles.offeringDesc}>{offer.description}</Text>
-                    ) : null}
-                  </View>
-                ))}
+                    <Text style={styles.addPlaceholderTitle}>Add Offerings</Text>
+                    <Text style={styles.addPlaceholderText}>List your services & pricing</Text>
+                  </TouchableOpacity>
+                ) : (
+                  businessProfile!.offerings!.map((offer) => (
+                    <View key={offer.id} style={styles.offeringCard}>
+                      <View style={styles.offeringHeader}>
+                        <Text style={styles.offeringName}>{offer.name}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          {offer.price != null && (
+                            <Text style={styles.offeringPrice}>${offer.price}</Text>
+                          )}
+                          {isOwner && (
+                            <TouchableOpacity
+                              onPress={() => handleDeleteOffering(offer.id)}
+                              hitSlop={8}
+                              disabled={deletingOfferingId === offer.id}
+                            >
+                              {deletingOfferingId === offer.id ? (
+                                <ActivityIndicator size="small" color="#FF3B30" />
+                              ) : (
+                                <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                              )}
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                      {offer.description ? (
+                        <Text style={styles.offeringDesc}>{offer.description}</Text>
+                      ) : null}
+                    </View>
+                  ))
+                )}
               </>
-            ) : null}
+            )}
 
-            {/* ── Contact Info ──────────────────────────────────────────── */}
-            {businessProfile?.contact_info ? (() => {
-              const c = businessProfile.contact_info!;
+            {/* ── Contact ──────────────────────────────────────────── */}
+            {(isOwner || businessProfile?.contact_info) ? (() => {
+              const c = businessProfile?.contact_info;
               const items: { icon: string; label: string; value: string; link?: string }[] = [];
-              if (c.instagram_handle) items.push({ icon: "logo-instagram", label: "Instagram", value: `@${c.instagram_handle}`, link: `https://instagram.com/${c.instagram_handle}` });
-              if (c.email)            items.push({ icon: "mail-outline",    label: "Email",     value: c.email,               link: `mailto:${c.email}` });
-              if (c.phone)            items.push({ icon: "call-outline",    label: "Phone",     value: c.phone,               link: `tel:${c.phone}` });
-              if (items.length === 0) return null;
+              if (c?.social_handle && (isOwner || c.show_social))
+                items.push({
+                  icon: socialIcon(c.social_platform || ""),
+                  label: c.social_platform
+                    ? c.social_platform.charAt(0).toUpperCase() + c.social_platform.slice(1)
+                    : "Social",
+                  value: c.social_handle,
+                  link: socialLink(c.social_platform || "", c.social_handle),
+                });
+              if (c?.email && (isOwner || c.show_email !== false))
+                items.push({ icon: "mail-outline", label: "Email", value: c.email, link: `mailto:${c.email}` });
+              if (c?.phone && (isOwner || c.show_phone !== false))
+                items.push({ icon: "call-outline", label: "Phone", value: c.phone, link: `tel:${c.phone}` });
               return (
                 <>
-                  <Text style={styles.sectionHeader}>Contact</Text>
-                  {items.map((item, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={styles.infoCard}
-                      activeOpacity={0.7}
-                      onPress={() => item.link && Linking.openURL(item.link)}
-                    >
-                      <View style={styles.infoIconWrap}>
-                        <Ionicons name={item.icon as any} size={18} color={Colors.primary} />
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionHeader}>Contact</Text>
+                    {isOwner && (
+                      <TouchableOpacity style={styles.sectionAddBtn} onPress={openContactModal}>
+                        <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                        <Text style={styles.sectionAddBtnText}>Edit</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {items.length === 0 && isOwner ? (
+                    <TouchableOpacity style={styles.addPlaceholder} onPress={openContactModal}>
+                      <View style={styles.addPlaceholderIcon}>
+                        <Ionicons name="call-outline" size={26} color={Colors.primary} />
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>{item.label}</Text>
-                        <Text style={styles.infoValue}>{item.value}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                      <Text style={styles.addPlaceholderTitle}>Add Contact Info</Text>
+                      <Text style={styles.addPlaceholderText}>Instagram, email, or phone</Text>
                     </TouchableOpacity>
-                  ))}
+                  ) : (
+                    items.map((item, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.infoCard}
+                        activeOpacity={0.7}
+                        onPress={() => item.link && Linking.openURL(item.link)}
+                      >
+                        <View style={styles.infoIconWrap}>
+                          <Ionicons name={item.icon as any} size={18} color={Colors.primary} />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>{item.label}</Text>
+                          <Text style={styles.infoValue}>{item.value}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </>
               );
             })() : null}
 
-            {/* ── Training Locations ────────────────────────────────────── */}
+            {/* ── Training Locations ──────────────────────────────── */}
             {(businessProfile?.training_locations?.length ?? 0) > 0 ? (
               <>
                 <Text style={styles.sectionHeader}>Trains At</Text>
                 {businessProfile!.training_locations!.map((loc) => (
-                  <View key={loc.id} style={styles.infoCard}>
+                  <TouchableOpacity
+                    key={loc.id}
+                    style={styles.infoCard}
+                    activeOpacity={0.85}
+                    onPress={() => loc.venue ? router.push(`/home/details?id=${loc.venue}`) : undefined}
+                  >
                     <View style={styles.infoIconWrap}>
                       <LocationsIcon width={18} height={18} color={Colors.primary} />
                     </View>
@@ -713,31 +1226,78 @@ export default function BusinessProfileScreen() {
                       {loc.venue_address ? <Text style={styles.infoLabel}>{loc.venue_address}</Text> : null}
                       {loc.note ? <Text style={styles.infoLabel}>{loc.note}</Text> : null}
                     </View>
-                  </View>
+                    {loc.venue ? (
+                      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                    ) : null}
+                    {isOwner && (
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation?.(); handleDeleteLocation(loc.id); }}
+                        hitSlop={8}
+                        disabled={deletingLocationId === loc.id}
+                      >
+                        {deletingLocationId === loc.id ? (
+                          <ActivityIndicator size="small" color="#FF3B30" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
                 ))}
               </>
             ) : null}
 
-            {/* ── Featured Reviews ──────────────────────────────────────── */}
-            {(businessProfile?.featured_reviews?.length ?? 0) > 0 ? (
+            {/* ── Featured Reviews ────────────────────────────────── */}
+            {(isOwner || (businessProfile?.featured_reviews?.length ?? 0) > 0) && (
               <>
-                <Text style={styles.sectionHeader}>Featured Reviews</Text>
-                {businessProfile!.featured_reviews!.map((rev) => (
-                  <View key={rev.id} style={styles.reviewCard}>
-                    <View style={styles.reviewHeader}>
-                      <Ionicons name="person-circle-outline" size={22} color={Colors.textSecondary} />
-                      <Text style={styles.reviewerName}>{rev.reviewer_name}</Text>
-                      {rev.rating != null && (
-                        <View style={styles.ratingBadge}>
-                          <Text style={styles.ratingText}>{rev.rating}</Text>
-                        </View>
-                      )}
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeader}>Featured Reviews</Text>
+                  {isOwner && (businessProfile?.featured_reviews?.length ?? 0) < 3 && (
+                    <TouchableOpacity style={styles.sectionAddBtn} onPress={openReviewPicker}>
+                      <Text style={styles.sectionAddBtnText}>+ Pin Review</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {(businessProfile?.featured_reviews?.length ?? 0) === 0 ? (
+                  <TouchableOpacity style={styles.addPlaceholder} onPress={openReviewPicker}>
+                    <View style={styles.addPlaceholderIcon}>
+                      <Ionicons name="star-outline" size={22} color={Colors.primary} />
                     </View>
-                    <Text style={styles.reviewComment}>{rev.comment}</Text>
-                  </View>
-                ))}
+                    <Text style={styles.addPlaceholderTitle}>Pin your best reviews</Text>
+                  </TouchableOpacity>
+                ) : (
+                  businessProfile!.featured_reviews!.map((rev) => (
+                    <View key={rev.id} style={styles.reviewCard}>
+                      <View style={styles.reviewHeader}>
+                        <Ionicons name="person-circle-outline" size={22} color={Colors.textSecondary} />
+                        <Text style={styles.reviewerName}>{rev.reviewer_name}</Text>
+                        {rev.review_rating != null && (
+                          <View style={styles.ratingBadge}>
+                            <Text style={styles.ratingText}>{rev.review_rating}</Text>
+                          </View>
+                        )}
+                        {isOwner && (
+                          <TouchableOpacity
+                            onPress={() => handleUnfeatureReview(rev.id)}
+                            hitSlop={8}
+                            disabled={unfeatuingId === rev.id}
+                            style={{ flex: 1, alignItems: "flex-end" }}
+                          >
+                            {unfeatuingId === rev.id ? (
+                              <ActivityIndicator size="small" color="#FF3B30" />
+                            ) : (
+                              <Ionicons name="pin-outline" size={16} color="#FF3B30" />
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={styles.reviewComment}>{rev.review_comment}</Text>
+                    </View>
+                  ))
+                )}
               </>
-            ) : null}
+            )}
           </>
         ) : (
           <View style={styles.eventsList}>
@@ -834,6 +1394,317 @@ export default function BusinessProfileScreen() {
         )}
       </ScrollView>
 
+      {/* ── Add Schedule Slot Modal ── */}
+      <Modal
+        visible={slotModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setSlotModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSlotModalVisible(false)} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+          >
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{editingSlotId ? "Edit Schedule Slot" : "Add Schedule Slot"}</Text>
+                <TouchableOpacity onPress={() => setSlotModalVisible(false)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalLabel}>Day</Text>
+              <TouchableOpacity
+                style={styles.modalPickerBtn}
+                onPress={() => setDayPickerVisible(true)}
+              >
+                <Text style={styles.modalPickerBtnText}>{slotDay}</Text>
+                <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+
+              <Text style={styles.modalLabel}>Time</Text>
+              <TouchableOpacity
+                style={styles.modalPickerBtn}
+                onPress={() => setTimePickerVisible(true)}
+              >
+                <Text style={styles.modalPickerBtnText}>{formatTimeDisplay(slotTimeDate)}</Text>
+                <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+
+              {timePickerVisible && (
+                <DateTimePicker
+                  value={slotTimeDate}
+                  mode="time"
+                  is24Hour={false}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  themeVariant="dark"
+                  onChange={(_e, date) => {
+                    if (Platform.OS === "android") setTimePickerVisible(false);
+                    if (date) setSlotTimeDate(date);
+                  }}
+                />
+              )}
+
+              <Text style={styles.modalLabel}>Description (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={slotDesc}
+                onChangeText={setSlotDesc}
+                placeholder="e.g. Boxing class at Gotham Gym"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+              />
+
+              {Platform.OS === "ios" && timePickerVisible ? (
+                <TouchableOpacity
+                  style={styles.saveBtn}
+                  onPress={() => setTimePickerVisible(false)}
+                >
+                  <Text style={styles.saveBtnText}>Confirm Time</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.saveBtn, savingSlot && styles.saveBtnDisabled]}
+                  onPress={handleSaveSlot}
+                  disabled={savingSlot}
+                >
+                  {savingSlot ? <ActivityIndicator color={Colors.black} /> : <Text style={styles.saveBtnText}>{editingSlotId ? "Save Changes" : "Add Slot"}</Text>}
+                </TouchableOpacity>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Day picker modal */}
+      <Modal visible={dayPickerVisible} transparent animationType="slide" onRequestClose={() => setDayPickerVisible(false)}>
+        <Pressable style={styles.pickerBackdrop} onPress={() => setDayPickerVisible(false)} />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerBar}>
+            <Text style={[styles.modalTitle, { fontSize: 15 }]}>Select Day</Text>
+            <TouchableOpacity onPress={() => setDayPickerVisible(false)}>
+              <Text style={styles.pickerDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ maxHeight: 280 }}>
+            {DAYS.map((d) => (
+              <TouchableOpacity
+                key={d}
+                style={[styles.pickerRow, slotDay === d && styles.pickerRowActive]}
+                onPress={() => { setSlotDay(d); setDayPickerVisible(false); }}
+              >
+                <Text style={[styles.pickerRowText, slotDay === d && styles.pickerRowTextActive]}>{d}</Text>
+                {slotDay === d && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ── Add Offering Modal ── */}
+      <Modal
+        visible={offeringModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setOfferingModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOfferingModalVisible(false)} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+          >
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Offering</Text>
+                <TouchableOpacity onPress={() => setOfferingModalVisible(false)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalLabel}>Service Name*</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={offeringName}
+                onChangeText={setOfferingName}
+                placeholder="e.g. Private Tennis Lesson"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+              />
+
+              <Text style={styles.modalLabel}>Description (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={offeringDesc}
+                onChangeText={setOfferingDesc}
+                placeholder="e.g. 1-on-1 session, all levels welcome"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+              />
+
+              <Text style={styles.modalLabel}>Price (optional, $)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={offeringPrice}
+                onChangeText={setOfferingPrice}
+                placeholder="e.g. 80"
+                placeholderTextColor={Colors.textMuted}
+                selectionColor={Colors.primary}
+                keyboardType="decimal-pad"
+              />
+
+              <TouchableOpacity
+                style={[styles.saveBtn, savingOffering && styles.saveBtnDisabled]}
+                onPress={handleAddOffering}
+                disabled={savingOffering}
+              >
+                {savingOffering ? <ActivityIndicator color={Colors.black} /> : <Text style={styles.saveBtnText}>Add Offering</Text>}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ── Edit Contact Modal ── */}
+      <Modal
+        visible={contactModalVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setContactModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setContactModalVisible(false)} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+          >
+            <View style={[styles.modalSheet, { maxHeight: Dimensions.get("window").height * 0.85 }]}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Contact</Text>
+                <TouchableOpacity onPress={() => setContactModalVisible(false)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 8 }}
+              >
+                <View style={styles.contactRow}>
+                  <Ionicons
+                    name={socialIcon(contactSocialPlatform) as any}
+                    size={18}
+                    color={Colors.primary}
+                    style={{ marginTop: 16 }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalLabel}>Social DM</Text>
+                    <TouchableOpacity
+                      style={styles.modalPickerBtn}
+                      onPress={() => setSocialPickerVisible(true)}
+                    >
+                      <Text style={styles.modalPickerBtnText}>
+                        {SOCIAL_PLATFORMS.find((sp) => sp.key === contactSocialPlatform)?.label ?? "Select platform"}
+                      </Text>
+                      <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={contactSocial}
+                      onChangeText={setContactSocial}
+                      placeholder={
+                        SOCIAL_PLATFORMS.find((sp) => sp.key === contactSocialPlatform)?.placeholder
+                        ?? "Select a platform above"
+                      }
+                      placeholderTextColor={Colors.textMuted}
+                      selectionColor={Colors.primary}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <View style={styles.contactToggle}>
+                    <Text style={styles.contactToggleLabel}>Show</Text>
+                    <Switch
+                      value={showSocial}
+                      onValueChange={setShowSocial}
+                      trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                      thumbColor={Colors.black}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.contactRow}>
+                  <Ionicons name="mail-outline" size={18} color={Colors.primary} style={{ marginTop: 16 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalLabel}>Email</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={contactEmail}
+                      onChangeText={setContactEmail}
+                      placeholder="you@example.com"
+                      placeholderTextColor={Colors.textMuted}
+                      selectionColor={Colors.primary}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <View style={styles.contactToggle}>
+                    <Text style={styles.contactToggleLabel}>Show</Text>
+                    <Switch
+                      value={showEmail}
+                      onValueChange={setShowEmail}
+                      trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                      thumbColor={Colors.black}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.contactRow}>
+                  <Ionicons name="call-outline" size={18} color={Colors.primary} style={{ marginTop: 16 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalLabel}>Phone</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={contactPhone}
+                      onChangeText={setContactPhone}
+                      placeholder="+1 (212) 555-0123"
+                      placeholderTextColor={Colors.textMuted}
+                      selectionColor={Colors.primary}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  <View style={styles.contactToggle}>
+                    <Text style={styles.contactToggleLabel}>Show</Text>
+                    <Switch
+                      value={showPhone}
+                      onValueChange={setShowPhone}
+                      trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                      thumbColor={Colors.black}
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.saveBtn, { marginTop: 8 }, savingContact && styles.saveBtnDisabled]}
+                  onPress={handleSaveContact}
+                  disabled={savingContact}
+                >
+                  {savingContact ? <ActivityIndicator color={Colors.black} /> : <Text style={styles.saveBtnText}>Save Contact</Text>}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
       {/* Bio Edit Modal */}
       <Modal
         visible={bioModalVisible}
@@ -842,7 +1713,7 @@ export default function BusinessProfileScreen() {
         statusBarTranslucent
         onRequestClose={() => setBioModalVisible(false)}
       >
-        <View style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setBioModalVisible(false)}
@@ -889,6 +1760,122 @@ export default function BusinessProfileScreen() {
             </TouchableOpacity>
           </View>
           </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ── Review Picker Modal ── */}
+      <Modal
+        visible={reviewPickerVisible}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setReviewPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReviewPickerVisible(false)} />
+          <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <View style={[styles.modalSheet, { maxHeight: Dimensions.get("window").height * 0.8 }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pin a Review</Text>
+              <TouchableOpacity onPress={() => setReviewPickerVisible(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {loadingReviews ? (
+              <View style={{ paddingVertical: 40, alignItems: "center" }}>
+                <ActivityIndicator color={Colors.primary} />
+              </View>
+            ) : availableReviews.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: "center", gap: 8 }}>
+                <Ionicons name="star-outline" size={36} color={Colors.textMuted} />
+                <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>
+                  No reviews available to pin
+                </Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 12, textAlign: "center", paddingHorizontal: 24 }}>
+                  Reviews from users at your training venues will appear here
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+                {availableReviews.map((rev) => (
+                  <TouchableOpacity
+                    key={rev.id}
+                    style={styles.reviewPickerRow}
+                    onPress={() => handleFeatureReview(rev.id)}
+                    disabled={featuringReviewId === rev.id}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="person-circle-outline" size={36} color={Colors.textSecondary} />
+                    <View style={{ flex: 1, gap: 3 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={styles.reviewerName}>{rev.user_name}</Text>
+                        {rev.rating != null && (
+                          <View style={styles.ratingBadge}>
+                            <Text style={styles.ratingText}>{rev.rating}</Text>
+                          </View>
+                        )}
+                      </View>
+                      {rev.comment ? (
+                        <Text style={styles.reviewComment} numberOfLines={2}>{rev.comment}</Text>
+                      ) : null}
+                    </View>
+                    {featuringReviewId === rev.id ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <Ionicons name="add-circle-outline" size={22} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Social platform picker */}
+      <Modal visible={socialPickerVisible} transparent animationType="slide" onRequestClose={() => setSocialPickerVisible(false)}>
+        <Pressable style={styles.pickerBackdrop} onPress={() => setSocialPickerVisible(false)} />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerBar}>
+            <Text style={[styles.modalTitle, { fontSize: 15 }]}>Select Platform</Text>
+            <TouchableOpacity onPress={() => setSocialPickerVisible(false)}>
+              <Text style={styles.pickerDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ maxHeight: 320 }}>
+            {SOCIAL_PLATFORMS.map((sp) => {
+              const selected = contactSocialPlatform === sp.key;
+              // Auto-fill handle if they already have this platform in social_media
+              const savedLink = businessProfile?.social_media?.find(
+                (s) => s.platform?.toLowerCase().includes(sp.key)
+              )?.link;
+              return (
+                <TouchableOpacity
+                  key={sp.key}
+                  style={[styles.pickerRow, selected && styles.pickerRowActive]}
+                  onPress={() => {
+                    setContactSocialPlatform(sp.key);
+                    if (savedLink) setContactSocial(extractHandle(savedLink));
+                    setSocialPickerVisible(false);
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <Ionicons name={socialIcon(sp.key) as any} size={18} color={selected ? Colors.primary : Colors.textSecondary} />
+                    <View>
+                      <Text style={[styles.pickerRowText, selected && styles.pickerRowTextActive]}>{sp.label}</Text>
+                      {savedLink && (
+                        <Text style={{ color: Colors.primary, fontSize: 11 }}>{extractHandle(savedLink)}</Text>
+                      )}
+                    </View>
+                  </View>
+                  {selected && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -986,6 +1973,19 @@ const styles = StyleSheet.create({
   },
 
   ratingText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
+  avatarRatingBadge: {
+    position: "absolute",
+    bottom: -6,
+    right: -6,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 2,
+    borderColor: Colors.background,
+    zIndex: 10,
+  },
+  avatarRatingText: { color: Colors.black, fontSize: 11, fontWeight: "800" },
   coachPill: {
     backgroundColor: "#248BFF",
     borderRadius: 999,
@@ -994,17 +1994,14 @@ const styles = StyleSheet.create({
   },
   coachPillText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
   accountTypeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
     alignSelf: "flex-start",
-    backgroundColor: Colors.primary,
+    backgroundColor: "#248BFF",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginTop: 6,
   },
-  accountTypeBadgeText: { color: Colors.black, fontSize: 11, fontWeight: "700" },
+  accountTypeBadgeText: { color: Colors.white, fontSize: 11, fontWeight: "700" },
 
   createBtn: {
     height: 52,
@@ -1093,12 +2090,13 @@ const styles = StyleSheet.create({
   infoValue: { color: Colors.text, fontSize: 14, fontWeight: "600" },
 
   sectionHeader: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: "600",
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
     marginHorizontal: 20,
-    marginBottom: 10,
-    marginTop: 4,
+    marginBottom: 12,
+    marginTop: 8,
   },
 
   emptyWrap: { paddingVertical: 40, alignItems: "center" },
@@ -1232,6 +2230,15 @@ const styles = StyleSheet.create({
   },
   reviewerName: { color: Colors.text, fontSize: 14, fontWeight: "600", flex: 1 },
   reviewComment: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  reviewPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+  },
 
   // Bio Modal
   modalSheet: {
@@ -1335,4 +2342,216 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   menuItemText: { color: "#FF3B30", fontSize: 15, fontWeight: "600" },
+
+  // Posts / Class Clips grid (Section 1)
+  postsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: GRID_GAP,
+    paddingHorizontal: 0,
+    marginBottom: 14,
+  },
+  gridCell: {
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    overflow: "hidden",
+  },
+  gridCellImage: {
+    width: "100%",
+    height: "100%",
+  },
+  gridCellPlaceholder: {
+    backgroundColor: Colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoIndicator: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Section header with action button
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginRight: 20,
+    marginBottom: 12,
+    marginTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+  },
+
+  // Add placeholder (empty section prompt for owner)
+  addPlaceholder: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(209,255,0,0.2)",
+    backgroundColor: "rgba(209,255,0,0.03)",
+    alignItems: "center",
+    gap: 6,
+  },
+  addPlaceholderIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(209,255,0,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  addPlaceholderTitle: { color: Colors.text, fontSize: 15, fontWeight: "700" },
+  addPlaceholderText: { color: Colors.textMuted, fontSize: 13 },
+
+  sectionAddBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(209,255,0,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(209,255,0,0.3)",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  sectionAddBtnText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+
+  // Modal inputs and labels
+  modalLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6 },
+  modalInput: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    color: Colors.text,
+    fontSize: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  modalPickerBtn: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 14,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  modalPickerBtnText: { color: Colors.text, fontSize: 14 },
+
+  // Day picker bottom sheet
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  pickerSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 28,
+  },
+  pickerBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+  },
+  pickerDone: { color: Colors.primary, fontSize: 16, fontWeight: "700" },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.cardBorder,
+  },
+  pickerRowActive: { backgroundColor: "rgba(209,255,0,0.08)" },
+  pickerRowText: { color: Colors.text, fontSize: 15 },
+  pickerRowTextActive: { color: Colors.primary, fontWeight: "600" },
+
+  // Contact modal rows
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 4,
+  },
+  contactToggle: { alignItems: "center", paddingTop: 16 },
+  contactToggleLabel: { color: Colors.textSecondary, fontSize: 11, marginBottom: 4 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+
+  // Schedule slot card
+  slotCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: Colors.secondaryCard,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  slotAccent: {
+    width: 4,
+    backgroundColor: Colors.primary,
+  },
+  slotBody: {
+    flex: 1,
+    padding: 14,
+  },
+  slotTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  slotDay: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  slotTime: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  slotDesc: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  slotVenue: {
+    color: Colors.primary,
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: "600",
+  },
 });

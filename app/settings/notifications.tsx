@@ -69,40 +69,46 @@ export default function NotificationsSettingScreen() {
     },
   ];
 
-  const ACTIVITY = [
+  const ACTIVITY: { label: string; sub: string; icon: string; value: boolean; onChange: (v: boolean) => void }[] = [
     {
       label: "Friend Rankings",
       sub: "When friends post a new ranking",
+      icon: "trending-up-outline",
       value: friendRanking,
       onChange: (v: boolean) => { setFriendRanking(v); save({ notify_friend_ranking: v }); },
     },
     {
       label: "Post Likes",
       sub: "When someone likes your post",
+      icon: "heart-outline",
       value: postLikes,
       onChange: (v: boolean) => { setPostLikes(v); save({ notify_post_likes: v }); },
     },
     {
       label: "Post Comments",
       sub: "When someone comments on your post",
+      icon: "chatbubble-outline",
       value: postComments,
       onChange: (v: boolean) => { setPostComments(v); save({ notify_post_comments: v }); },
     },
     {
       label: "Friends at Events",
       sub: "When a friend joins an event you're in",
+      icon: "people-outline",
       value: friendJoinsEvent,
       onChange: (v: boolean) => { setFriendJoinsEvent(v); save({ notify_friend_joins_event: v }); },
     },
     {
       label: "Event Reminders",
       sub: "1 hour before events you've joined",
+      icon: "alarm-outline",
       value: eventReminders,
       onChange: (v: boolean) => { setEventReminders(v); save({ notify_event_reminders: v }); },
     },
     {
       label: "New Venues Nearby",
       sub: "When new venues are added near you",
+      icon: "location-outline",
       value: newVenues,
       onChange: (v: boolean) => { setNewVenues(v); save({ notify_new_venues: v }); },
     },
@@ -138,13 +144,15 @@ export default function NotificationsSettingScreen() {
                       <Text style={s.rowSub}>{ch.sub}</Text>
                     </View>
                   </View>
-                  <Switch
-                    value={ch.value}
-                    onValueChange={ch.onChange}
-                    trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
-                    thumbColor={Colors.white}
-                    ios_backgroundColor={Colors.cardBorder}
-                  />
+                  <View style={s.switchWrap}>
+                    <Switch
+                      value={ch.value}
+                      onValueChange={ch.onChange}
+                      trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                      thumbColor={Colors.white}
+                      ios_backgroundColor={Colors.cardBorder}
+                    />
+                  </View>
                 </View>
               </View>
             ))}
@@ -158,21 +166,23 @@ export default function NotificationsSettingScreen() {
                 {i > 0 && <View style={s.divider} />}
                 <View style={s.row}>
                   <View style={s.rowLeft}>
-                    <View style={[s.iconWrap, s.iconWrapAlt]}>
-                      <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+                    <View style={s.iconWrap}>
+                      <Ionicons name={item.icon as any} size={20} color={Colors.primary} />
                     </View>
                     <View style={s.rowTexts}>
                       <Text style={s.rowLabel}>{item.label}</Text>
                       <Text style={s.rowSub}>{item.sub}</Text>
                     </View>
                   </View>
-                  <Switch
-                    value={item.value}
-                    onValueChange={item.onChange}
-                    trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
-                    thumbColor={Colors.white}
-                    ios_backgroundColor={Colors.cardBorder}
-                  />
+                  <View style={s.switchWrap}>
+                    <Switch
+                      value={item.value}
+                      onValueChange={item.onChange}
+                      trackColor={{ false: Colors.cardBorder, true: Colors.primary }}
+                      thumbColor={Colors.white}
+                      ios_backgroundColor={Colors.cardBorder}
+                    />
+                  </View>
                 </View>
               </View>
             ))}
@@ -214,19 +224,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6,
   },
   row: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
-  rowLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
-  rowTexts: { flex: 1 },
+  rowLeft: { flexDirection: "row", alignItems: "flex-start", gap: 12, flex: 1 },
+  rowTexts: { flex: 1, flexShrink: 1 },
   iconWrap: {
     width: 38, height: 38, borderRadius: 10,
     backgroundColor: "#3D4A1A",
     justifyContent: "center", alignItems: "center",
+    flexShrink: 0,
   },
-  iconWrapAlt: { backgroundColor: "#1A2A3D" },
+
   rowLabel: { color: Colors.text, fontSize: 14, fontWeight: "600", marginBottom: 2 },
   rowSub: { color: Colors.textSecondary, fontSize: 12 },
   divider: { height: 1, backgroundColor: Colors.cardBorder, marginHorizontal: 16 },
+  switchWrap: { flexShrink: 0 },
 });

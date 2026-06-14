@@ -74,7 +74,7 @@ export default function SavedPostsScreen() {
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>SAVED POSTS</Text>
+        <Text style={s.title}>Want to Try</Text>
         <View style={{ width: 40 }} />
       </View>
 

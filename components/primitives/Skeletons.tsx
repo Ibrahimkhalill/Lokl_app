@@ -179,6 +179,7 @@ const s = StyleSheet.create({
   eventCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
+    marginHorizontal: 18,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
@@ -207,6 +208,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 18,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.cardBorder,

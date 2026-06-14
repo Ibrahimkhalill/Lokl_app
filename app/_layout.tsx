@@ -1,16 +1,54 @@
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
+import * as Notifications from "expo-notifications";
 import { Colors } from "../constants/colors";
 import { AuthProvider } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { PreferencesProvider } from "../context/PreferencesContext";
 import { ToastProvider } from "../context/ToastContext";
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+async function registerPushToken() {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return;
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+    const { data: token } = await Notifications.getExpoPushTokenAsync();
+    // Store locally — AuthContext will send it to the backend after login
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem("expoPushToken", token);
+  } catch {
+    // Silently skip on simulators or when permissions are unavailable
+  }
+}
+
 export default function RootLayout() {
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(Colors.background);
+    void registerPushToken();
   }, []);
 
   return (

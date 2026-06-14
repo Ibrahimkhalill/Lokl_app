@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { api } from "../lib/api";
+import { settingService } from "../services/settingServices";
 import type { User } from "../types/auth";
 
 interface AuthContextType {
@@ -28,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
         if (tokenEntry[1] && userEntry[1]) {
           setUser(JSON.parse(userEntry[1]));
+          // Re-send push token on every app restart so it stays current
+          flushPushToken();
         }
       } catch {
         // ignore
@@ -36,6 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  function flushPushToken() {
+    AsyncStorage.getItem("expoPushToken").then((token) => {
+      if (token) settingService.savePushToken(token).catch(() => {});
+    });
+  }
 
   async function login(
     accessToken: string,
@@ -48,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ["user", JSON.stringify(userData)],
     ]);
     setUser(userData);
+    flushPushToken();
   }
 
   async function logout() {

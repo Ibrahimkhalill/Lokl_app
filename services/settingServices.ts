@@ -45,6 +45,10 @@ export const settingService = {
     return api.get("/settings/notifications/");
   },
 
+  savePushToken(token: string) {
+    return api.patch("/users/push-token/", { token });
+  },
+
   updateNotifications(data: {
     push_notifications?: boolean;
     email_notifications?: boolean;

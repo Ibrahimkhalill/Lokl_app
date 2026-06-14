@@ -72,6 +72,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 14,
+    marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.cardBorder,

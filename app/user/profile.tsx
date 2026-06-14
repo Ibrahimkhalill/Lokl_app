@@ -13,8 +13,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import BussinessIcon from "../../assets/icons/bussiness.svg";
 import DateIcon from "../../assets/icons/date.svg";
 import EditIcon from "../../assets/icons/edit.svg";
@@ -42,12 +42,10 @@ type MeProfile = {
 };
 
 type MeStats = { posts: number; followers: number; following: number };
-type WeekDay = { day: string; pct: number };
 type ActivityStats = {
   activities: number;
   visited: number;
-  weekly_activity: WeekDay[];
-  weekly_pct: number;
+  active_days: string[];
 };
 
 type MeData = {
@@ -58,7 +56,6 @@ type MeData = {
   saved_posts: ApiPost[];
 };
 
-const MAX_BAR_HEIGHT = 120;
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -144,7 +141,25 @@ export default function ProfileScreen() {
   const profile = meData?.profile;
   const stats = meData?.stats;
   const activityStats = meData?.activity_stats;
-  const weekDays = activityStats?.weekly_activity ?? [];
+  const activeDaySet = new Set(activityStats?.active_days ?? []);
+  const calNow = new Date();
+  const calYear = calNow.getFullYear();
+  const calMonth = calNow.getMonth();
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  // Mon-first offset: Sun=0→6, Mon=1→0, Tue=2→1, ...
+  const calFirstWeekday = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+  const calDaysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const calToday = calNow.getDate();
+  const calCells: (number | null)[] = [
+    ...Array(calFirstWeekday).fill(null),
+    ...Array.from({ length: calDaysInMonth }, (_, i) => i + 1),
+  ];
+  while (calCells.length % 7 !== 0) calCells.push(null);
+  const fmtDay = (d: number) => {
+    const mm = String(calMonth + 1).padStart(2, "0");
+    const dd = String(d).padStart(2, "0");
+    return `${calYear}-${mm}-${dd}`;
+  };
   const posts = meData?.posts ?? [];
   const savedPosts = meData?.saved_posts ?? [];
   const recentActivities = posts.slice(0, 3);
@@ -259,33 +274,46 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Weekly Activity */}
+        {/* Monthly Activity Calendar */}
         <View style={styles.activityHeader}>
           <IncreaseIcon width={18} height={18} color={Colors.primary} />
-          <Text style={styles.activityTitle}>THIS WEEK&apos;S ACTIVITY</Text>
+          <Text style={styles.activityTitle}>THIS MONTH&apos;S ACTIVITY</Text>
         </View>
 
         <View style={styles.chartCard}>
-          <View style={styles.chart}>
-            {weekDays.map((item, i) => (
-              <View key={i} style={styles.barWrap}>
-                <View style={styles.barContainer}>
-                  <LinearGradient
-                    colors={["rgba(209,255,0,0.5)", "rgba(209,255,0,1)"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={[styles.bar, { height: Math.max((item.pct / 100) * MAX_BAR_HEIGHT, 4) }]}
-                  >
-                    {item.pct > 10 && <Text style={styles.barLabel}>{item.pct}%</Text>}
-                  </LinearGradient>
-                </View>
-                <Text style={styles.dayLabel}>{item.day}</Text>
-              </View>
+          <Text style={styles.calMonthLabel}>{MONTH_NAMES[calMonth]} {calYear}</Text>
+          <View style={styles.calDayHeaders}>
+            {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
+              <Text key={i} style={styles.calDayHeader}>{d}</Text>
             ))}
           </View>
-          <Text style={styles.activityPercent}>
-            <Text style={{ color: Colors.primary }}>{activityStats?.weekly_pct ?? 0}%</Text> Activities this week
-          </Text>
+          <View style={styles.calGrid}>
+            {calCells.map((day, i) => {
+              const isActive = day !== null && activeDaySet.has(fmtDay(day));
+              const isToday = day !== null && day === calToday;
+              return (
+                <View key={i} style={styles.calCellWrap}>
+                  {day === null ? (
+                    <View style={[styles.calCell, styles.calCellEmpty]} />
+                  ) : isActive ? (
+                    <LinearGradient
+                      colors={["#D1FF00", "#A8CC00"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={styles.calCell}
+                    >
+                      <Text style={styles.calCellTextActive}>{day}</Text>
+                      <Ionicons name="flame-outline" size={9} color="#FF6900" style={styles.calFlame} />
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.calCell, isToday && styles.calCellToday]}>
+                      <Text style={styles.calCellText}>{day}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
           <TouchableOpacity style={styles.streakBtn} onPress={() => router.push("/user/streaks")}>
             <FireIcon width={16} height={16} color={Colors.text} />
             <Text style={styles.streakBtnText}>View Streaks & Achievements</Text>
@@ -507,19 +535,25 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, marginBottom: 24, backgroundColor: Colors.secondaryCard,
     borderRadius: 16, borderWidth: 1, borderColor: Colors.cardBorder, padding: 16,
   },
-  chart: {
-    flexDirection: "row", alignItems: "flex-end", gap: 6,
-    height: MAX_BAR_HEIGHT + 20, marginBottom: 12,
+  calMonthLabel: {
+    color: Colors.text, fontSize: 14, fontWeight: "700", marginBottom: 12,
   },
-  barWrap: { flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 6 },
-  barContainer: { flex: 1, width: "100%", justifyContent: "flex-end", alignItems: "center" },
-  barLabel: { color: Colors.black, fontSize: 10, fontWeight: "600" },
-  bar: {
-    width: "100%", borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    minHeight: 4, justifyContent: "flex-start", alignItems: "center", paddingTop: 6,
+  calDayHeaders: { flexDirection: "row", marginBottom: 8 },
+  calDayHeader: {
+    flex: 1, textAlign: "center", color: "#6A7185", fontSize: 11,
   },
-  dayLabel: { color: Colors.textSecondary, fontSize: 10 },
-  activityPercent: { color: Colors.text, fontSize: 13, textAlign: "center", marginBottom: 12 },
+  calGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
+  calCellWrap: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
+  calCell: {
+    flex: 1, borderRadius: 12,
+    justifyContent: "center", alignItems: "center",
+    backgroundColor: "#2A2A2A",
+  },
+  calCellToday: { borderWidth: 1, borderColor: Colors.primary },
+  calCellText: { color: "#4B556A", fontSize: 12, fontWeight: "500" },
+  calCellTextActive: { color: "#141516", fontSize: 12, fontWeight: "700" },
+  calFlame: { position: "absolute", bottom: 1, right: 1 },
+  calCellEmpty: { backgroundColor: "transparent" },
   streakBtn: {
     backgroundColor: "#FF6467", borderRadius: 50, height: 44,
     flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8,

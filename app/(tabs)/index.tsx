@@ -161,6 +161,7 @@ export default function HomeScreen() {
   const tracksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [zoomRegion, setZoomRegion] = useState<typeof MANHATTAN_REGION | null>(null);
+  const [locationReady, setLocationReady] = useState(false);
 
   // Request GPS on mount — store user region or fall back to Manhattan
   useEffect(() => {
@@ -179,6 +180,7 @@ export default function HomeScreen() {
         }
         userCoordsRef.current = { latitude, longitude };
         setZoomRegion({ latitude, longitude, latitudeDelta: 0.05, longitudeDelta: 0.03 });
+        setLocationReady(true); // re-trigger venue load with real GPS coords
       } catch {
         setZoomRegion(MANHATTAN_REGION);
       }
@@ -192,12 +194,32 @@ export default function HomeScreen() {
     }
   }, [mapReady, zoomRegion]);
 
+  const venuesRef = useRef<VenuePin[]>([]);
+
+  // Animate map so the pin appears above the bottom card
+  const zoomToVenue = useCallback((venue: VenuePin, animated = true) => {
+    const LAT_DELTA = 0.018;
+    const LNG_DELTA = 0.012;
+    // Shift center south by ~35% of latDelta → pin shows in upper portion of visible map
+    mapRef.current?.animateToRegion(
+      {
+        latitude:      venue.lat - LAT_DELTA * 0.35,
+        longitude:     venue.lng,
+        latitudeDelta: LAT_DELTA,
+        longitudeDelta: LNG_DELTA,
+      },
+      animated ? 450 : 0
+    );
+  }, []);
+
   const selectVenue = useCallback((id: number) => {
     if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
     setTracksChanges(true);
     setSelectedId(id);
-    tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 400);
-  }, []);
+    const venue = venuesRef.current.find((v) => v.id === id);
+    if (venue) zoomToVenue(venue);
+    tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 500);
+  }, [zoomToVenue]);
 
   // On focus: patch only the venue that was just reviewed (no full reload)
   useFocusEffect(
@@ -241,6 +263,7 @@ export default function HomeScreen() {
     params.amenities,
     params.plan_tier,
     params.radius_km,
+    locationReady,
   ]);
 
   async function loadVenues(attempt = 0) {
@@ -278,45 +301,46 @@ export default function HomeScreen() {
 
       let data: VenuePin[];
 
+      // Normalize: backend may return latitude/longitude OR lat/lng
+      const normalize = (v: any): VenuePin | null => {
+        const rawLat = v.lat ?? v.latitude;
+        const rawLng = v.lng ?? v.longitude;
+        if (rawLat == null || rawLng == null) return null;
+        const lat = parseFloat(String(rawLat));
+        const lng = parseFloat(String(rawLng));
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return {
+          ...v,
+          lat,
+          lng,
+          icon: v.icon || getVenueIcon(v.type ?? "", "location-outline"),
+        };
+      };
+
       if (hasFilters) {
-        // Filters active — show every matching venue that has valid coords
-        data = all
-          .filter(
-            (v) =>
-              v.lat != null && v.lng != null &&
-              !isNaN(parseFloat(String(v.lat))) &&
-              !isNaN(parseFloat(String(v.lng)))
-          )
-          .map((v) => ({
-            ...v,
-            lat: parseFloat(String(v.lat)),
-            lng: parseFloat(String(v.lng)),
-          }));
+        data = all.map(normalize).filter(Boolean) as VenuePin[];
       } else {
         // No filters — 1 venue per type to keep Android marker count manageable
         const byType: Record<string, VenuePin> = {};
         for (const v of all) {
-          if (
-            byType[v.type] === undefined &&
-            v.lat != null && v.lng != null &&
-            !isNaN(parseFloat(String(v.lat))) &&
-            !isNaN(parseFloat(String(v.lng)))
-          ) {
-            byType[v.type] = v;
+          const pin = normalize(v);
+          if (pin && byType[pin.type] === undefined) {
+            byType[pin.type] = pin;
           }
         }
-        data = Object.values(byType).map((v) => ({
-          ...v,
-          lat: parseFloat(String(v.lat)),
-          lng: parseFloat(String(v.lng)),
-        }));
+        data = Object.values(byType);
       }
 
+      venuesRef.current = data;
       setVenues(data);
       if (data.length > 0) {
-        setTracksChanges(true);
         setSelectedId(data[0].id);
-        setTimeout(() => setTracksChanges(false), 400);
+        setTracksChanges(true);
+        // Wait for map to be ready, then zoom to first venue
+        setTimeout(() => {
+          zoomToVenue(data[0]);
+          setTimeout(() => setTracksChanges(false), 500);
+        }, mapReady ? 100 : 1200);
       }
     } catch (err: any) {
       const isNetworkErr = err?.message === "Network Error" || err?.code === "ERR_NETWORK";

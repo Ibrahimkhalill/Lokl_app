@@ -29,6 +29,7 @@ type UserProfile = {
   location: string;
   joined: string;
   role: string;
+  sports_interests?: string[];
 };
 
 type Stats = { posts: number; followers: number; following: number };
@@ -43,6 +44,8 @@ export default function UserProfileScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [is_me, setIsMe] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<"private" | "followers_only" | null>(null);
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
   const fetchProfile = useCallback(async () => {
@@ -56,6 +59,8 @@ export default function UserProfileScreen() {
       setPosts(data.posts ?? []);
       setIsFollowing(data.is_following ?? false);
       setIsMe(data.is_me ?? false);
+      setIsLocked(data.is_locked ?? false);
+      setLockReason(data.lock_reason ?? null);
     } catch (e) {
       console.log("[UserProfile] error:", getErrorMessage(e));
     } finally {
@@ -143,6 +148,7 @@ export default function UserProfileScreen() {
     <View>
       {/* Profile info */}
       <View style={styles.profileCard}>
+
         <Avatar uri={profile?.avatar} size={72} borderWidth={2.5} />
         <View style={styles.profileInfo}>
           <Text style={styles.username}>{profile?.username ?? displayName}</Text>
@@ -184,6 +190,20 @@ export default function UserProfileScreen() {
         </View>
       ) : null}
 
+      {/* Interests */}
+      {!isLocked && profile?.sports_interests && profile.sports_interests.length > 0 && (
+        <View style={styles.interestsCard}>
+          <Text style={styles.interestsTitle}>INTERESTS</Text>
+          <View style={styles.interestsWrap}>
+            {profile.sports_interests.map((tag, i) => (
+              <View key={i} style={styles.interestChip}>
+                <Text style={styles.interestChipText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* Actions */}
       {!is_me && (
         <View style={styles.actionRow}>
@@ -196,18 +216,37 @@ export default function UserProfileScreen() {
               {isFollowing ? "Following" : "Follow"}
             </Text>
           </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.messageBtn}
-          activeOpacity={0.85}
-          onPress={() =>
-            router.push(
-              `/chat/id?user_id=${user_id}&name=${encodeURIComponent(displayName)}`
-            )
-          }
-        >
-          <Text style={styles.messageBtnText}>Message</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.messageBtn}
+            activeOpacity={0.85}
+            onPress={() =>
+              router.push(
+                `/chat/id?user_id=${user_id}&name=${encodeURIComponent(displayName)}`
+              )
+            }
+          >
+            <Text style={styles.messageBtnText}>Message</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Locked profile wall */}
+      {isLocked && (
+        <View style={styles.lockedCard}>
+          <Ionicons
+            name={lockReason === "private" ? "lock-closed" : "people"}
+            size={36}
+            color={Colors.textSecondary}
+          />
+          <Text style={styles.lockedTitle}>
+            {lockReason === "private" ? "This account is private" : "Followers only"}
+          </Text>
+          <Text style={styles.lockedSub}>
+            {lockReason === "private"
+              ? "Follow this account to see their posts."
+              : "Follow this account to see their posts and activity."}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -345,4 +384,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   messageBtnText: { color: Colors.text, fontSize: 15, fontWeight: "600" },
+
+  interestsCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  interestsTitle: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  interestsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  interestChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "rgba(209,255,0,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(209,255,0,0.3)",
+  },
+  interestChipText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+  lockedCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 24,
+    padding: 32,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    alignItems: "center",
+    gap: 10,
+  },
+  lockedTitle: { color: Colors.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
+  lockedSub: { color: Colors.textSecondary, fontSize: 13, textAlign: "center", lineHeight: 20 },
 });

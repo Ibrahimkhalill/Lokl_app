@@ -382,7 +382,8 @@ function UserEditForm() {
         }
         if (meRes.status === "fulfilled") {
           const me = meRes.value.data?.data || meRes.value.data;
-          setSelectedInterests(Array.isArray(me.sports_interests) ? me.sports_interests : []);
+          const interests = me.profile?.sports_interests ?? me.sports_interests;
+          setSelectedInterests(Array.isArray(interests) ? interests : []);
         }
       } catch (error) {
         showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
