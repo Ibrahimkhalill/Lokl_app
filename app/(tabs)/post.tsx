@@ -125,6 +125,7 @@ export default function PostVenueSearch() {
             <Ionicons name="arrow-back" size={20} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Search for a venue</Text>
+          <View  />
         </View>
 
         {/* Search bar */}
@@ -180,6 +181,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
     paddingTop: 12,
     marginBottom: 20,

@@ -51,6 +51,7 @@ type ApiEvent = {
   cover_image_url?: string | null;
   host_display?: string;
   host_avatar?: string | null;
+  host_id?: number;
   latitude?: string;
   longitude?: string;
   is_registered?: boolean;
@@ -267,6 +268,8 @@ export default function EventsScreen() {
       distanceStr = formatDistance(km);
     }
 
+    const isHost = !!(user?.id && event.host_id && Number(user.id) === Number(event.host_id));
+
     return (
       <View style={s.eventCard}>
         <View style={s.eventImageWrap}>
@@ -339,7 +342,12 @@ export default function EventsScreen() {
           ) : null}
 
           <View style={s.eventActions}>
-            {event.is_registered ? (
+            {isHost ? (
+              <View style={s.hostBadgeBtn}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={Colors.primary} />
+                <Text style={s.hostBadgeBtnText}>My Event</Text>
+              </View>
+            ) : event.is_registered ? (
               <TouchableOpacity
                 style={s.leaveBtn}
                 onPress={() => handleRegister(event)}
@@ -737,6 +745,19 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   leaveBtnText: { color: Colors.text, fontSize: 14, fontWeight: "600" },
+  hostBadgeBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 50,
+    paddingVertical: 12,
+    backgroundColor: "rgba(209,255,0,0.06)",
+  },
+  hostBadgeBtnText: { color: Colors.primary, fontSize: 14, fontWeight: "700" },
   detailsBtn: {
     flex: 1,
     height: 44,

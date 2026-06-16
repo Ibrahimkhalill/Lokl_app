@@ -98,13 +98,6 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function priceTier(price: string) {
-  const n = parseFloat(price);
-  if (!n || n === 0) return "Free";
-  if (n < 100) return "$";
-  if (n < 500) return "$$";
-  return "$$$";
-}
 
 function timeAgo(iso: string) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -230,6 +223,9 @@ export default function EventDetailsScreen() {
     );
   }
 
+  const hostId = (event as any).host_id ?? (event as any).host?.id;
+  const isHost = !!(currentUser?.id && hostId && Number(currentUser.id) === Number(hostId));
+
   const infoCards = [
     {
       icon: <VenueIcon width={20} height={20} color={Colors.primary} />,
@@ -281,8 +277,8 @@ export default function EventDetailsScreen() {
         </View>
 
         <View style={s.content}>
-          {/* Join / Join Request / Joined */}
-          {!event.is_registered && !event.is_private && (
+          {/* Join / Join Request / Joined — hide for host */}
+          {!isHost && !event.is_registered && !event.is_private && (
             <TouchableOpacity style={s.joinBtn} onPress={handleRegister} disabled={registering}>
               {registering
                 ? <ActivityIndicator size="small" color={Colors.black} />
@@ -290,7 +286,7 @@ export default function EventDetailsScreen() {
               }
             </TouchableOpacity>
           )}
-          {!event.is_registered && event.is_private && !event.join_request_status && (
+          {!isHost && !event.is_registered && event.is_private && !event.join_request_status && (
             <TouchableOpacity style={s.joinBtn} onPress={handleRequestToJoin} disabled={requestingJoin}>
               {requestingJoin
                 ? <ActivityIndicator size="small" color={Colors.black} />
@@ -351,48 +347,44 @@ export default function EventDetailsScreen() {
           {/* Title */}
           <Text style={s.title}>{event.title.toUpperCase()}</Text>
 
-          {/* Meta row: [9.2]  (N ratings) • Yoga • $$ • price */}
-          <View style={s.metaRow}>
+          {/* Meta row — horizontal scroll so all chips stay in one line */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.metaRow}
+            style={{ marginBottom: 14 }}
+          >
             <View style={[s.metaTypeView, event.is_private ? s.privateBadge : s.publicBadge]}>
               <Text style={[s.metaText, event.is_private ? s.privateBadgeText : s.publicBadgeText]}>
                 {event.is_private ? "Private" : "Public"}
               </Text>
             </View>
-            {event.event_type ? (
-              <>
-                <View style={s.metaTypeView}>
-                  <Text style={s.metaText}>{event.event_type}</Text>
-                </View>
-              </>
-            ) : null}
+            {!!event.event_type && (
+              <View style={s.metaTypeView}>
+                <Text style={s.metaText}>{event.event_type}</Text>
+              </View>
+            )}
             <View style={s.scoreChip}>
               <Text style={s.scoreChipText}>
                 {event.average_rating > 0 ? event.average_rating.toFixed(1) : "0.0"}
               </Text>
             </View>
-            {/* {event.review_count > 0 && (
-              <Text style={s.metaText}>({event.review_count})</Text>
-            )} */}
-           
-            {event.price ? (
-              <>
-                <Text style={s.metaText}>{priceTier(event.price)}</Text>
-              </>
-            ) : null}
             {distanceStr ? (
               <>
                 <View style={s.metaDot} />
                 <Text style={s.metaText}>{distanceStr}</Text>
               </>
             ) : null}
-            <View style={{ flex: 1 }} />
             {event.price && parseFloat(event.price) > 0 ? (
-              <View style={s.priceRow}>
-                <DollarIcon width={14} height={14} color={Colors.primary} />
-                <Text style={s.priceText}>{Math.round(parseFloat(event.price) * 100) / 100}</Text>
-              </View>
+              <>
+                <View style={s.metaDot} />
+                <View style={s.priceRow}>
+                  <DollarIcon width={14} height={14} color={Colors.primary} />
+                  <Text style={s.priceText}>{Math.round(parseFloat(event.price) * 100) / 100}</Text>
+                </View>
+              </>
             ) : null}
-          </View>
+          </ScrollView>
            {event.is_registered && (
              <View style={s.joinedActions}>
                <View style={s.openNowBadge}>
@@ -415,12 +407,12 @@ export default function EventDetailsScreen() {
               >
                 <Text style={s.actionOutlineBtnText}>Message</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={s.actionCircleBtn}
                 onPress={() => router.push(`/(tabs)/post?event_id=${event.id}`)}
               >
                 <PlusIcon width={20} height={20} color={Colors.text} />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
            )}
 
@@ -615,8 +607,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 14,
-    flexWrap: "wrap",
+    paddingRight: 18,
   },
   priceRow: {
     flexDirection: "row",

@@ -137,7 +137,7 @@ interface VenuePin {
   price_level: string;
 }
 
-const TAB_BAR_HEIGHT = 65;
+const TAB_BAR_HEIGHT = 90;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -157,7 +157,7 @@ export default function HomeScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [cardFriends, setCardFriends] = useState<{ id: number; name: string; profile_picture: string | null }[]>([]);
   const [mapReady, setMapReady] = useState(false);
-  const [tracksChanges, setTracksChanges] = useState(false);
+  const [tracksChanges, setTracksChanges] = useState(true);
   const tracksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [zoomRegion, setZoomRegion] = useState<typeof MANHATTAN_REGION | null>(null);
@@ -356,7 +356,7 @@ export default function HomeScreen() {
 
   // fitMapToVenues removed — fitToCoordinates crashes on Android with custom markers.
   // Map uses fixed initialRegion (Manhattan) instead.
-  const fitMapToVenues = useCallback(() => {}, []);
+
 
   const selectedVenue = venues.find((v) => v.id === selectedId);
 
@@ -380,7 +380,7 @@ export default function HomeScreen() {
         onMapReady={() => setMapReady(true)}
         showsUserLocation
         showsMyLocationButton={false}
-        showsCompass={false}
+        // showsCompass={false}
         showsBuildings={false}
         showsTraffic={false}
       >
@@ -394,21 +394,23 @@ export default function HomeScreen() {
               anchor={{ x: 0.5, y: 0.5 }}
               tracksViewChanges={tracksChanges}
             >
-              <View collapsable={false} style={styles.markerOuter}>
-                <View style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
+              <View style={styles.markerOuter}>
+                <View collapsable={false} style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
                   <Ionicons
                     name={pin.icon as keyof typeof Ionicons.glyphMap}
                     size={14}
                     color={isSelected ? Colors.black : Colors.white}
                   />
-                  <Text
-                    style={[
-                      styles.mapPillScore,
-                      isSelected && styles.mapPillScoreSelected,
-                    ]}
-                  >
-                    {pin.score_display}
-                  </Text>
+                  <View collapsable={false}>
+                    <Text
+                      style={[
+                        styles.mapPillScore,
+                        isSelected && styles.mapPillScoreSelected,
+                      ]}
+                    >
+                      {pin.score_display}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </Marker>
@@ -624,20 +626,22 @@ const styles = StyleSheet.create({
   },
 
   mapPill: {
-    flexDirection: "column",
+    flexShrink: 0,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
     backgroundColor: Colors.black,
-    borderRadius: 10,          // NOT 999 — Android clips content when radius > height/2
-    paddingVertical: 4,
-    paddingHorizontal: 11,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
   },
-  // Fixed-size outer wrapper — Android measures this first; give extra room so pill never clips
+  // flexShrink: 0 prevents Yoga layout box from shrinking below content size.
+  // Android bitmaps the marker at the Yoga box dimensions — if it shrinks,
+  // the bitmap is too small and content clips. This is the confirmed fix.
   markerOuter: {
-    // width: 100,
-    // height: 40,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
   },

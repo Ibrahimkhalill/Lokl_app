@@ -461,7 +461,7 @@ export default function DetailsScreen() {
                 style={[styles.actionBtn, styles.shareGroupBtn]}
                 onPress={handleOpenShareToGroup}
               >
-                <Ionicons name="people-outline" size={14} color={Colors.black} />
+                <Ionicons name="people-outline" size={14} color={Colors.white} />
                 <Text style={[styles.actionBtnText]}>Share to Group</Text>
               </TouchableOpacity>
               <TouchableOpacity

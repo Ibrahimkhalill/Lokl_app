@@ -4,6 +4,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import * as Notifications from "expo-notifications";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Colors } from "../constants/colors";
 import { AuthProvider } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
@@ -52,6 +54,8 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+    <BottomSheetModalProvider>
     <AuthProvider>
       <PreferencesProvider>
       <MessageProvider>
@@ -120,5 +124,7 @@ export default function RootLayout() {
       </MessageProvider>
       </PreferencesProvider>
     </AuthProvider>
+    </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }

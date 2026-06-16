@@ -332,7 +332,7 @@ export default function HostEventDetailScreen() {
           ) : null}
 
           {/* Host quick links */}
-          <View style={s.actionGroup}>
+          {/* <View style={s.actionGroup}>
             <TouchableOpacity style={s.actionBtn} onPress={() => router.push(`/events/gallery?id=${eventId}`)}>
               <Ionicons name="images-outline" size={18} color={Colors.primary} />
               <Text style={s.actionBtnText}>View Gallery</Text>
@@ -348,7 +348,7 @@ export default function HostEventDetailScreen() {
               <Text style={s.actionBtnText}>Share Event</Text>
               <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
             </TouchableOpacity>
-          </View>
+          </View> */}
 
           {/* Delete */}
           <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} disabled={deleting}>

@@ -63,8 +63,16 @@ export const businessService = {
     return fetchMultipart("/business/profile/", "PATCH", data);
   },
 
-  getBusinessPosts(userId: number) {
-    return api.get(`/posts/?author=${userId}`);
+  getBusinessClips(businessProfileId: number) {
+    return api.get(`/business/${businessProfileId}/clips/`);
+  },
+
+  addClip(businessProfileId: number, data: FormData) {
+    return fetchMultipart(`/business/${businessProfileId}/clips/`, "POST", data);
+  },
+
+  deleteClip(businessProfileId: number, clipId: number) {
+    return api.delete(`/business/${businessProfileId}/clips/${clipId}/`);
   },
 
   addScheduleSlot(pk: number, data: object) {
@@ -89,6 +97,10 @@ export const businessService = {
 
   updateContact(pk: number, data: object) {
     return api.put(`/business/${pk}/contact/`, data);
+  },
+
+  addTrainingLocation(pk: number, venueId: number, note?: string) {
+    return api.post(`/business/${pk}/training-locations/`, { venue: venueId, note: note ?? "" });
   },
 
   deleteTrainingLocation(pk: number, lid: number) {
