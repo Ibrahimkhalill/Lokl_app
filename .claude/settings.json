@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sys; sys.path.append\\(''\\); import subprocess; result = subprocess.run\\(['python', '-c', 'import pdfplumber; pdf = pdfplumber.open\\(r\\\\\"C:\\\\\\\\Users\\\\\\\\Ibrahim Khalil\\\\\\\\Downloads\\\\\\\\COMBINED 1st NOTES \\(1\\).pdf\\\\\"\\); [print\\(p.extract_text\\(\\)\\) for p in pdf.pages]'], capture_output=True, text=True\\); print\\(result.stdout[:5000]\\); print\\(result.stderr[:1000]\\)\")",
+      "PowerShell(python -c \"import pdfplumber; pdf = pdfplumber.open\\('C:/Users/Ibrahim Khalil/Downloads/COMBINED 1st NOTES \\(1\\).pdf'\\); text = '\\\\n'.join\\(p.extract_text\\(\\) or '' for p in pdf.pages\\); print\\(text[:8000]\\)\")",
+      "PowerShell(python -c \"import PyPDF2; pdf = PyPDF2.PdfReader\\('C:/Users/Ibrahim Khalil/Downloads/COMBINED 1st NOTES \\(1\\).pdf'\\); text = '\\\\n'.join\\(p.extract_text\\(\\) or '' for p in pdf.pages\\); print\\(text[:8000]\\)\")",
+      "PowerShell(pip install pdfplumber -q)",
+      "PowerShell(python -c \"import pdfplumber; pdf = pdfplumber.open\\('C:/Users/Ibrahim Khalil/Downloads/COMBINED 1st NOTES \\(1\\).pdf'\\); text = '\\\\n'.join\\(p.extract_text\\(\\) or '' for p in pdf.pages\\); print\\(text[:10000]\\)\")",
+      "Bash(xargs grep -l \"rating\\\\|comment\")",
+      "Bash(xargs grep -l \"review\" -i)",
+      "Bash(xargs grep -l \"carousel\\\\|Carousel\\\\|FlatList\\\\|ScrollView\")"
+    ]
+  }
+}
