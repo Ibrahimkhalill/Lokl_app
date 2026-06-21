@@ -35,6 +35,7 @@ export default function OfferingsSection({
   onUpdate,
 }: Props) {
   const sheetRef = useRef<BottomSheetModal>(null);
+  const [editingOffering, setEditingOffering] = useState<CoachOffering | null>(null);
   const [offeringName, setOfferingName] = useState("");
   const [offeringDescription, setOfferingDescription] = useState("");
   const [offeringPrice, setOfferingPrice] = useState("");
@@ -45,9 +46,18 @@ export default function OfferingsSection({
   if (!visible) return null;
 
   function openAddModal() {
+    setEditingOffering(null);
     setOfferingName("");
     setOfferingDescription("");
     setOfferingPrice("");
+    sheetRef.current?.present();
+  }
+
+  function openEditModal(offering: CoachOffering) {
+    setEditingOffering(offering);
+    setOfferingName(offering.name);
+    setOfferingDescription(offering.description ?? "");
+    setOfferingPrice(offering.price != null ? String(offering.price) : "");
     sheetRef.current?.present();
   }
 
@@ -58,16 +68,25 @@ export default function OfferingsSection({
     }
     setSaving(true);
     try {
-      const payload: { name: string; description?: string; price?: number } = {
+      const payload: { name: string; description?: string; price?: number | null } = {
         name: offeringName.trim(),
       };
       if (offeringDescription.trim()) payload.description = offeringDescription.trim();
       if (offeringPrice.trim()) {
         const parsed = parseFloat(offeringPrice.trim());
         if (!isNaN(parsed)) payload.price = parsed;
+      } else {
+        payload.price = null;
       }
-      await businessService.addOffering(businessProfileId, payload);
+
+      if (editingOffering) {
+        await businessService.updateOffering(businessProfileId, editingOffering.id, payload);
+      } else {
+        await businessService.addOffering(businessProfileId, payload);
+      }
+
       sheetRef.current?.dismiss();
+      setEditingOffering(null);
       setOfferingName("");
       setOfferingDescription("");
       setOfferingPrice("");
@@ -142,17 +161,25 @@ export default function OfferingsSection({
               <Text style={styles.offeringPrice}>${offering.price}</Text>
             )}
             {isOwner && (
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDeleteOffering(offering.id)}
-                disabled={deletingOfferingId === offering.id}
-              >
-                {deletingOfferingId === offering.id ? (
-                  <ActivityIndicator size="small" color={Colors.error} />
-                ) : (
-                  <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                )}
-              </TouchableOpacity>
+              <View style={styles.actionBtns}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => openEditModal(offering)}
+                >
+                  <Ionicons name="pencil-outline" size={15} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => handleDeleteOffering(offering.id)}
+                  disabled={deletingOfferingId === offering.id}
+                >
+                  {deletingOfferingId === offering.id ? (
+                    <ActivityIndicator size="small" color={Colors.error} />
+                  ) : (
+                    <Ionicons name="trash-outline" size={15} color={Colors.error} />
+                  )}
+                </TouchableOpacity>
+              </View>
             )}
           </View>
           {!!offering.description && (
@@ -172,7 +199,9 @@ export default function OfferingsSection({
       >
         <BottomSheetScrollView style={{ flex: 1 }} contentContainerStyle={styles.sheetContent}>
           <View style={sharedStyles.modalHeader}>
-            <Text style={sharedStyles.modalTitle}>Add Offering</Text>
+            <Text style={sharedStyles.modalTitle}>
+              {editingOffering ? "Edit Offering" : "Add Offering"}
+            </Text>
             <TouchableOpacity onPress={() => sheetRef.current?.dismiss()}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -222,7 +251,9 @@ export default function OfferingsSection({
             {saving ? (
               <ActivityIndicator color={Colors.black} />
             ) : (
-              <Text style={sharedStyles.saveBtnText}>Add Offering</Text>
+              <Text style={sharedStyles.saveBtnText}>
+                {editingOffering ? "Save Changes" : "Add Offering"}
+              </Text>
             )}
           </TouchableOpacity>
         </BottomSheetScrollView>
@@ -252,7 +283,11 @@ const styles = StyleSheet.create({
   },
   offeringName: { flex: 1, color: Colors.text, fontSize: 15, fontWeight: "700" },
   offeringPrice: { color: Colors.primary, fontSize: 15, fontWeight: "700" },
-  deleteBtn: {
+  actionBtns: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  actionBtn: {
     width: 30,
     height: 30,
     borderRadius: 8,

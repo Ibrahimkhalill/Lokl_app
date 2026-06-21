@@ -196,21 +196,38 @@ export default function HomeScreen() {
 
   const venuesRef = useRef<VenuePin[]>([]);
 
-  // Animate map so the pin appears above the bottom card
+  // Animate map so the pin lands in the centre of the visible area
+  // between the search bar (top) and the venue card (bottom).
   const zoomToVenue = useCallback((venue: VenuePin, animated = true) => {
     const LAT_DELTA = 0.018;
     const LNG_DELTA = 0.012;
-    // Shift center south by ~35% of latDelta → pin shows in upper portion of visible map
+
+    // Pixel heights of the UI that covers the map
+    const TOP_CLEARANCE    = 110;                          // safe area + search bar
+    const CARD_HEIGHT      = 220;                          // approximate venue card height
+    const BOTTOM_CLEARANCE = TAB_BAR_HEIGHT + insets.bottom + CARD_HEIGHT;
+
+    // Y position (px from top) we want the pin to sit at
+    const usableH  = height - TOP_CLEARANCE - BOTTOM_CLEARANCE;
+    const targetY  = TOP_CLEARANCE + usableH * 0.5;
+
+    // How many px is targetY above the screen centre?
+    const pxAboveCenter = height / 2 - targetY;           // positive → above centre
+
+    // Convert to a latitude delta shift:
+    // (px / screenHeight) × LAT_DELTA gives the lat fraction
+    const latShift = (pxAboveCenter / height) * LAT_DELTA;
+
     mapRef.current?.animateToRegion(
       {
-        latitude:      venue.lat - LAT_DELTA * 0.35,
+        latitude:      venue.lat - latShift,
         longitude:     venue.lng,
         latitudeDelta: LAT_DELTA,
         longitudeDelta: LNG_DELTA,
       },
       animated ? 450 : 0
     );
-  }, []);
+  }, [insets.bottom]);
 
   const selectVenue = useCallback((id: number) => {
     if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
@@ -380,11 +397,14 @@ export default function HomeScreen() {
         onMapReady={() => setMapReady(true)}
         showsUserLocation
         showsMyLocationButton={false}
-        // showsCompass={false}
+        showsCompass={false}
         showsBuildings={false}
         showsTraffic={false}
       >
-        {venues.map((pin) => {
+        {/* Render selected marker last so it sits on top on Android */}
+        {[...venues].sort((a, b) =>
+          a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0
+        ).map((pin) => {
           const isSelected = selectedId === pin.id;
           return (
             <Marker
@@ -393,6 +413,7 @@ export default function HomeScreen() {
               onPress={() => selectVenue(pin.id)}
               anchor={{ x: 0.5, y: 0.5 }}
               tracksViewChanges={tracksChanges}
+              zIndex={isSelected ? 999 : 1}
             >
               <View style={styles.markerOuter}>
                 <View collapsable={false} style={[styles.mapPill, isSelected && styles.mapPillSelected]}>

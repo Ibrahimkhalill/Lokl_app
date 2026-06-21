@@ -599,7 +599,7 @@ export default function DetailsScreen() {
                         color={Colors.primary}
                       />
                     )}
-                    <Text style={styles.amenityText}>
+                    <Text style={styles.amenityText} numberOfLines={1} ellipsizeMode="tail">
                       {AMENITY_LABELS[key] ?? key}
                     </Text>
                   </View>

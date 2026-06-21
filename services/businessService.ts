@@ -95,6 +95,10 @@ export const businessService = {
     return api.delete(`/business/${pk}/offerings/${offeringId}/`);
   },
 
+  updateOffering(pk: number, offeringId: number, data: object) {
+    return api.patch(`/business/${pk}/offerings/${offeringId}/`, data);
+  },
+
   updateContact(pk: number, data: object) {
     return api.put(`/business/${pk}/contact/`, data);
   },

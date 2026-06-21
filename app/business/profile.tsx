@@ -221,6 +221,15 @@ export default function BusinessProfileScreen() {
               onCreatePost={() =>
                 router.push(`/business/create-clip?businessId=${businessProfile?.id}` as never)
               }
+              businessProfileId={businessProfile?.id}
+              onUpdate={fetchData}
+            />
+
+            <FeaturedReviews
+              reviews={businessProfile?.featured_reviews ?? []}
+              isOwner={isOwner}
+              businessProfileId={businessProfile?.id!}
+              onUpdate={fetchData}
             />
 
             <BioSection
@@ -332,13 +341,6 @@ export default function BusinessProfileScreen() {
 
             <TrainingLocations
               locations={businessProfile?.training_locations ?? []}
-              isOwner={isOwner}
-              businessProfileId={businessProfile?.id!}
-              onUpdate={fetchData}
-            />
-
-            <FeaturedReviews
-              reviews={businessProfile?.featured_reviews ?? []}
               isOwner={isOwner}
               businessProfileId={businessProfile?.id!}
               onUpdate={fetchData}

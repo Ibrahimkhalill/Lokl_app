@@ -225,6 +225,9 @@ export default function EventDetailsScreen() {
 
   const hostId = (event as any).host_id ?? (event as any).host?.id;
   const isHost = !!(currentUser?.id && hostId && Number(currentUser.id) === Number(hostId));
+  const isPast = event.status === "past" || new Date(event.date) < new Date();
+  const alreadyReviewed = event.reviews.some((r) => r.user_name === currentUser?.name);
+  const canReview = event.is_registered && !isHost && isPast && !alreadyReviewed;
 
   const infoCards = [
     {
@@ -407,12 +410,16 @@ export default function EventDetailsScreen() {
               >
                 <Text style={s.actionOutlineBtnText}>Message</Text>
               </TouchableOpacity>
-              {/* <TouchableOpacity
+              <TouchableOpacity
                 style={s.actionCircleBtn}
-                onPress={() => router.push(`/(tabs)/post?event_id=${event.id}`)}
+                onPress={() =>
+                  router.push(
+                    `/home/post?event_id=${event.id}&venueName=${encodeURIComponent(event.venue)}&venueAddress=${encodeURIComponent(event.location)}`
+                  )
+                }
               >
                 <PlusIcon width={20} height={20} color={Colors.text} />
-              </TouchableOpacity> */}
+              </TouchableOpacity>
             </View>
            )}
 
@@ -525,8 +532,10 @@ export default function EventDetailsScreen() {
             />
           ))}
           {event.reviews.length === 0 && (
-            <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>No reviews yet.</Text>
+            <Text style={{ color: Colors.textSecondary, textAlign:"center", fontSize: 13 }}>No reviews yet.</Text>
           )}
+
+        
         </View>
       </ScrollView>
     </View>
@@ -764,4 +773,16 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   joinRequestDeclineText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "600" },
+
+  rateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 50,
+    height: 48,
+    marginTop: 14,
+  },
+  rateBtnText: { color: Colors.black, fontSize: 15, fontWeight: "700" },
 });

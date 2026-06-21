@@ -340,7 +340,7 @@ export default function ProfileScreen() {
                 ))}
               {achievements.unlocked > 6 && (
                 <View style={[styles.achBadge, styles.achBadgeMore]}>
-                  <Text style={styles.achBadgeMoreText}>+{achievements.unlocked - 6}</Text>
+                  <Text style={styles.achBadgeMoreText} numberOfLines={1}>+{Math.min(achievements.unlocked - 6, 99)}</Text>
                 </View>
               )}
             </View>

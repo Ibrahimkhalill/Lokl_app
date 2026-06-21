@@ -188,7 +188,7 @@ export const PostCard = React.memo(function PostCard({
         </View>
         {!!item.lokl_score && (
           <View style={styles.scoreBadge}>
-            <Text style={styles.scoreText}>{item.lokl_score}</Text>
+            <Text style={styles.scoreText} numberOfLines={1}>{item.lokl_score}</Text>
           </View>
         )}
       </View>

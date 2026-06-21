@@ -37,6 +37,7 @@ export interface FeaturedReview {
   review_comment?: string;
   review_rating?: number;
   review_date?: string;
+  event_name?: string;
 }
 
 export interface ClassClip {

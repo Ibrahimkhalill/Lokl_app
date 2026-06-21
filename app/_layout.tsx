@@ -1,5 +1,7 @@
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import { useEffect, useRef } from "react";
+import { Platform, AppState, AppStateStatus } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "../lib/api";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -21,6 +23,35 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+let sessionStarting = false;
+
+async function startSession() {
+  if (sessionStarting) return;
+  try {
+    const token = await AsyncStorage.getItem("accessToken");
+    if (!token) return; // not logged in — skip silently
+    sessionStarting = true;
+    const res = await api.post("/analytics/session/start/");
+    const sessionId = res.data?.session_id;
+    if (sessionId != null) {
+      await AsyncStorage.setItem("session_id", String(sessionId));
+    }
+  } catch {} finally {
+    sessionStarting = false;
+  }
+}
+
+async function endSession() {
+  try {
+    const sessionId = await AsyncStorage.getItem("session_id");
+    if (!sessionId) return;
+    await AsyncStorage.removeItem("session_id"); // remove first — prevents double-end
+    const token = await AsyncStorage.getItem("accessToken");
+    if (!token) return;
+    await api.post("/analytics/session/end/", { session_id: Number(sessionId) });
+  } catch {}
+}
 
 async function registerPushToken() {
   try {
@@ -48,9 +79,32 @@ async function registerPushToken() {
 }
 
 export default function RootLayout() {
+  const appState = useRef(AppState.currentState);
+
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(Colors.background);
     void registerPushToken();
+
+    // Start session on launch
+    void startSession();
+
+    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
+      const prev = appState.current;
+      appState.current = next;
+
+      if (prev.match(/inactive|background/) && next === "active") {
+        // App came to foreground
+        void startSession();
+      } else if (prev === "active" && next.match(/inactive|background/)) {
+        // App went to background
+        void endSession();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      void endSession();
+    };
   }, []);
 
   return (

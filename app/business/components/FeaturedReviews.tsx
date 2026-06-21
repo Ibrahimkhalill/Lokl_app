@@ -1,24 +1,24 @@
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  Pressable,
-  ScrollView,
   Alert,
   ActivityIndicator,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
 import { Colors } from "../../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
 import { businessService } from "../../../services/businessService";
 import { getErrorMessage } from "../../../lib/api";
 import { FeaturedReview } from "./types";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface Props {
   reviews: FeaturedReview[];
@@ -32,7 +32,7 @@ interface AvailableReview {
   user_name: string;
   rating?: number;
   comment?: string;
-  venue_name?: string;
+  event_name?: string;
 }
 
 function getInitials(name: string) {
@@ -43,31 +43,29 @@ function getInitials(name: string) {
     .join("");
 }
 
-function RatingBadge({ rating }: { rating: number }) {
-  return (
-    <View style={styles.ratingPill}>
-      <Ionicons name="star" size={10} color="#000" />
-      <Text style={styles.ratingPillText}>{rating.toFixed(1)}</Text>
-    </View>
-  );
-}
-
-export function FeaturedReviews({
-  reviews,
-  isOwner,
-  businessProfileId,
-  onUpdate,
-}: Props) {
-  const [pickerVisible, setPickerVisible] = useState(false);
+export function FeaturedReviews({ reviews, isOwner, businessProfileId, onUpdate }: Props) {
+  const sheetRef = useRef<BottomSheetModal>(null);
   const [available, setAvailable] = useState<AvailableReview[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [unfeaturingId, setUnfeaturingId] = useState<number | null>(null);
   const [pinningId, setPinningId] = useState<number | null>(null);
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
   if (!isOwner && reviews.length === 0) return null;
 
   const openPicker = async () => {
-    setPickerVisible(true);
+    sheetRef.current?.present();
     setLoadingAvailable(true);
     try {
       const res = await businessService.getAvailableReviews(businessProfileId);
@@ -86,36 +84,32 @@ export function FeaturedReviews({
     }
   };
 
-  const handleUnfeature = async (fid: number) => {
-    Alert.alert(
-      "Unpin Review",
-      "Remove this review from your featured section?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            setUnfeaturingId(fid);
-            try {
-              await businessService.deleteFeaturedReview(businessProfileId, fid);
-              onUpdate();
-            } catch (err) {
-              Alert.alert("Error", getErrorMessage(err));
-            } finally {
-              setUnfeaturingId(null);
-            }
-          },
+  const handleUnfeature = (fid: number) => {
+    Alert.alert("Unpin Review", "Remove this review from your featured section?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setUnfeaturingId(fid);
+          try {
+            await businessService.deleteFeaturedReview(businessProfileId, fid);
+            onUpdate();
+          } catch (err) {
+            Alert.alert("Error", getErrorMessage(err));
+          } finally {
+            setUnfeaturingId(null);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handlePin = async (reviewId: number) => {
     setPinningId(reviewId);
     try {
       await businessService.addFeaturedReview(businessProfileId, reviewId);
-      setPickerVisible(false);
+      sheetRef.current?.dismiss();
       onUpdate();
     } catch (err) {
       Alert.alert("Error", getErrorMessage(err));
@@ -152,45 +146,46 @@ export function FeaturedReviews({
             <Ionicons name="star-outline" size={26} color={Colors.primary} />
           </View>
           <Text style={sharedStyles.addPlaceholderTitle}>Pin your best reviews</Text>
+          <Text style={sharedStyles.addPlaceholderText}>
+            Highlight up to 3 reviews on your profile
+          </Text>
         </TouchableOpacity>
       )}
 
-      {/* Pinned review cards */}
+      {/* Pinned review cards — same style as infoCard/reviewCard pattern */}
       {reviews.map((review) => (
-        <View key={review.id} style={styles.pinnedCard}>
-          {/* Quote mark */}
-          <Text style={styles.quoteChar}>"</Text>
-
-          {/* Comment */}
-          {!!review.review_comment && (
-            <Text style={styles.pinnedComment}>{review.review_comment}</Text>
-          )}
-
-          {/* Bottom row: avatar + name + rating + delete */}
-          <View style={styles.pinnedFooter}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>
+        <View key={review.id} style={sharedStyles.reviewCard}>
+          {/* Author row */}
+          <View style={sharedStyles.reviewHeader}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
                 {getInitials(review.reviewer_name || "U")}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pinnedName}>{review.reviewer_name || "User"}</Text>
-              {!!(review as any).venue_name && (
+              <Text style={sharedStyles.reviewerName} numberOfLines={1}>
+                {review.reviewer_name || "User"}
+              </Text>
+              {!!(review as any).event_name && (
                 <View style={styles.venueRow}>
-                  <Ionicons name="location-outline" size={10} color={Colors.textMuted} />
-                  <Text style={styles.pinnedVenue}>{(review as any).venue_name}</Text>
+                  <Ionicons name="calendar-outline" size={10} color={Colors.textMuted} />
+                  <Text style={styles.venueText}>{(review as any).event_name}</Text>
                 </View>
               )}
             </View>
             {review.review_rating != null && (
-              <RatingBadge rating={review.review_rating} />
+              <View style={sharedStyles.ratingBadge}>
+                <Text style={sharedStyles.ratingText}>
+                  ★ {review.review_rating.toFixed(1)}
+                </Text>
+              </View>
             )}
             {isOwner && (
               <TouchableOpacity
                 onPress={() => handleUnfeature(review.id)}
                 disabled={unfeaturingId === review.id}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ marginLeft: 10 }}
+                style={{ marginLeft: 6 }}
               >
                 {unfeaturingId === review.id ? (
                   <ActivityIndicator size="small" color={Colors.error} />
@@ -200,262 +195,146 @@ export function FeaturedReviews({
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Comment */}
+          {!!review.review_comment && (
+            <Text style={sharedStyles.reviewComment}>
+              {'"'}{review.review_comment}{'"'}
+            </Text>
+          )}
         </View>
       ))}
 
-      {/* Picker Modal */}
-      <Modal
-        visible={pickerVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerVisible(false)}
+      {/* Pin picker — BottomSheetModal like other sections */}
+      <BottomSheetModal
+        ref={sheetRef}
+        snapPoints={["72%", "92%"]}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={styles.sheetBg}
+        handleIndicatorStyle={styles.handle}
       >
-        <Pressable style={sharedStyles.modalOverlay} onPress={() => setPickerVisible(false)} />
-        <View style={[sharedStyles.modalSheet, { maxHeight: SCREEN_HEIGHT * 0.82 }]}>
-          <View style={sharedStyles.modalHandle} />
+        <BottomSheetScrollView
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={sharedStyles.modalHeader}>
             <Text style={sharedStyles.modalTitle}>Pin a Review</Text>
-            <TouchableOpacity onPress={() => setPickerVisible(false)}>
+            <TouchableOpacity onPress={() => sheetRef.current?.dismiss()}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {loadingAvailable ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.loadingWrap}>
               <ActivityIndicator color={Colors.primary} />
             </View>
           ) : available.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconWrap}>
-                <Ionicons name="star-outline" size={32} color={Colors.primary} />
+            <View style={sharedStyles.addPlaceholder}>
+              <View style={sharedStyles.addPlaceholderIcon}>
+                <Ionicons name="star-outline" size={28} color={Colors.primary} />
               </View>
-              <Text style={styles.emptyTitle}>No reviews available to pin</Text>
-              <Text style={styles.emptySubtitle}>
-                When people attend and review your events, you can pin those reviews here
+              <Text style={sharedStyles.addPlaceholderTitle}>No reviews yet</Text>
+              <Text style={sharedStyles.addPlaceholderText}>
+                Reviews appear here once attendees rate your events
               </Text>
             </View>
           ) : (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.pickerList}
-            >
-              {available.map((r) => (
-                <View key={r.id} style={styles.pickerCard}>
-                  {/* Top row: avatar + name + rating */}
-                  <View style={styles.pickerTopRow}>
-                    <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarInitials}>
-                        {getInitials(r.user_name || "U")}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pickerName}>{r.user_name || "User"}</Text>
-                      {!!r.venue_name && (
-                        <View style={styles.venueRow}>
-                          <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
-                          <Text style={styles.pickerVenue}>{r.venue_name}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {r.rating != null && <RatingBadge rating={r.rating} />}
-                  </View>
+            available.map((r) => (
+              <View key={r.id} style={[sharedStyles.reviewPickerRow, styles.pickerRow]}>
+                {/* Avatar */}
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getInitials(r.user_name || "U")}</Text>
+                </View>
 
-                  {/* Comment */}
+                {/* Name + venue + comment */}
+                <View style={{ flex: 1 }}>
+                  <Text style={sharedStyles.reviewerName}>{r.user_name || "User"}</Text>
+                  {!!r.event_name && (
+                    <View style={styles.venueRow}>
+                      <Ionicons name="calendar-outline" size={10} color={Colors.textMuted} />
+                      <Text style={styles.venueText}>{r.event_name}</Text>
+                    </View>
+                  )}
                   {!!r.comment && (
-                    <Text style={styles.pickerComment} numberOfLines={3}>
+                    <Text style={[sharedStyles.reviewComment, { marginTop: 4 }]} numberOfLines={2}>
                       "{r.comment}"
                     </Text>
                   )}
-
-                  {/* Pin button */}
-                  <TouchableOpacity
-                    style={styles.pinBtn}
-                    onPress={() => handlePin(r.id)}
-                    disabled={pinningId === r.id}
-                    activeOpacity={0.8}
-                  >
-                    {pinningId === r.id ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <>
-                        <Ionicons name="pin-outline" size={14} color="#000" />
-                        <Text style={styles.pinBtnText}>Pin to Profile</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
                 </View>
-              ))}
-            </ScrollView>
+
+                {/* Rating */}
+                {r.rating != null && (
+                  <View style={sharedStyles.ratingBadge}>
+                    <Text style={sharedStyles.ratingText}>★ {r.rating.toFixed(1)}</Text>
+                  </View>
+                )}
+
+                {/* Pin button */}
+                <TouchableOpacity
+                  style={styles.pinBtn}
+                  onPress={() => handlePin(r.id)}
+                  disabled={pinningId === r.id}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {pinningId === r.id ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <Ionicons name="add" size={20} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            ))
           )}
-        </View>
-      </Modal>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  /* ── Pinned review cards ── */
-  pinnedCard: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-  },
-  quoteChar: {
-    fontSize: 42,
-    lineHeight: 36,
-    color: Colors.primary,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  pinnedComment: {
-    color: Colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 16,
-  },
-  pinnedFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.cardBorder,
-    paddingTop: 12,
-  },
-  pinnedName: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  pinnedVenue: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    marginLeft: 3,
-  },
+  sheetBg: { backgroundColor: Colors.card },
+  handle: { backgroundColor: Colors.textMuted },
+  sheetContent: { paddingBottom: 40 },
+  pickerRow: { paddingHorizontal: 16 },
+  loadingWrap: { paddingVertical: 48, alignItems: "center" },
 
-  /* ── Avatar ── */
-  avatarCircle: {
+  avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.primary + "22",
-    borderWidth: 1.5,
-    borderColor: Colors.primary + "55",
+    backgroundColor: "rgba(209,255,0,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(209,255,0,0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarInitials: {
+  avatarText: {
     color: Colors.primary,
     fontSize: 13,
     fontWeight: "700",
   },
 
-  /* ── Rating pill ── */
-  ratingPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  ratingPillText: {
-    color: "#000",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  /* ── Venue row ── */
   venueRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 3,
     marginTop: 2,
   },
-
-  /* ── Picker modal ── */
-  loadingContainer: {
-    paddingVertical: 48,
-    alignItems: "center",
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    paddingHorizontal: 28,
-    alignItems: "center",
-    gap: 12,
-  },
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primary + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  pickerList: {
-    padding: 16,
-    gap: 12,
-  },
-  pickerCard: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  pickerTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-  },
-  pickerName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  pickerVenue: {
+  venueText: {
     color: Colors.textMuted,
     fontSize: 11,
-    marginLeft: 3,
   },
-  pickerComment: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
-    fontStyle: "italic",
-    marginBottom: 14,
-    paddingLeft: 2,
-  },
+
   pinBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: Colors.primary,
+    width: 34,
+    height: 34,
     borderRadius: 10,
-    paddingVertical: 10,
-  },
-  pinBtnText: {
-    color: "#000",
-    fontSize: 13,
-    fontWeight: "700",
+    backgroundColor: "rgba(209,255,0,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(209,255,0,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
 });

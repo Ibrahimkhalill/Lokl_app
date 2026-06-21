@@ -33,6 +33,7 @@ export const sharedStyles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.cardBorder,
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   modalTitle: { color: Colors.text, fontSize: 16, fontWeight: "700" },
   modalLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 6 },
