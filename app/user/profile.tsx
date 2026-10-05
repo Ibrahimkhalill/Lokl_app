@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { Avatar } from "../../components/primitives/Avatar";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import type { ApiAchievementsData } from "../../components/feature-profile/streaks";
+import { openPostShare } from "../../lib/sharePost";
 
 type MeProfile = {
   id: number;
@@ -78,9 +79,12 @@ export default function ProfileScreen() {
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
   const [achievements, setAchievements] = useState<ApiAchievementsData | null>(null);
 
+  const hasLoadedRef = useRef(false);
+
+  // Full-screen spinner only on the first load; focus refreshes update in place (keeps scroll position).
   const fetchMe = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
-    else setLoading(true);
+    else if (!hasLoadedRef.current) setLoading(true);
     try {
       const [meRes, achRes] = await Promise.allSettled([
         userService.getMe(),
@@ -88,6 +92,7 @@ export default function ProfileScreen() {
       ]);
       if (meRes.status === "fulfilled") {
         setMeData(meRes.value.data?.data ?? meRes.value.data);
+        hasLoadedRef.current = true;
       }
       if (achRes.status === "fulfilled") {
         const d = achRes.value.data?.data ?? achRes.value.data;
@@ -106,8 +111,8 @@ export default function ProfileScreen() {
   const updatePosts = useCallback((id: number, updater: (p: ApiPost) => ApiPost) => {
     setMeData((prev) => prev ? {
       ...prev,
-      posts: prev.posts.map((p) => p.id === id ? updater(p) : p),
-      saved_posts: prev.saved_posts.map((p) => p.id === id ? updater(p) : p),
+      posts: (prev.posts ?? []).map((p) => p.id === id ? updater(p) : p),
+      saved_posts: (prev.saved_posts ?? []).map((p) => p.id === id ? updater(p) : p),
     } : prev);
   }, []);
 
@@ -125,7 +130,10 @@ export default function ProfileScreen() {
     );
   }, [updatePosts]);
 
-  const handleShare = useCallback((id: number) => { postService.sharePost(id).catch(() => {}); }, []);
+  const handleShare = useCallback((id: number) => {
+    const post = meData?.posts?.find((p) => p.id === id) ?? meData?.saved_posts?.find((p) => p.id === id);
+    openPostShare(router, id, post);
+  }, [router, meData]);
   const handleComment = useCallback((id: number) => setCommentPostId(id), []);
 
   if (loading) {

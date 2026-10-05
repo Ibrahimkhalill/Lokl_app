@@ -13,9 +13,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
+import { businessService } from "../../services/businessService";
 import { ClassClip } from "./types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");

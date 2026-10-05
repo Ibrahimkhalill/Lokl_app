@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 
-const GOOGLE_API_KEY = "AIzaSyDUG5-oxWq1CeJRKcMMJ69AstZhiscurv0";
+// Set in .env (see .env.example). Restrict this key to the Places API + app quota in Google Cloud.
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? "";
 
 export interface LocationResult {
   address: string;

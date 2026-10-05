@@ -1,15 +1,37 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api, BASE_URL } from "../lib/api";
+import { api, BASE_URL, refreshAccessToken } from "../lib/api";
 
+const UPLOAD_TIMEOUT_MS = 120000;
+
+async function sendMultipart(path: string, method: "POST" | "PATCH", data: FormData, token: string | null) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    return await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: data,
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") throw new Error("Upload timed out. Please try again.");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Raw fetch (not axios) for uploads — so it must handle token refresh itself.
 async function fetchMultipart(path: string, method: "POST" | "PATCH", data: FormData) {
-  const token = await AsyncStorage.getItem("accessToken");
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: data,
-  });
+  let res = await sendMultipart(path, method, data, await AsyncStorage.getItem("accessToken"));
+  if (res.status === 401) {
+    try {
+      const fresh = await refreshAccessToken();
+      res = await sendMultipart(path, method, data, fresh);
+    } catch {
+      // fall through with the original 401 response
+    }
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err: any = new Error(json?.message || json?.detail || "Request failed");
@@ -34,6 +56,7 @@ export const businessService = {
 
   updateBusinessProfile(data: {
     business_name?: string;
+    business_type?: string;
     owner_name?: string;
     bio?: string;
     address?: string;

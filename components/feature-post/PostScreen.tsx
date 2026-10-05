@@ -21,7 +21,7 @@ import ChevronDownIcon from "../../assets/icons/chevron-down.svg";
 import { MediaPickerCard, FormField, AppTextInput } from "../primitives";
 import { BottomSheet, BOTTOM_SHEET_MAX_LIST_HEIGHT } from "../overlays";
 import { useToggleSet } from "../../hooks/useToggleSet";
-import { pickPostMedia } from "../../lib/mediaPicker";
+import { pickPostMedia, toUploadFile } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { userService } from "../../services/userService";
 import { postService } from "../../services/postService";
@@ -204,11 +204,10 @@ export default function PostScreen() {
       form.append("is_public", postToPublic ? "true" : "false");
       if (locationName) form.append("location", locationName);
       if (mediaUri) {
-        const ext = mediaUri.split(".").pop() ?? "jpg";
         if (mediaKind === "video") {
-          form.append("video", { uri: mediaUri, name: `video.${ext}`, type: `video/${ext}` } as any);
+          form.append("video", toUploadFile(mediaUri, "video", "video"));
         } else {
-          form.append("image", { uri: mediaUri, name: `image.${ext}`, type: `image/${ext}` } as any);
+          form.append("image", toUploadFile(mediaUri, "image", "image"));
         }
       }
       selectedGroupIds.forEach((id) => form.append("tagged_group_ids", id));
@@ -233,17 +232,19 @@ export default function PostScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const [place] = await Location.reverseGeocodeAsync(pos.coords);
-      if (place) {
-        const name = [place.city || place.district, place.country].filter(Boolean).join(", ");
-        setLocationName(name || null);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const [place] = await Location.reverseGeocodeAsync(pos.coords);
+        if (place) {
+          const name = [place.city || place.district, place.country].filter(Boolean).join(", ");
+          setLocationName(name || null);
+        }
+      } catch {
+        // location services off / unavailable — post without a location
       }
     })();
-
-    console.log("[PostScreen] event_id:", event_id, "venueId:", venueId, "isReview:", isReview);
   }, [event_id, venueId, isReview]);
 
   useFocusEffect(

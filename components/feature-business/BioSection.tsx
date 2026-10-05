@@ -15,9 +15,9 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
+import { businessService } from "../../services/businessService";
 
 interface Props {
   bio: string;

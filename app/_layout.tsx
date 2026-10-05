@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Platform, AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api } from "../lib/api";
+import { startSession, endSession } from "../lib/analyticsSession";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -9,7 +9,7 @@ import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Colors } from "../constants/colors";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { PreferencesProvider } from "../context/PreferencesContext";
 import { ToastProvider } from "../context/ToastContext";
@@ -24,33 +24,13 @@ Notifications.setNotificationHandler({
   }),
 });
 
-let sessionStarting = false;
-
-async function startSession() {
-  if (sessionStarting) return;
-  try {
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token) return; // not logged in — skip silently
-    sessionStarting = true;
-    const res = await api.post("/analytics/session/start/");
-    const sessionId = res.data?.session_id;
-    if (sessionId != null) {
-      await AsyncStorage.setItem("session_id", String(sessionId));
-    }
-  } catch {} finally {
-    sessionStarting = false;
-  }
-}
-
-async function endSession() {
-  try {
-    const sessionId = await AsyncStorage.getItem("session_id");
-    if (!sessionId) return;
-    await AsyncStorage.removeItem("session_id"); // remove first — prevents double-end
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token) return;
-    await api.post("/analytics/session/end/", { session_id: Number(sessionId) });
-  } catch {}
+/** Starts an analytics session as soon as the user logs in (not only on launch / foreground). */
+function SessionTracker() {
+  const { isLoggedIn } = useAuth();
+  useEffect(() => {
+    if (isLoggedIn) void startSession();
+  }, [isLoggedIn]);
+  return null;
 }
 
 async function registerPushToken() {
@@ -71,7 +51,6 @@ async function registerPushToken() {
     }
     const { data: token } = await Notifications.getExpoPushTokenAsync();
     // Store locally — AuthContext will send it to the backend after login
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     await AsyncStorage.setItem("expoPushToken", token);
   } catch {
     // Silently skip on simulators or when permissions are unavailable
@@ -84,9 +63,6 @@ export default function RootLayout() {
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(Colors.background);
     void registerPushToken();
-
-    // Start session on launch
-    void startSession();
 
     const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
       const prev = appState.current;
@@ -111,6 +87,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <BottomSheetModalProvider>
     <AuthProvider>
+      <SessionTracker />
       <PreferencesProvider>
       <MessageProvider>
       <ToastProvider>

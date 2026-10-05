@@ -10,6 +10,34 @@ export type PickedMedia = {
   duration?: number | null;
 };
 
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  mp4: "video/mp4",
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  "3gp": "video/3gpp",
+  webm: "video/webm",
+};
+
+/**
+ * Builds the `{ uri, name, type }` object React Native's FormData expects, with a real MIME type.
+ * Handles URIs without an extension (e.g. Android `content://`) by falling back on `kind`.
+ */
+export function toUploadFile(uri: string, kind: "image" | "video" = "image", baseName = "upload") {
+  const lastSegment = uri.split("?")[0].split("/").pop() ?? "";
+  const extMatch = /\.([a-z0-9]+)$/i.exec(lastSegment);
+  const ext = extMatch?.[1].toLowerCase();
+  const type = (ext && MIME_BY_EXT[ext]) ?? (kind === "video" ? "video/mp4" : "image/jpeg");
+  const safeExt = ext && MIME_BY_EXT[ext] ? ext : kind === "video" ? "mp4" : "jpg";
+  return { uri, name: `${baseName}_${Date.now()}.${safeExt}`, type } as any;
+}
+
 function normalizeAssetType(raw: ImagePickerAsset["type"]): "image" | "video" {
   return raw === "video" ? "video" : "image";
 }

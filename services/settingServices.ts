@@ -49,6 +49,10 @@ export const settingService = {
     return api.patch("/users/push-token/", { token });
   },
 
+  clearPushToken() {
+    return api.delete("/users/push-token/");
+  },
+
   updateNotifications(data: {
     push_notifications?: boolean;
     email_notifications?: boolean;

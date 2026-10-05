@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import {
   View,
@@ -25,6 +25,7 @@ import PlusIcon from "../../assets/icons/plus.svg";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
+import { parseApiDate } from "../../lib/date";
 
 type Participant = { id: number; name: string; avatar: string | null };
 type Review = {
@@ -72,7 +73,7 @@ type EventDetail = {
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const d = parseApiDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
@@ -137,16 +138,23 @@ export default function EventDetailsScreen() {
     setDistanceStr(km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
   }, [userCoords, event]);
 
+  const hasLoadedRef = useRef(false);
+
+  /** Shows the full-screen spinner only on first load; later refreshes keep the content (and scroll) in place. */
   const fetchEvent = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
+    if (!id || isNaN(Number(id))) {
+      setLoading(false);
+      return;
+    }
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       const res = await eventService.getEvent(Number(id));
       const data = res.data?.data ?? res.data;
       setEvent(data);
-      // If current user is host, also load pending join requests
-      const hostId = data?.host_id ?? data?.business_id ?? data?.host?.id;
-      if (currentUser?.id && hostId && currentUser.id === hostId) {
+      hasLoadedRef.current = true;
+      // If current user is host, also load pending join requests (host_id is a user id; business_id is not)
+      const hostId = data?.host_id ?? data?.host?.id;
+      if (currentUser?.id && hostId && Number(currentUser.id) === Number(hostId)) {
         eventService.getJoinRequests(Number(id)).then((r) => {
           const d = r.data?.data ?? r.data;
           setJoinRequests(Array.isArray(d) ? d : []);
@@ -185,7 +193,7 @@ export default function EventDetailsScreen() {
       }
       await fetchEvent();
     } catch (e) {
-      console.log("[EventDetails] register error:", getErrorMessage(e));
+      Alert.alert(event.is_registered ? "Couldn't cancel registration" : "Couldn't register", getErrorMessage(e));
     } finally {
       setRegistering(false);
     }
@@ -225,9 +233,6 @@ export default function EventDetailsScreen() {
 
   const hostId = (event as any).host_id ?? (event as any).host?.id;
   const isHost = !!(currentUser?.id && hostId && Number(currentUser.id) === Number(hostId));
-  const isPast = event.status === "past" || new Date(event.date) < new Date();
-  const alreadyReviewed = event.reviews.some((r) => r.user_name === currentUser?.name);
-  const canReview = event.is_registered && !isHost && isPast && !alreadyReviewed;
 
   const infoCards = [
     {
@@ -433,15 +438,17 @@ export default function EventDetailsScreen() {
             activeOpacity={0.7}
             onPress={() => {
               const e = event as any;
-              const hostId =
-                e.host_id ??
-                e.business_id ??
-                e.host?.id ??
-                e.business?.id ??
-                e.created_by_id ??
-                e.organizer_id ??
-                e.creator_id;
-              if (hostId) router.push(`/business/profile?id=${hostId}`);
+              // business_id is a BusinessProfile pk (what /business/profile expects); host_id is a user pk.
+              if (e.business_id) {
+                router.push(`/business/profile?id=${e.business_id}`);
+                return;
+              }
+              const hostUserId = e.host_id ?? e.host?.id;
+              if (hostUserId) {
+                router.push(
+                  `/explore/user-profile?user_id=${hostUserId}&name=${encodeURIComponent(e.host_display ?? "")}`
+                );
+              }
             }}
           >
             {event.host_avatar ? (

@@ -22,14 +22,15 @@ import AccountIcon from "../../assets/icons/account.svg";
 import LockIcon from "../../assets/icons/loack.svg";
 import DeleteIcon from "../../assets/icons/delete.svg";
 import CameraProfileIcon from "../../assets/icons/camera_profile.svg";
-import { userService } from "../../services/userService";
 import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
 import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Account() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { clearSession } = useAuth();
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
   
@@ -115,11 +116,13 @@ export default function Account() {
     setDeleting(true);
     try {
       await settingService.deleteAccount();
+      setDeleting(false);
+      setDeleteModalVisible(false);
       showToast({ type: "info", title: "Account Deleted", message: "Your account has been deleted" });
-      router.replace("/auth/sign-in");
+      // Wipe tokens + in-memory user so the deleted account isn't restored on next launch.
+      await clearSession();
     } catch (error) {
       showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
-    } finally {
       setDeleting(false);
       setDeleteModalVisible(false);
     }

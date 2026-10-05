@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import * as ExpoLocation from "expo-location";
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -21,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SearchIcon from "../../assets/icons/search.svg";
 import CreateGroupIcon from "../../assets/icons/create_group.svg";
 import PersonIcon from "../../assets/icons/friends.svg";
-import CalendarIcon from "../../assets/icons/create_group.svg";
+import CalendarIcon from "../../assets/icons/date.svg";
 import TimeIcon from "../../assets/icons/clock.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
 import { eventService } from "../../services/eventService";
@@ -29,6 +30,7 @@ import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { EmptyState } from "../../components/primitives";
 import { EventCardSkeleton, GroupCardSkeleton } from "../../components/primitives/Skeletons";
+import { parseApiDate } from "../../lib/date";
 
 type ApiEvent = {
   id: number;
@@ -87,7 +89,7 @@ type Tab = "events" | "allGroups" | "myGroups";
 
 function formatDateSmart(dateStr?: string) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const d = parseApiDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   const today = new Date();
   const tomorrow = new Date(today);
@@ -137,9 +139,8 @@ export default function EventsScreen() {
 
   const [groups, setGroups] = useState<ApiGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
-  const [refreshingGroups, setRefreshingGroups] = useState(false);
+  const [, setRefreshingGroups] = useState(false);
 
-  const fetchingRef = useRef(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
@@ -153,16 +154,26 @@ export default function EventsScreen() {
     })();
   }, []);
 
+  const searchRef = useRef(search);
+  searchRef.current = search;
+  const eventsSeq = useRef(0);
+  const eventsLoadedRef = useRef(false);
+
+  /**
+   * Loads events for the current search. Every call gets a sequence number and only the newest
+   * response is applied, so a slow older query can't overwrite newer results.
+   * The skeleton is only shown on the very first load; later loads update in place.
+   */
   const fetchEvents = useCallback(async (refresh = false) => {
-    if (fetchingRef.current && !refresh) return;
-    fetchingRef.current = true;
+    const seq = ++eventsSeq.current;
     if (refresh) setRefreshingEvents(true);
-    else setLoadingEvents(true);
+    else if (!eventsLoadedRef.current) setLoadingEvents(true);
     try {
       const params: Record<string, string> = {};
-      
-      if (search.trim()) params.search = search.trim();
+      const q = searchRef.current.trim();
+      if (q) params.search = q;
       const res = await eventService.listEvents(params);
+      if (seq !== eventsSeq.current) return;
       const payload = res.data?.data ?? res.data;
       const results: ApiEvent[] = Array.isArray(payload)
         ? payload
@@ -171,17 +182,28 @@ export default function EventsScreen() {
         : Array.isArray(payload?.results)
         ? payload.results
         : [];
-
-      console.log("[Events] fetched events:", res.data);
       setEvents(results);
+      eventsLoadedRef.current = true;
     } catch (e) {
       console.log("[Events] fetchEvents error:", getErrorMessage(e));
     } finally {
-      setLoadingEvents(false);
-      setRefreshingEvents(false);
-      fetchingRef.current = false;
+      if (seq === eventsSeq.current) {
+        setLoadingEvents(false);
+        setRefreshingEvents(false);
+      }
     }
-  }, [search]);
+  }, []);
+
+  // Re-query the server when the search text settles (not on every keystroke).
+  const firstSearchRun = useRef(true);
+  useEffect(() => {
+    if (firstSearchRun.current) {
+      firstSearchRun.current = false;
+      return; // initial load happens in the focus effect
+    }
+    const t = setTimeout(() => fetchEvents(), 400);
+    return () => clearTimeout(t);
+  }, [search, fetchEvents]);
 
   const fetchGroups = useCallback(async (refresh = false) => {
     if (refresh) setRefreshingGroups(true);
@@ -194,7 +216,6 @@ export default function EventsScreen() {
         : Array.isArray(payload?.results)
         ? payload.results
         : [];
-      console.log("[Events] fetched groups:", results);
       setGroups(results);
     } catch (e) {
       console.log("[Events] fetchGroups error:", getErrorMessage(e));
@@ -240,9 +261,13 @@ export default function EventsScreen() {
       } else {
         await eventService.registerForEvent(event.id);
       }
-      await fetchEvents();
+      // Reflect the change immediately, then refresh counts in the background (no skeleton flash).
+      setEvents((prev) =>
+        prev.map((e) => (e.id === event.id ? { ...e, is_registered: !event.is_registered } : e))
+      );
+      fetchEvents();
     } catch (e) {
-      console.log("[Events] register error:", getErrorMessage(e));
+      Alert.alert(event.is_registered ? "Couldn't leave event" : "Couldn't join event", getErrorMessage(e));
     } finally {
       setRegistering(null);
     }
@@ -394,7 +419,7 @@ export default function EventsScreen() {
         style={s.groupCard}
         activeOpacity={0.85}
         onPress={() =>
-          router.push(`/events/group-detail?id=${group.id}${group.is_admin ? "&admin=true" : ""}` as never)
+          router.push(`/events/group-detail?id=${group.id}` as never)
         }
       >
         <View style={s.groupCardTop}>
@@ -446,7 +471,7 @@ export default function EventsScreen() {
         <TouchableOpacity
           style={s.groupActionBtn}
           onPress={() =>
-            router.push(`/events/group-detail?id=${group.id}${group.is_admin ? "&admin=true" : ""}` as never)
+            router.push(`/events/group-detail?id=${group.id}` as never)
           }
         >
           <Text style={s.groupActionBtnText}>

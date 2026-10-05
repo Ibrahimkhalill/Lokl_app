@@ -43,7 +43,7 @@ export default function MessagesScreen() {
   }, [showSearch]);
 
   const filtered = conversations.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+    (c.name ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -108,10 +108,10 @@ export default function MessagesScreen() {
           renderItem={({ item }) => {
             const chatRoute =
               item.type === "group"
-                ? `/chat/id?group_id=${item.meta.group_id}&name=${encodeURIComponent(item.name)}`
+                ? `/chat/id?group_id=${item.meta.group_id}&name=${encodeURIComponent(item.name ?? "")}`
                 : item.type === "event"
-                ? `/chat/id?event_id=${item.meta.event_id}&name=${encodeURIComponent(item.name)}`
-                : `/chat/id?user_id=${item.meta.user_id}&name=${encodeURIComponent(item.name)}`;
+                ? `/chat/id?event_id=${item.meta.event_id}&name=${encodeURIComponent(item.name ?? "")}`
+                : `/chat/id?user_id=${item.meta.user_id}&name=${encodeURIComponent(item.name ?? "")}`;
 
             return (
               <TouchableOpacity

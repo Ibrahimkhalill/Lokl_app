@@ -40,7 +40,10 @@ export default function MembersScreen() {
   const [showSearch, setShowSearch] = useState(false);
 
   const fetchMembers = useCallback(async (refresh = false) => {
-    if (!groupId) return;
+    if (!groupId) {
+      setLoading(false); // missing / invalid id — show the empty state instead of spinning forever
+      return;
+    }
     if (refresh) setRefreshing(true);
     else setLoading(true);
     try {
@@ -53,7 +56,6 @@ export default function MembersScreen() {
         : Array.isArray(data?.members)
         ? data.members
         : [];
-        console.log("[Members] fetched:", list);
       setMembers(list);
     } catch (e) {
       console.log("[Members] error:", getErrorMessage(e));

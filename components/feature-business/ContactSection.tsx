@@ -10,7 +10,6 @@ import {
   Alert,
   Switch,
   Linking,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -20,10 +19,10 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage } from "../../../lib/api";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 import { CoachContactInfo } from "./types";
 
 interface Props {

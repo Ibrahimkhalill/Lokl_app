@@ -25,6 +25,7 @@ import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
+import { toLocalDateString } from "../../lib/date";
 
 function formatDob(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
@@ -58,7 +59,7 @@ export default function SignUp() {
     }
     setLoading(true);
     try {
-      const dob = dobDate.toISOString().split("T")[0];
+      const dob = toLocalDateString(dobDate);
       const res = await authService.register({
         username: username.trim(),
         full_name: `${firstName.trim()} ${lastName.trim()}`,

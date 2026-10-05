@@ -7,12 +7,10 @@ import {
   TouchableOpacity,
   Image,
   GestureResponderEvent,
-  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import CommentIcon from "../../assets/icons/comments.svg";
-import LocationIcon from "../../assets/icons/locations.svg";
 
 export type GroupPostItem = {
   id: string;
@@ -56,8 +54,8 @@ export function GroupPostCard({
   onDelete,
   onPressMenu 
 }: GroupPostCardProps) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [, setShowMenu] = useState(false);
+  const [, setMenuPosition] = useState({ x: 0, y: 0 });
 
   const handlePressMenu = (event: GestureResponderEvent) => {
     event.persist();

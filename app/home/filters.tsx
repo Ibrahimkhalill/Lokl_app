@@ -73,9 +73,12 @@ export default function FiltersScreen() {
   const [activeCategory, setActiveCategory]  = useState(existing.type ?? "");
   const [activeRating,   setActiveRating]    = useState(existing.min_rating ?? "");
   const [neighborhood,   setNeighborhood]    = useState(existing.neighborhood ?? "");
+  // Only send a radius if the user actually set one — otherwise Reset could never clear it.
+  const [distanceSet,    setDistanceSet]     = useState(!!existing.radius_km);
 
   function reset() {
     setDistance(10);
+    setDistanceSet(false);
     setPlanTier("");
     setActiveCategory("");
     setActiveRating("");
@@ -83,13 +86,16 @@ export default function FiltersScreen() {
   }
 
   function apply() {
-    const params: Record<string, string> = {};
-    if (activeCategory) params.type         = activeCategory;
-    if (activeRating)   params.min_rating   = activeRating;
-    if (planTier)       params.plan_tier    = planTier;
-    if (neighborhood)   params.neighborhood = neighborhood;
-    params.radius_km = String(distance);
-    router.push({ pathname: "/(tabs)" as any, params });
+    // Always send every key ("" = cleared) so filters removed here are also removed on the map.
+    const params: Record<string, string> = {
+      type:         activeCategory,
+      min_rating:   activeRating,
+      plan_tier:    planTier,
+      neighborhood: neighborhood,
+      radius_km:    distanceSet ? String(distance) : "",
+    };
+    // Go back to the existing tabs screen instead of stacking a new one on top.
+    router.dismissTo({ pathname: "/(tabs)" as any, params });
   }
 
   const panResponder = PanResponder.create({
@@ -97,6 +103,7 @@ export default function FiltersScreen() {
     onPanResponderMove: (_, gs) => {
       const ratio = Math.max(0, Math.min(1, gs.moveX / SLIDER_WIDTH));
       setDistance(Math.round(ratio * 10) || 1);
+      setDistanceSet(true);
     },
   });
 

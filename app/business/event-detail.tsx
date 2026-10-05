@@ -26,6 +26,8 @@ import { eventService } from "../../services/eventService";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
+import { parseApiDate } from "../../lib/date";
 
 type EventData = {
   id: number;
@@ -49,6 +51,7 @@ type EventData = {
   review_count?: number;
   latitude?: string;
   longitude?: string;
+  host_id?: number;
 };
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
@@ -79,7 +82,7 @@ function formatDistance(km: number) {
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const d = parseApiDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
@@ -102,6 +105,7 @@ function renderStars(rating: number) {
 export default function HostEventDetailScreen() {
   const router = useRouter();
   const { showToast, showConfirm } = useToast();
+  const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const eventId = Number(id);
 
@@ -111,7 +115,10 @@ export default function HostEventDetailScreen() {
   const [distance, setDistance] = useState<string | null>(null);
 
   const fetchEvent = useCallback(async () => {
-    if (!eventId) return;
+    if (!eventId) {
+      setLoading(false); // invalid / missing id — show the empty state instead of spinning forever
+      return;
+    }
     setLoading(true);
     try {
       const res = await eventService.getEvent(eventId);
@@ -135,23 +142,12 @@ export default function HostEventDetailScreen() {
         const loc = await ExpoLocation.getCurrentPositionAsync({
           accuracy: ExpoLocation.Accuracy.High,
         });
-        console.log("[Location] Device:", loc.coords.latitude, loc.coords.longitude);
-        console.log("[Location] Event:", event.latitude, event.longitude);
-        const geo = await ExpoLocation.reverseGeocodeAsync({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-        if (geo.length > 0) {
-          const g = geo[0];
-          console.log("[Location] Device city:", g.city, g.region, g.country);
-        }
         const km = haversineKm(
           loc.coords.latitude,
           loc.coords.longitude,
           Number(event.latitude),
           Number(event.longitude)
         );
-        console.log("[Location] Distance km:", km);
         setDistance(formatDistance(km));
       } catch {
         // location not available
@@ -159,8 +155,11 @@ export default function HostEventDetailScreen() {
     })();
   }, [event?.latitude, event?.longitude]);
 
+  // Only the host may delete (the backend enforces this too).
+  const isHost = !!(user?.id && event?.host_id != null && Number(event.host_id) === Number(user.id));
+
   const handleDelete = () => {
-    if (!event) return;
+    if (!event || !isHost) return;
     showConfirm({
       title: "Delete Event",
       message: `Delete "${event.title}"?`,
@@ -350,17 +349,19 @@ export default function HostEventDetailScreen() {
             </TouchableOpacity>
           </View> */}
 
-          {/* Delete */}
-          <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} disabled={deleting}>
-            {deleting ? (
-              <ActivityIndicator color="#FF3B30" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                <Text style={s.deleteBtnText}>Delete Event</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {/* Delete — host only */}
+          {isHost && (
+            <TouchableOpacity style={s.deleteBtn} onPress={handleDelete} disabled={deleting}>
+              {deleting ? (
+                <ActivityIndicator color="#FF3B30" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                  <Text style={s.deleteBtnText}>Delete Event</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>

@@ -25,7 +25,7 @@ import {
   PickerModal,
   type PickerItem,
 } from "../../components/primitives";
-import { pickAvatarImage } from "../../lib/mediaPicker";
+import { pickAvatarImage, toUploadFile } from "../../lib/mediaPicker";
 import { getErrorMessage } from "../../lib/api";
 import { settingService } from "@/services/settingServices";
 import { userService } from "../../services/userService";
@@ -106,6 +106,20 @@ const BUSINESS_TYPE_ITEMS: PickerItem[] = BUSINESS_TYPES.map((t) => ({
   value: t,
 }));
 
+function LoadErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <View style={[s.center, { padding: 24, gap: 16 }]}>
+      <Text style={{ color: Colors.text, fontSize: 15, textAlign: "center" }}>
+        Couldn&apos;t load your profile.{"\n"}
+        <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>{message}</Text>
+      </Text>
+      <TouchableOpacity style={[s.saveBtn, { alignSelf: "stretch" }]} onPress={onRetry}>
+        <Text style={s.saveBtnText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ── Business edit ──────────────────────────────────────────────────────────────
 
 function BusinessEditForm() {
@@ -126,9 +140,13 @@ function BusinessEditForm() {
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
   const [pickerIdx, setPickerIdx] = useState(-1);
   const [showTypePicker, setShowTypePicker] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const res = await businessService.getBusinessProfile();
         const d = res.data?.data ?? res.data;
@@ -144,12 +162,13 @@ function BusinessEditForm() {
         setAvatarUri(photoUrl);
         setOriginalAvatarUrl(photoUrl);
       } catch (e) {
-        showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+        // Don't show an empty form — saving it would overwrite the stored profile with blanks.
+        setLoadError(getErrorMessage(e));
       } finally {
         setLoading(false);
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   function addSocial() {
     setSocials((prev) => [...prev, { platform: "", link: "" }]);
@@ -166,6 +185,7 @@ function BusinessEditForm() {
   }
 
   async function handleSave() {
+    if (loadError) return;
     if (!businessName.trim()) {
       showToast({ type: "error", title: "Error", message: "Business name is required" });
       return;
@@ -174,6 +194,7 @@ function BusinessEditForm() {
     try {
       await businessService.updateBusinessProfile({
         business_name: businessName,
+        business_type: businessType || undefined,
         owner_name: ownerName,
         bio,
         address,
@@ -183,12 +204,7 @@ function BusinessEditForm() {
 
       if (avatarUri && avatarUri !== originalAvatarUrl) {
         const form = new FormData();
-        const ext = avatarUri.split(".").pop() ?? "jpg";
-        form.append("profile_photo", {
-          uri: avatarUri,
-          name: `photo_${Date.now()}.${ext}`,
-          type: "image/jpeg",
-        } as any);
+        form.append("profile_photo", toUploadFile(avatarUri, "image", "photo"));
         await businessService.updateProfileMedia(form);
       }
 
@@ -207,6 +223,10 @@ function BusinessEditForm() {
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
+  }
+
+  if (loadError) {
+    return <LoadErrorView message={loadError} onRetry={() => setReloadKey((k) => k + 1)} />;
   }
 
   return (
@@ -354,8 +374,12 @@ function UserEditForm() {
   const [bio, setBio] = useState("");
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(""); // display only
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  // Only send interests if we actually loaded them — otherwise saving would wipe them.
+  const [interestsLoaded, setInterestsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const ALL_INTEREST_TAGS = [
     "Pickleball","Golf","Soccer","Boxing","Climbing","Yoga","Barre","Cycling",
@@ -367,6 +391,8 @@ function UserEditForm() {
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const [profileRes, meRes] = await Promise.allSettled([
           settingService.getOwnProfile(),
@@ -379,19 +405,24 @@ function UserEditForm() {
           setPhone(data.phone || "");
           setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
           setAvatarUri(data.avatar || data.avatar_url || null);
+        } else {
+          setLoadError(getErrorMessage(profileRes.reason));
         }
         if (meRes.status === "fulfilled") {
           const me = meRes.value.data?.data || meRes.value.data;
           const interests = me.profile?.sports_interests ?? me.sports_interests;
-          setSelectedInterests(Array.isArray(interests) ? interests : []);
+          if (Array.isArray(interests)) {
+            setSelectedInterests(interests);
+            setInterestsLoaded(true);
+          }
         }
       } catch (error) {
-        showToast({ type: "error", title: "Error", message: getErrorMessage(error) });
+        setLoadError(getErrorMessage(error));
       } finally {
         setLoading(false);
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   function toggleInterest(tag: string) {
     setSelectedInterests((prev) =>
@@ -409,17 +440,12 @@ function UserEditForm() {
       const formData = new FormData();
       formData.append("name", name);
       formData.append("bio", bio);
-      formData.append("phone", phone);
+      // phone is read-only here — never send it, so a missing value can't clear it.
       if (avatarUri && avatarUri !== originalAvatarUrl) {
-        const ext = avatarUri.split(".").pop() ?? "jpg";
-        formData.append("avatar", {
-          uri: avatarUri,
-          name: `avatar_${Date.now()}.${ext}`,
-          type: "image/jpeg",
-        } as any);
+        formData.append("avatar", toUploadFile(avatarUri, "image", "avatar"));
       }
       await settingService.updateProfile(formData);
-      await settingService.updateInterests(selectedInterests);
+      if (interestsLoaded) await settingService.updateInterests(selectedInterests);
       showToast({ type: "success", title: "Success", message: "Profile updated successfully" });
       router.back();
     } catch (error) {
@@ -435,6 +461,10 @@ function UserEditForm() {
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
+  }
+
+  if (loadError) {
+    return <LoadErrorView message={loadError} onRetry={() => setReloadKey((k) => k + 1)} />;
   }
 
   return (

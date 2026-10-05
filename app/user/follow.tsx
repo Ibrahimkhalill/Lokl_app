@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
+import { openPostShare } from "../../lib/sharePost";
 
 type Tab = "posts" | "followers" | "following";
 
@@ -113,10 +114,15 @@ export default function FollowScreen() {
   }, [updatePosts]);
 
   const handleShare = useCallback((id: number) => {
-    postService.sharePost(id).catch(() => {});
-  }, []);
+    openPostShare(router, id, meData?.posts?.find((p) => p.id === id));
+  }, [router, meData]);
+
+  const followInFlight = useRef(new Set<number>());
 
   const handleToggleFollow = useCallback(async (userId: number) => {
+    // Ignore taps while this user's request is pending (followingIds in this closure would be stale).
+    if (followInFlight.current.has(userId)) return;
+    followInFlight.current.add(userId);
     const alreadyFollowing = followingIds.has(userId);
     setFollowingIds((prev) => {
       const next = new Set(prev);
@@ -138,17 +144,13 @@ export default function FollowScreen() {
         return next;
       });
       if (activeTab === "following" && alreadyFollowing) fetchMe();
+    } finally {
+      followInFlight.current.delete(userId);
     }
   }, [followingIds, activeTab, fetchMe]);
 
   const profile = meData?.profile;
   const stats = meData?.stats;
-
-  const TABS: { key: Tab; label: string }[] = [
-    { key: "posts", label: "Posts" },
-    { key: "followers", label: "Followers" },
-    { key: "following", label: "Following" },
-  ];
 
   const renderHeader = () => (
     <View>

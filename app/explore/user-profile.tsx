@@ -19,6 +19,7 @@ import { Avatar } from "../../components/primitives/Avatar";
 import { EmptyState } from "../../components/primitives";
 import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
 import { UserProfileHeaderSkeleton } from "../../components/primitives/Skeletons";
+import { openPostShare } from "../../lib/sharePost";
 
 type UserProfile = {
   id: number;
@@ -48,9 +49,14 @@ export default function UserProfileScreen() {
   const [lockReason, setLockReason] = useState<"private" | "followers_only" | null>(null);
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
-  const fetchProfile = useCallback(async () => {
-    if (!user_id) return;
-    setLoading(true);
+  const [followBusy, setFollowBusy] = useState(false);
+
+  const fetchProfile = useCallback(async (silent = false) => {
+    if (!user_id) {
+      setLoading(false);
+      return;
+    }
+    if (!silent) setLoading(true);
     try {
       const res = await userService.getUserProfile(Number(user_id));
       const data = res.data?.data ?? res.data;
@@ -71,6 +77,8 @@ export default function UserProfileScreen() {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const handleFollow = async () => {
+    if (followBusy) return;
+    setFollowBusy(true);
     const prev = isFollowing;
     setIsFollowing(!prev);
     try {
@@ -79,8 +87,12 @@ export default function UserProfileScreen() {
       } else {
         await postService.followUser(Number(user_id));
       }
+      // Refresh follower count + unlock posts of followers-only / private profiles.
+      await fetchProfile(true);
     } catch {
       setIsFollowing(prev);
+    } finally {
+      setFollowBusy(false);
     }
   };
 
@@ -123,8 +135,8 @@ export default function UserProfileScreen() {
   }, []);
 
   const handleShare = useCallback((id: number) => {
-    postService.sharePost(id).catch(() => {});
-  }, []);
+    openPostShare(router, id, posts.find((p) => p.id === id));
+  }, [router, posts]);
 
   const handleComment = useCallback((id: number) => {
     setCommentPostId(id);
@@ -142,7 +154,7 @@ export default function UserProfileScreen() {
     }
   }, [fetchProfile, user_id]);
 
-  const displayName = profile?.name ?? decodeURIComponent(name ?? "Profile");
+  const displayName = profile?.name ?? (name || "Profile"); // params are already decoded
 
   const renderHeader = () => (
     <View>

@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -19,27 +20,13 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { Colors } from "../constants/colors";
-import { BASE_URL, getErrorMessage } from "../lib/api";
+import { WS_BASE, getErrorMessage } from "../lib/api";
 import { messageService } from "../services/messageService";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
+import { useAuth } from "./AuthContext";
 
-const WS_BASE = BASE_URL.replace(/^https?/, "ws").replace("/api", "");
-
-// setNotificationHandler — silently skip if native module is unavailable
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch {
-  // Native module not available — will fall back to in-app toast
-}
+// The notification handler is registered once in app/_layout.tsx.
 
 export type Conversation = {
   type: "direct" | "group" | "event";
@@ -52,12 +39,26 @@ export type Conversation = {
   meta: { user_id?: number; group_id?: number; event_id?: number };
 };
 
+type ChatTarget = {
+  type: Conversation["type"];
+  /** user id for direct chats, group id / event id otherwise */
+  id: number;
+  name: string;
+};
+
 type ToastData = {
-  senderId: number;
+  key: number;
+  target: ChatTarget;
   senderName: string;
   senderAvatar: string | null;
   content: string;
 };
+
+/** Route to the chat screen for a conversation target. */
+export function chatRoute(target: ChatTarget) {
+  const param = target.type === "group" ? "group_id" : target.type === "event" ? "event_id" : "user_id";
+  return `/chat/id?${param}=${target.id}&name=${encodeURIComponent(target.name ?? "")}` as const;
+}
 
 type MessageContextType = {
   conversations: Conversation[];
@@ -66,6 +67,8 @@ type MessageContextType = {
   refreshing: boolean;
   refreshInbox: () => Promise<void>;
   markRead: (type: Conversation["type"], id: number) => void;
+  /** Chat screen reports which conversation is open so we don't notify for it. */
+  setActiveChat: (target: { type: Conversation["type"]; id: number } | null) => void;
 };
 
 const MessageContext = createContext<MessageContextType | null>(null);
@@ -130,7 +133,7 @@ function MessageToast({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function MessageProvider({ children }: { children: React.ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,62 +143,64 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelay = useRef(2000);
   const isMounted = useRef(true);
+  const loggedInRef = useRef(isLoggedIn);
+  loggedInRef.current = isLoggedIn;
   const nativeNotifAvailable = useRef(false);
+  const activeChat = useRef<{ type: Conversation["type"]; id: number } | null>(null);
+  const toastSeq = useRef(0);
 
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
-  // Detect login state from AsyncStorage
   useEffect(() => {
-    const check = async () => {
-      const token = await AsyncStorage.getItem("accessToken");
-      if (isMounted.current) setIsLoggedIn(!!token);
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
     };
-    check();
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") check();
-    });
-    return () => sub.remove();
   }, []);
 
-  // Request native notification permission; record if available
+  // Record whether native notifications are permitted (permission is requested in _layout)
   useEffect(() => {
     if (!isLoggedIn) return;
-    Notifications.requestPermissionsAsync()
+    Notifications.getPermissionsAsync()
       .then(({ status }) => { nativeNotifAvailable.current = status === "granted"; })
       .catch(() => { nativeNotifAvailable.current = false; });
   }, [isLoggedIn]);
 
-  // Tap on native notification → navigate
+  // Tap on native notification → navigate to the right chat
   useEffect(() => {
     let sub: ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null = null;
     try {
       sub = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data as any;
-        if (data?.user_id) {
-          router.push(`/chat/id?user_id=${data.user_id}&name=${encodeURIComponent(data.name ?? "")}`);
-        }
+        const type: Conversation["type"] = data?.chat_type ?? "direct";
+        const id = type === "direct" ? (data?.user_id ?? data?.sender_id) : data?.chat_id;
+        if (id) router.push(chatRoute({ type, id: Number(id), name: data?.name ?? "" }));
       });
     } catch {}
     return () => { sub?.remove(); };
   }, []);
 
-  const notify = useCallback((toastData: ToastData) => {
+  const notify = useCallback((toastData: Omit<ToastData, "key">) => {
+    const open = activeChat.current;
+    if (open && open.type === toastData.target.type && open.id === toastData.target.id) return;
+
+    const showToast = () => setToast({ ...toastData, key: ++toastSeq.current });
     if (nativeNotifAvailable.current) {
-      // Native push notification
       Notifications.scheduleNotificationAsync({
         content: {
           title: toastData.senderName,
           body: toastData.content,
-          data: { user_id: toastData.senderId, name: toastData.senderName },
+          data: {
+            chat_type: toastData.target.type,
+            chat_id: toastData.target.id,
+            user_id: toastData.target.type === "direct" ? toastData.target.id : undefined,
+            name: toastData.target.name,
+          },
         },
         trigger: null,
-      }).catch(() => {
-        // If native fails at runtime, fall back to toast
-        setToast(toastData);
-      });
+      }).catch(showToast); // If native fails at runtime, fall back to toast
     } else {
-      // In-app toast
-      setToast(toastData);
+      showToast();
     }
   }, []);
 
@@ -206,7 +211,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       const res = await messageService.getInbox();
       const raw = res.data?.data ?? res.data;
       const list: Conversation[] = Array.isArray(raw) ? raw : (raw?.results ?? []);
-      if (isMounted.current) setConversations(list);
+      if (isMounted.current && loggedInRef.current) setConversations(list);
     } catch (e) {
       console.log("[MessageContext] inbox error:", getErrorMessage(e));
     } finally {
@@ -217,37 +222,57 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const connect = useCallback(async () => {
-    if (!isLoggedIn) return;
-    const token = await AsyncStorage.getItem("accessToken");
-    if (!token || !isMounted.current) return;
+  const refreshInbox = useCallback(() => fetchInbox(true), [fetchInbox]);
 
-    const url = `${WS_BASE}/ws/inbox/?token=${token}`;
-    const ws = new WebSocket(url);
+  const disconnect = useCallback(() => {
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+    const ws = wsRef.current;
+    wsRef.current = null; // detach first so its onclose won't schedule a reconnect
+    ws?.close();
+  }, []);
+
+  const connect = useCallback(async () => {
+    if (!loggedInRef.current) return;
+    const existing = wsRef.current;
+    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) return;
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+    const token = await AsyncStorage.getItem("accessToken");
+    if (!token || !isMounted.current || !loggedInRef.current) return;
+    // Another connect() may have won the race while we awaited the token.
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) return;
+
+    const ws = new WebSocket(`${WS_BASE}/ws/inbox/?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
       reconnectDelay.current = 2000;
-      console.log("[InboxWS] connected");
     };
 
     ws.onmessage = (e) => {
+      if (wsRef.current !== ws) return;
       try {
         const data = JSON.parse(e.data);
         if (data.type !== "new_message") return;
 
-        // Update conversation list
+        const type: Conversation["type"] = data.chat_type ?? "direct";
+        const name = data.name ?? data.sender_name ?? "Unknown";
         const updated: Conversation = {
-          type: data.chat_type ?? "direct",
+          type,
           id: data.chat_id,
-          name: data.name ?? data.sender_name,
+          name,
           avatar: data.avatar ?? null,
           last_message: { body: data.content, created_at: data.created_at },
           unread_count: data.unread_count ?? 1,
           updated_at: data.created_at,
-          meta: data.chat_type === "group"
+          meta: type === "group"
             ? { group_id: data.chat_id }
-            : data.chat_type === "event"
+            : type === "event"
             ? { event_id: data.chat_id }
             : { user_id: data.sender_id },
         };
@@ -261,49 +286,54 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
           return [updated, ...prev];
         });
 
-        // Notify user
         notify({
-          senderId: data.sender_id,
-          senderName: data.sender_name,
+          target: {
+            type,
+            id: type === "direct" ? data.sender_id : data.chat_id,
+            name: type === "direct" ? (data.sender_name ?? name) : name,
+          },
+          senderName: data.sender_name ?? name,
           senderAvatar: data.avatar ?? null,
           content: data.content,
         });
       } catch {}
     };
 
-    ws.onerror = () => console.log("[InboxWS] error");
+    ws.onerror = () => {};
     ws.onclose = () => {
-      if (!isMounted.current) return;
+      // Ignore sockets we intentionally replaced/closed.
+      if (wsRef.current !== ws || !isMounted.current || !loggedInRef.current) return;
+      wsRef.current = null;
       reconnectTimer.current = setTimeout(() => {
+        reconnectTimer.current = null;
         reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
         connect();
       }, reconnectDelay.current);
     };
-  }, [isLoggedIn, notify]);
+  }, [notify]);
 
+  // Follow the auth state: connect on login, tear down + forget the inbox on logout.
   useEffect(() => {
-    isMounted.current = true;
     if (isLoggedIn) {
       fetchInbox();
       connect();
+    } else {
+      setConversations([]);
+      setToast(null);
     }
-    return () => {
-      isMounted.current = false;
-      wsRef.current?.close();
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
-  }, [isLoggedIn, connect, fetchInbox]);
+    return disconnect;
+  }, [isLoggedIn, connect, disconnect, fetchInbox]);
 
   useEffect(() => {
     const handleAppState = (next: AppStateStatus) => {
-      if (next === "active" && isLoggedIn) {
-        if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) connect();
+      if (next === "active" && loggedInRef.current) {
+        connect();
         fetchInbox();
       }
     };
     const sub = AppState.addEventListener("change", handleAppState);
     return () => sub.remove();
-  }, [isLoggedIn, connect, fetchInbox]);
+  }, [connect, fetchInbox]);
 
   const markRead = useCallback((type: Conversation["type"], id: number) => {
     setConversations((prev) =>
@@ -313,26 +343,25 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const setActiveChat = useCallback((target: { type: Conversation["type"]; id: number } | null) => {
+    activeChat.current = target;
+  }, []);
+
+  const value = useMemo(
+    () => ({ conversations, unreadTotal, loading, refreshing, refreshInbox, markRead, setActiveChat }),
+    [conversations, unreadTotal, loading, refreshing, refreshInbox, markRead, setActiveChat]
+  );
+
   return (
-    <MessageContext.Provider
-      value={{
-        conversations,
-        unreadTotal,
-        loading,
-        refreshing,
-        refreshInbox: () => fetchInbox(true),
-        markRead,
-      }}
-    >
+    <MessageContext.Provider value={value}>
       {children}
       {toast && (
         <MessageToast
+          key={toast.key}
           data={toast}
           onPress={() => {
             setToast(null);
-            router.push(
-              `/chat/id?user_id=${toast.senderId}&name=${encodeURIComponent(toast.senderName)}`
-            );
+            router.push(chatRoute(toast.target));
           }}
           onDismiss={() => setToast(null)}
         />

@@ -10,14 +10,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Colors } from "../../../constants/colors";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage } from "../../../lib/api";
+import { Colors } from "../../constants/colors";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 import { EventItem } from "./types";
-import { EmptyState } from "../../../components/primitives";
-import StudentsIcon from "../../../assets/icons/students.svg";
-import DollarIcon from "../../../assets/icons/dollar.svg";
-import StarIcon from "../../../assets/icons/star.svg";
+import { EmptyState } from "../../components/primitives";
+import StudentsIcon from "../../assets/icons/students.svg";
+import DollarIcon from "../../assets/icons/dollar.svg";
+import StarIcon from "../../assets/icons/star.svg";
 
 interface Props {
   events: EventItem[];
@@ -98,7 +98,12 @@ export function EventsList({ events, isOwner, onEventDeleted }: Props) {
             style={styles.eventCard}
             activeOpacity={0.85}
             onPress={() =>
-              router.push(`/business/event-detail?id=${event.id}` as any)
+              // Host management screen for the owner; public event page for everyone else.
+              router.push(
+                (isOwner
+                  ? `/business/event-detail?id=${event.id}`
+                  : `/events/event-details?id=${event.id}`) as any
+              )
             }
           >
             {/* Cover image area */}

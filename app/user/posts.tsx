@@ -19,6 +19,7 @@ import { EmptyState } from "../../components/primitives";
 import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import CommentsSheet from "../../components/feature-explore/CommentsSheet";
 import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
+import { openPostShare } from "../../lib/sharePost";
 
 export default function SavedPostsScreen() {
   const router = useRouter();
@@ -64,8 +65,8 @@ export default function SavedPostsScreen() {
   }, [updatePosts]);
 
   const handleShare = useCallback((id: number) => {
-    postService.sharePost(id).catch(() => {});
-  }, []);
+    openPostShare(router, id, savedPosts.find((p) => p.id === id));
+  }, [router, savedPosts]);
 
   return (
     <SafeAreaView style={s.safe}>

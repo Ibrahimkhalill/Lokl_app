@@ -8,10 +8,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../../constants/colors";
-import StarIcon from "../../../assets/icons/star.svg";
-import StudentsIcon from "../../../assets/icons/students.svg";
-import CourseIcon from "../../../assets/icons/course.svg";
+import { Colors } from "../../constants/colors";
+import StudentsIcon from "../../assets/icons/students.svg";
+import CourseIcon from "../../assets/icons/course.svg";
 import { BusinessProfile } from "./types";
 
 interface Props {
@@ -30,20 +29,6 @@ interface Props {
   onSettingsPress: () => void;
   onBackPress: () => void;
   onCreateEvent: () => void;
-}
-
-function renderStars(rating: number) {
-  return Array.from({ length: 5 }, (_, i) => {
-    const filled = i + 0.5 < rating || i + 1 <= rating;
-    return (
-      <StarIcon
-        key={i}
-        width={13}
-        height={13}
-        color={filled ? "#D1FF00" : "#2A2A2A"}
-      />
-    );
-  });
 }
 
 export function BusinessHeader({

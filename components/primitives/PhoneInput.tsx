@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -69,9 +69,12 @@ export function PhoneInput({
     );
   }, [search]);
 
+  const onFormattedRef = useRef(onChangeFormattedText);
+  onFormattedRef.current = onChangeFormattedText;
+
   useEffect(() => {
     const raw = value.replace(/\D/g, "");
-    onChangeFormattedText?.(raw ? `+${country.dialCode}${raw}` : "");
+    onFormattedRef.current?.(raw ? `+${country.dialCode}${raw}` : "");
   }, [value, country]);
 
   const selectCountry = useCallback((c: CountryItem) => {

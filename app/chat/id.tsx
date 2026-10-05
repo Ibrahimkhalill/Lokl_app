@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,13 +18,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../../constants/colors";
 import SendIcon from "../../assets/icons/navigate.svg";
-import ImageIcon from "../../assets/icons/image.svg";
-import { pickPostMedia } from "../../lib/mediaPicker";
 import { messageService } from "../../services/messageService";
-import { BASE_URL, fixMediaUrl, getErrorMessage } from "../../lib/api";
+import { WS_BASE, fixMediaUrl, getErrorMessage } from "../../lib/api";
 import { useMessages } from "@/context/MessageContext";
-
-const WS_BASE = BASE_URL.replace(/^https?/, "ws").replace("/api", "");
+import { useAuth } from "@/context/AuthContext";
 
 type ChatMessage = {
   id: number | string;
@@ -58,25 +56,31 @@ export default function ChatDetailScreen() {
 
   const mode: ChatMode = userId ? "dm" : groupId ? "group" : "event";
 
-  const [myId, setMyId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const myId: number | null = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [attachmentDraft, setAttachmentDraft] = useState<{ uri: string; kind: "image" | "video" } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
- const { refreshInbox } = useMessages();
+  const { refreshInbox, markRead, setActiveChat } = useMessages();
+  const refreshInboxRef = useRef(refreshInbox);
+  refreshInboxRef.current = refreshInbox;
+  const sendingRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
   const listRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Tell the inbox which chat is open so it doesn't notify for messages we're already seeing.
   useEffect(() => {
-    AsyncStorage.getItem("user").then((raw) => {
-      if (raw) {
-        const u = JSON.parse(raw);
-        setMyId(u.id ?? null);
-      }
-    });
-  }, []);
+    const target =
+      mode === "dm" && userId ? { type: "direct" as const, id: userId }
+      : mode === "group" && groupId ? { type: "group" as const, id: groupId }
+      : mode === "event" && eventId ? { type: "event" as const, id: eventId }
+      : null;
+    setActiveChat(target);
+    return () => setActiveChat(null);
+  }, [mode, userId, groupId, eventId, setActiveChat]);
 
 const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
   return raw
@@ -116,9 +120,9 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
         const data = res.data?.data ?? res.data;
         const list = Array.isArray(data) ? data : (data?.messages ?? data?.results ?? []);
         setMessages(normalizeMessages(list));
-        console.log("[Chat] Marking messages as read for userId", list);
         messageService.markAsRead(userId).catch(() => {});
-        refreshInbox();
+        markRead("direct", userId);
+        refreshInboxRef.current();
       } else if (mode === "group" && groupId) {
         res = await messageService.getGroupMessages(groupId);
         const data = res.data?.data ?? res.data;
@@ -135,7 +139,7 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
     } finally {
       setLoading(false);
     }
-  }, [mode, userId, groupId, eventId, normalizeMessages, refreshInbox]);
+  }, [mode, userId, groupId, eventId, normalizeMessages, markRead]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
@@ -146,7 +150,10 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
     else if (mode === "event" && eventId) wsUrl = `${WS_BASE}/ws/events/${eventId}/chat/`;
     if (!wsUrl) return;
 
+    let cancelled = false;
     AsyncStorage.getItem("accessToken").then((token) => {
+      // Screen left (or chat changed) before the token resolved — don't open an orphan socket.
+      if (cancelled) return;
       const url = token ? `${wsUrl}?token=${token}` : wsUrl;
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -169,6 +176,7 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
             };
             setMessages((prev) => {
               // Replace optimistic entry if this is our own message echoed back
+              if (prev.some((m) => m.id === msg.id)) return prev; // already have it
               const tmpIdx = prev.findIndex(
                 (m) => String(m.id).startsWith("tmp-") && m.content === msg.content && m.sender_id === msg.sender_id
               );
@@ -180,7 +188,6 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
               return [msg, ...prev];
             });
           } else if (data.type === "typing") {
-            console.log("[Chat] typing event:", data);
             if (data.is_typing) {
               setTypingUser(data.user_name ?? "Someone");
             } else {
@@ -194,6 +201,7 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
     });
 
     return () => {
+      cancelled = true;
       wsRef.current?.close();
       wsRef.current = null;
     };
@@ -204,9 +212,12 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text && !attachmentDraft) return;
+    if (sendingRef.current) return; // guard against double taps
+    sendingRef.current = true;
 
+    const tmpId = `tmp-${Date.now()}`;
     const optimistic: ChatMessage = {
-      id: `tmp-${Date.now()}`,
+      id: tmpId,
       sender_id: myId ?? -1,
       sender_name: "Me",
       content: text || (attachmentDraft?.kind === "video" ? "Sent a video" : ""),
@@ -219,19 +230,28 @@ const normalizeMessages = useCallback((raw: any[]): ChatMessage[] => {
     setAttachmentDraft(null);
     setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 100);
 
-    console.log("[Chat] WS state:", wsRef.current?.readyState, "OPEN=", WebSocket.OPEN);
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log("[Chat] sending via WS:", text);
-      wsRef.current.send(JSON.stringify({ type: "message", content: text }));
-    } else {
-      console.log("[Chat] WS not open, falling back to REST");
-      try {
-        if (mode === "dm" && userId) await messageService.sendDm(userId, text);
-        else if (mode === "group" && groupId) await messageService.sendGroupMessage(groupId, text);
-        else if (mode === "event" && eventId) await messageService.sendEventMessage(eventId, text);
-      } catch (e) {
-        console.log("[Chat] send error:", getErrorMessage(e));
+    try {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "message", content: text }));
+      } else {
+        let res;
+        if (mode === "dm" && userId) res = await messageService.sendDm(userId, text);
+        else if (mode === "group" && groupId) res = await messageService.sendGroupMessage(groupId, text);
+        else if (mode === "event" && eventId) res = await messageService.sendEventMessage(eventId, text);
+        // Swap the optimistic bubble for the saved message (no WS echo will arrive).
+        const saved = res?.data?.data ?? res?.data;
+        if (saved?.id != null) {
+          const [msg] = normalizeMessages([saved]);
+          setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...msg, sender_id: msg.sender_id ?? optimistic.sender_id } : m)));
+        }
       }
+    } catch (e) {
+      // Roll back the optimistic bubble and give the text back so the user can retry.
+      setMessages((prev) => prev.filter((m) => m.id !== tmpId));
+      setInput(text);
+      Alert.alert("Message not sent", getErrorMessage(e));
+    } finally {
+      sendingRef.current = false;
     }
   };
 useEffect(() => {
@@ -269,7 +289,8 @@ const handleTyping = useCallback(() => {
 }, [stopTyping]);
 
 
-  const displayName = decodeURIComponent(headerName);
+  // expo-router already decodes params; decoding again throws on names like "100% Fitness".
+  const displayName = headerName;
   // const initials = displayName
   //   .split(/\s+/)
   //   .slice(0, 2)

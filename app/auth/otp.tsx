@@ -13,7 +13,7 @@ export default function OTP() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleVerify(otp: string) {
-    if (!user_id) {
+    if (!user_id || !Number.isFinite(Number(user_id))) {
       showToast({ type: "error", title: "Error", message: "Missing user ID. Please start over." });
       return;
     }

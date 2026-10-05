@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   RefreshControl,
-  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors } from "../../constants/colors";
@@ -22,7 +21,6 @@ import { PostCard, ApiPost } from "../../components/feature-explore/PostCard";
 import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
 import { EmptyState } from "../../components/primitives";
 
-const { width } = Dimensions.get("window");
 
 
 
@@ -64,6 +62,18 @@ export default function ExploreScreen() {
 
   const fetchingRef = useRef(false);
   const loadingMoreRef = useRef(false);
+  const loadingMoreGroupRef = useRef(false);
+  // Bumped on every page-1 (re)load so an in-flight "load more" from the old list is discarded.
+  const postsGenRef = useRef(0);
+  const groupPostsGenRef = useRef(0);
+  const lastPostsLoadRef = useRef(0);
+  const followInFlight = useRef(new Set<number>());
+
+  /** Appends a page without duplicating posts that shifted between pages. */
+  function appendUnique(prev: ApiPost[], next: ApiPost[]) {
+    const seen = new Set(prev.map((p) => p.id));
+    return [...prev, ...next.filter((p) => !seen.has(p.id))];
+  }
 
   function parsePayload(res: any): { results: ApiPost[]; pagination: any } {
     const raw = res.data?.data ?? res.data;
@@ -80,11 +90,14 @@ export default function ExploreScreen() {
   const fetchPosts = useCallback(async (refresh = false) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
+    const gen = ++postsGenRef.current;
     if (refresh) setRefreshingPosts(true);
     else setLoadingPosts(true);
     try {
       const res = await postService.getFeed(1);
+      if (gen !== postsGenRef.current) return;
       const { results, pagination } = parsePayload(res);
+      lastPostsLoadRef.current = Date.now();
       setPosts(results);
       setPostsPage(1);
       setPostsHasMore(pagination ? pagination.page < pagination.total_pages : results.length === 10);
@@ -100,12 +113,14 @@ export default function ExploreScreen() {
   const fetchMorePosts = useCallback(async () => {
     if (!postsHasMore || loadingMoreRef.current || fetchingRef.current) return;
     loadingMoreRef.current = true;
+    const gen = postsGenRef.current;
     setLoadingMore(true);
     try {
       const nextPage = postsPage + 1;
       const res = await postService.getFeed(nextPage);
+      if (gen !== postsGenRef.current) return; // list was reloaded meanwhile
       const { results, pagination } = parsePayload(res);
-      setPosts((prev) => [...prev, ...results]);
+      setPosts((prev) => appendUnique(prev, results));
       setPostsPage(nextPage);
       setPostsHasMore(pagination ? nextPage < pagination.total_pages : results.length === 10);
     } catch (e) {
@@ -117,10 +132,12 @@ export default function ExploreScreen() {
   }, [postsHasMore, postsPage]);
 
   const fetchGroupPosts = useCallback(async (refresh = false) => {
+    const gen = ++groupPostsGenRef.current;
     if (refresh) setRefreshingGroupPosts(true);
     else setLoadingGroupPosts(true);
     try {
       const res = await postService.getFriendsFeed(1);
+      if (gen !== groupPostsGenRef.current) return;
       const { results, pagination } = parsePayload(res);
       setGroupPosts(results);
       setGroupPostsPage(1);
@@ -134,27 +151,32 @@ export default function ExploreScreen() {
   }, []);
 
   const fetchMoreGroupPosts = useCallback(async () => {
-    if (!groupPostsHasMore || loadingMoreRef.current) return;
-    loadingMoreRef.current = true;
+    if (!groupPostsHasMore || loadingMoreGroupRef.current) return;
+    loadingMoreGroupRef.current = true;
+    const gen = groupPostsGenRef.current;
     setLoadingMore(true);
     try {
       const nextPage = groupPostsPage + 1;
       const res = await postService.getFriendsFeed(nextPage);
+      if (gen !== groupPostsGenRef.current) return;
       const { results, pagination } = parsePayload(res);
-      setGroupPosts((prev) => [...prev, ...results]);
+      setGroupPosts((prev) => appendUnique(prev, results));
       setGroupPostsPage(nextPage);
       setGroupPostsHasMore(pagination ? nextPage < pagination.total_pages : results.length === 10);
     } catch (e) {
       console.log("[Explore] fetchMoreFriendsPosts error:", getErrorMessage(e));
     } finally {
       setLoadingMore(false);
-      loadingMoreRef.current = false;
+      loadingMoreGroupRef.current = false;
     }
   }, [groupPostsHasMore, groupPostsPage]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchPosts();
+      const STALE_MS = 5 * 60 * 1000;
+      if (!lastPostsLoadRef.current || Date.now() - lastPostsLoadRef.current > STALE_MS) {
+        fetchPosts();
+      }
     }, [fetchPosts])
   );
 
@@ -185,7 +207,7 @@ export default function ExploreScreen() {
     );
     try {
       await postService.likePost(id);
-    } catch (e) {
+    } catch {
       setPosts((prev) =>
         prev.map((p) =>
           p.id === id
@@ -206,7 +228,7 @@ export default function ExploreScreen() {
     );
     try {
       await postService.savePost(id);
-    } catch (e) {
+    } catch {
       setPosts((prev) =>
         prev.map((p) =>
           p.id === id
@@ -231,10 +253,16 @@ export default function ExploreScreen() {
   }, []);
 
   const handleFollow = useCallback(async (_postId: number, authorId: number, isFollowing: boolean) => {
-    // Update all posts by this author at once
-    setPosts((prev) =>
-      prev.map((p) => (p.author_id === authorId ? { ...p, is_following: !isFollowing } : p))
-    );
+    if (followInFlight.current.has(authorId)) return; // ignore double taps while a request is pending
+    followInFlight.current.add(authorId);
+    // Update all posts by this author at once — in both feeds, since the Friends tab shares this handler.
+    const setFollowing = (value: boolean) => {
+      const update = (prev: ApiPost[]) =>
+        prev.map((p) => (p.author_id === authorId ? { ...p, is_following: value } : p));
+      setPosts(update);
+      setGroupPosts(update);
+    };
+    setFollowing(!isFollowing);
     try {
       if (isFollowing) {
         await postService.unfollowUser(authorId);
@@ -243,9 +271,9 @@ export default function ExploreScreen() {
       }
     } catch (e) {
       console.log("[Follow] error:", getErrorMessage(e));
-      setPosts((prev) =>
-        prev.map((p) => (p.author_id === authorId ? { ...p, is_following: isFollowing } : p))
-      );
+      setFollowing(isFollowing);
+    } finally {
+      followInFlight.current.delete(authorId);
     }
   }, []);
 

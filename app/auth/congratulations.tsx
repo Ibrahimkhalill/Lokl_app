@@ -14,7 +14,7 @@ export default function Congratulations() {
       router.replace("/auth/sign-in");
     }, 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safe}>

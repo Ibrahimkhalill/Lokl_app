@@ -20,26 +20,23 @@ import WebsiteIcon from "../../assets/icons/website.svg";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
-import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
+import { pickCoverImage, pickAvatarImage, toUploadFile } from "../../lib/mediaPicker";
 
-import { BusinessHeader } from "./components/BusinessHeader";
-import { PostsGrid } from "./components/PostsGrid";
-import { BioSection } from "./components/BioSection";
-import ScheduleSection from "./components/ScheduleSection";
-import OfferingsSection from "./components/OfferingsSection";
-import { ContactSection } from "./components/ContactSection";
-import { TrainingLocations } from "./components/TrainingLocations";
-import { FeaturedReviews } from "./components/FeaturedReviews";
-import { EventsList } from "./components/EventsList";
-import { sharedStyles } from "./components/sharedStyles";
-import { BusinessProfile, ClassClip, EventItem } from "./components/types";
+import { BusinessHeader } from "../../components/feature-business/BusinessHeader";
+import { PostsGrid } from "../../components/feature-business/PostsGrid";
+import { BioSection } from "../../components/feature-business/BioSection";
+import ScheduleSection from "../../components/feature-business/ScheduleSection";
+import OfferingsSection from "../../components/feature-business/OfferingsSection";
+import { ContactSection } from "../../components/feature-business/ContactSection";
+import { TrainingLocations } from "../../components/feature-business/TrainingLocations";
+import { FeaturedReviews } from "../../components/feature-business/FeaturedReviews";
+import { EventsList } from "../../components/feature-business/EventsList";
+import { sharedStyles } from "../../components/feature-business/sharedStyles";
+import { BusinessProfile, ClassClip, EventItem } from "../../components/feature-business/types";
 
 function buildMediaForm(field: string, uri: string) {
   const form = new FormData();
-  const filename = uri.split("/").pop() ?? "photo.jpg";
-  const match = /\.(\w+)$/.exec(filename);
-  const type = match ? `image/${match[1]}` : "image/jpeg";
-  form.append(field, { uri, name: filename, type } as any);
+  form.append(field, toUploadFile(uri, "image", field));
   return form;
 }
 
@@ -177,7 +174,8 @@ export default function BusinessProfileScreen() {
     );
   }
 
-  const displayBio = businessProfile?.bio || user?.bio || "";
+  // Never fall back to the *viewer's* bio — that would show it on someone else's business page.
+  const displayBio = businessProfile?.bio || "";
   const displayAddress = businessProfile?.address || "";
   const displayWebsite = businessProfile?.website || "";
   const displaySocials = businessProfile?.social_media || [];
@@ -218,9 +216,9 @@ export default function BusinessProfileScreen() {
             <PostsGrid
               clips={clips}
               isOwner={isOwner}
-              onCreatePost={() =>
-                router.push(`/business/create-clip?businessId=${businessProfile?.id}` as never)
-              }
+              onCreatePost={() => {
+                if (businessProfile?.id) router.push(`/business/create-clip?businessId=${businessProfile.id}` as never);
+              }}
               businessProfileId={businessProfile?.id}
               onUpdate={fetchData}
             />

@@ -230,8 +230,11 @@ export default function DetailsScreen() {
     }
   };
 
+  const venueLoadedFor = useRef<string | null>(null);
+
+  // Spinner only on the first load of a venue; returning from review/post screens refreshes in place.
   const fetchAll = useCallback(async (venueId: string) => {
-    setLoading(true);
+    if (venueLoadedFor.current !== venueId) setLoading(true);
     try {
       const [venueRes, friendsRes] = await Promise.allSettled([
         api.get(`/venues/${venueId}/`),
@@ -240,8 +243,9 @@ export default function DetailsScreen() {
 
       if (venueRes.status === "fulfilled") {
         const v = venueRes.value.data?.data ?? venueRes.value.data ?? null;
-        if (v && distanceParam) v.distance = decodeURIComponent(distanceParam);
+        if (v && distanceParam) v.distance = distanceParam; // router params are already decoded
         setVenue(v);
+        if (v) venueLoadedFor.current = venueId;
         setBookmarked(!!v?.is_bookmarked);
         const reviewList = Array.isArray(v?.reviews) ? v.reviews : [];
         setReviews(reviewList);
@@ -259,7 +263,10 @@ export default function DetailsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!id) return;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       fetchAll(id);
     }, [id, fetchAll])
   );
@@ -715,7 +722,7 @@ export default function DetailsScreen() {
               style={{ marginVertical: 32 }}
             />
           ) : groups.length === 0 ? (
-            <Text style={styles.modalEmpty}>You haven't joined any groups yet.</Text>
+            <Text style={styles.modalEmpty}>You haven&apos;t joined any groups yet.</Text>
           ) : (
             <FlatList
               data={groups}

@@ -19,7 +19,7 @@ import LocationsIcon from "../../assets/icons/locations.svg";
 import ImageIcon from "../../assets/icons/image.svg";
 import { GroupPostCard, type GroupPostItem } from "../events";
 import { ContextMenuDropdown, capturePressAnchor } from "../overlays";
-import { pickCoverImage, pickAvatarImage } from "../../lib/mediaPicker";
+import { pickCoverImage, pickAvatarImage, toUploadFile } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
@@ -126,6 +126,7 @@ export default function GroupDetailScreen() {
   const [posts, setPosts] = useState<GroupPostItem[]>([]);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const fetchGroup = useCallback(async () => {
     if (!groupId) return;
@@ -173,8 +174,7 @@ export default function GroupDetailScreen() {
     setUploadingCover(true);
     try {
       const form = new FormData();
-      const ext = picked.uri.split(".").pop() ?? "jpg";
-      form.append("cover_photo", { uri: picked.uri, name: `cover_${Date.now()}.${ext}`, type: "image/jpeg" } as any);
+      form.append("cover_photo", toUploadFile(picked.uri, "image", "cover"));
       await eventService.uploadGroupCover(groupId, form);
       await fetchGroup();
     } catch (e) {
@@ -192,8 +192,7 @@ export default function GroupDetailScreen() {
     setUploadingPhoto(true);
     try {
       const form = new FormData();
-      const ext = picked.uri.split(".").pop() ?? "jpg";
-      form.append("photo", { uri: picked.uri, name: `photo_${Date.now()}.${ext}`, type: "image/jpeg" } as any);
+      form.append("photo", toUploadFile(picked.uri, "image", "photo"));
       await eventService.uploadGroupPhoto(groupId, form);
       await fetchGroup();
     } catch (e) {
@@ -242,33 +241,8 @@ export default function GroupDetailScreen() {
       );
       showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     }
-  }, [posts]);
+  }, [posts, showToast]);
 
-  const handleSave = useCallback(async (postId: string) => {
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? { ...p, isSaved: !p.isSaved, saves: (p.saves ?? 0) + (p.isSaved ? -1 : 1) }
-          : p
-      )
-    );
-    
-    try {
-      await postService.savePost(parseInt(postId));
-    } catch (e) {
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { ...p, isSaved: !p.isSaved, saves: (p.saves ?? 0) + (p.isSaved ? -1 : 1) }
-            : p
-        )
-      );
-      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
-    }
-  }, [posts]);
 
 
 
@@ -278,7 +252,8 @@ export default function GroupDetailScreen() {
   }, []);
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !commentPostId) return;
+    if (!commentText.trim() || !commentPostId || submittingComment) return;
+    setSubmittingComment(true);
     
     try {
       await postService.postComment(parseInt(commentPostId), commentText);
@@ -297,24 +272,30 @@ export default function GroupDetailScreen() {
       showToast({ type: "success", title: "Success", message: "Comment added" });
     } catch (e) {
       showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
   const handleDeletePost = async (postId: string) => {
     // Optimistically remove first
-    const removed = posts.find((p) => p.id === postId);
+    const index = posts.findIndex((p) => p.id === postId);
+    const removed = index >= 0 ? posts[index] : undefined;
     setPosts((prev) => prev.filter((p) => p.id !== postId));
     try {
       await postService.deletePost(parseInt(postId));
     } catch (e: any) {
-      // 204 No Content — server confirmed deletion, ignore axios parse quirk
-      const status = e?.response?.status;
-      if (status && status >= 400) {
-        // Real server error — put post back and show message
-        if (removed) setPosts((prev) => [...prev, removed]);
-        showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+      // 404 means it's already gone — anything else (incl. offline / timeout) means it wasn't deleted.
+      if (e?.response?.status === 404) return;
+      if (removed) {
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === postId)) return prev;
+          const next = [...prev];
+          next.splice(Math.min(index, next.length), 0, removed);
+          return next;
+        });
       }
-      // network-level error with no response: delete already succeeded on server, do nothing
+      showToast({ type: "error", title: "Couldn't delete post", message: getErrorMessage(e) });
     }
   };
 
@@ -339,7 +320,7 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const isAdmin = group.is_admin || params.admin === "true";
+  const isAdmin = !!group.is_admin;
   const isMember = group.is_member || isAdmin;
 
   return (
@@ -516,8 +497,16 @@ export default function GroupDetailScreen() {
               <TouchableOpacity style={s.modalCancelBtn} onPress={() => setCommentPostId(null)}>
                 <Text style={s.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.modalSubmitBtn} onPress={handleSubmitComment}>
-                <Text style={s.modalSubmitText}>Post</Text>
+              <TouchableOpacity
+                style={[s.modalSubmitBtn, submittingComment && { opacity: 0.6 }]}
+                onPress={handleSubmitComment}
+                disabled={submittingComment}
+              >
+                {submittingComment ? (
+                  <ActivityIndicator size="small" color={Colors.black} />
+                ) : (
+                  <Text style={s.modalSubmitText}>Post</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

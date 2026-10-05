@@ -14,12 +14,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage, api } from "../../../lib/api";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage, api } from "../../lib/api";
 import { TrainingLocation } from "./types";
-import LocationsIcon from "../../../assets/icons/locations.svg";
+import LocationsIcon from "../../assets/icons/locations.svg";
 
 interface Props {
   locations: TrainingLocation[];

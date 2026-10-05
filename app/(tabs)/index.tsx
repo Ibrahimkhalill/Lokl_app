@@ -149,6 +149,7 @@ export default function HomeScreen() {
     amenities?: string;
     plan_tier?: string;
     radius_km?: string;
+    neighborhood?: string;
   }>();
 
   const mapRef = useRef<MapView>(null);
@@ -273,6 +274,8 @@ export default function HomeScreen() {
   // Load venues whenever filter params change
   useEffect(() => {
     loadVenues();
+    // loadVenues reads the latest params itself; it's intentionally keyed on the filter values only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     params.type,
     params.min_rating,
@@ -280,11 +283,16 @@ export default function HomeScreen() {
     params.amenities,
     params.plan_tier,
     params.radius_km,
+    params.neighborhood,
     locationReady,
   ]);
 
-  async function loadVenues(attempt = 0) {
+  // Only the newest venue request may update the map (e.g. GPS result vs. initial Manhattan one).
+  const venuesSeq = useRef(0);
+
+  async function loadVenues(attempt = 0, seq = ++venuesSeq.current) {
     setLoading(true);
+    let retrying = false;
     try {
       const queryParams: Record<string, any> = {};
       if (params.type)        queryParams.type        = params.type;
@@ -292,16 +300,17 @@ export default function HomeScreen() {
       if (params.price_level) queryParams.price_level = params.price_level;
       if (params.amenities)   queryParams.amenities   = params.amenities;
       if (params.plan_tier)   queryParams.plan_tier   = params.plan_tier;
+      if (params.neighborhood) queryParams.neighborhood = params.neighborhood;
 
       // Use GPS coords if available, otherwise fall back to Manhattan center.
       const center = userCoordsRef.current ?? MANHATTAN_REGION;
       queryParams.lat       = center.latitude;
       queryParams.lng       = center.longitude;
-      queryParams.radius_km = params.radius_km ?? "4000";
+      queryParams.radius_km = params.radius_km || "4000";
 
       const res = await api.get("/venues/", { params: queryParams });
+      if (seq !== venuesSeq.current) return; // superseded by a newer request
       const raw = res.data;
-      console.log("[HomeScreen] venues raw keys:", JSON.stringify(Object.keys(raw ?? {})));
       // Handle multiple API response shapes
       const payload = raw?.data ?? raw;
       const all: VenuePin[] = Array.isArray(payload?.venues)
@@ -314,7 +323,7 @@ export default function HomeScreen() {
 
       const hasFilters =
         !!params.type || !!params.min_rating || !!params.price_level ||
-        !!params.amenities || !!params.plan_tier || !!params.radius_km;
+        !!params.amenities || !!params.plan_tier || !!params.radius_km || !!params.neighborhood;
 
       let data: VenuePin[];
 
@@ -355,19 +364,23 @@ export default function HomeScreen() {
         setTracksChanges(true);
         // Wait for map to be ready, then zoom to first venue
         setTimeout(() => {
+          if (seq !== venuesSeq.current) return;
           zoomToVenue(data[0]);
           setTimeout(() => setTracksChanges(false), 500);
         }, mapReady ? 100 : 1200);
       }
     } catch (err: any) {
       const isNetworkErr = err?.message === "Network Error" || err?.code === "ERR_NETWORK";
-      if (isNetworkErr && attempt < 2) {
-        setTimeout(() => loadVenues(attempt + 1), 1200);
+      if (isNetworkErr && attempt < 2 && seq === venuesSeq.current) {
+        retrying = true;
+        setTimeout(() => {
+          if (seq === venuesSeq.current) loadVenues(attempt + 1, seq);
+        }, 1200);
         return;
       }
       console.error("[HomeScreen] loadVenues error:", err);
     } finally {
-      setLoading(false);
+      if (!retrying && seq === venuesSeq.current) setLoading(false);
     }
   }
 
@@ -379,10 +392,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!selectedId) { setCardFriends([]); return; }
+    let cancelled = false; // a quicker tap on another marker must not be overwritten by this response
+    setCardFriends([]);
     api.get(`/venues/${selectedId}/friends/`).then((res) => {
+      if (cancelled) return;
       const d = res.data?.data ?? res.data;
       setCardFriends(Array.isArray(d?.friends) ? d.friends : Array.isArray(d) ? d : []);
-    }).catch(() => setCardFriends([]));
+    }).catch(() => { if (!cancelled) setCardFriends([]); });
+    return () => { cancelled = true; };
   }, [selectedId]);
 
   return (
@@ -466,6 +483,7 @@ export default function HomeScreen() {
                   ...(params.amenities   && { amenities:   params.amenities }),
                   ...(params.plan_tier   && { plan_tier:   params.plan_tier }),
                   ...(params.radius_km   && { radius_km:   params.radius_km }),
+                  ...(params.neighborhood && { neighborhood: params.neighborhood }),
                 },
               })
             }

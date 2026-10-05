@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ActivityIndicator, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,8 @@ import PushIcon from "../../assets/icons/push.svg";
 import EmailIcon from "../../assets/icons/email.svg";
 import SmsIcon from "../../assets/icons/sms.svg";
 import { settingService } from "../../services/settingServices";
+import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 export default function NotificationsSettingScreen() {
   const router = useRouter();
@@ -26,7 +28,14 @@ export default function NotificationsSettingScreen() {
   const [eventReminders, setEventReminders] = useState(true);
   const [newVenues, setNewVenues] = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { showToast } = useToast();
+  const saveSeq = useRef<Record<string, number>>({});
+
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     settingService.getNotifications().then((res) => {
       const d = res.data?.data ?? res.data;
       setPush(d.push_notifications ?? true);
@@ -38,11 +47,19 @@ export default function NotificationsSettingScreen() {
       setFriendJoinsEvent(d.notify_friend_joins_event ?? true);
       setEventReminders(d.notify_event_reminders ?? true);
       setNewVenues(d.notify_new_venues ?? false);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setLoadError(true)) // don't present defaults as if they were the real settings
+      .finally(() => setLoading(false));
+  }, [reloadKey]);
 
-  function save(patch: Parameters<typeof settingService.updateNotifications>[0]) {
-    settingService.updateNotifications(patch).catch(() => {});
+  /** Persists a toggle; on failure runs `revert` (unless a newer change superseded it) and tells the user. */
+  function save(patch: Parameters<typeof settingService.updateNotifications>[0], revert: () => void) {
+    const key = Object.keys(patch)[0];
+    const seq = (saveSeq.current[key] = (saveSeq.current[key] ?? 0) + 1);
+    settingService.updateNotifications(patch).catch((e) => {
+      if (saveSeq.current[key] !== seq) return;
+      revert();
+      showToast({ type: "error", title: "Couldn't save setting", message: getErrorMessage(e) });
+    });
   }
 
   const CHANNELS = [
@@ -51,21 +68,21 @@ export default function NotificationsSettingScreen() {
       sub: "Receive notification on your device",
       icon: <PushIcon width={24} height={24} color={Colors.primary} />,
       value: push,
-      onChange: (v: boolean) => { setPush(v); save({ push_notifications: v }); },
+      onChange: (v: boolean) => { setPush(v); save({ push_notifications: v }, () => setPush(!v)); },
     },
     {
       label: "Email Notifications",
       sub: "Get updates via email",
       icon: <EmailIcon width={24} height={24} color={Colors.primary} />,
       value: email,
-      onChange: (v: boolean) => { setEmail(v); save({ email_notifications: v }); },
+      onChange: (v: boolean) => { setEmail(v); save({ email_notifications: v }, () => setEmail(!v)); },
     },
     {
       label: "SMS Notifications",
       sub: "Text message alerts",
       icon: <SmsIcon width={24} height={24} color={Colors.primary} />,
       value: sms,
-      onChange: (v: boolean) => { setSms(v); save({ sms_notifications: v }); },
+      onChange: (v: boolean) => { setSms(v); save({ sms_notifications: v }, () => setSms(!v)); },
     },
   ];
 
@@ -75,42 +92,42 @@ export default function NotificationsSettingScreen() {
       sub: "When friends post a new ranking",
       icon: "trending-up-outline",
       value: friendRanking,
-      onChange: (v: boolean) => { setFriendRanking(v); save({ notify_friend_ranking: v }); },
+      onChange: (v: boolean) => { setFriendRanking(v); save({ notify_friend_ranking: v }, () => setFriendRanking(!v)); },
     },
     {
       label: "Post Likes",
       sub: "When someone likes your post",
       icon: "heart-outline",
       value: postLikes,
-      onChange: (v: boolean) => { setPostLikes(v); save({ notify_post_likes: v }); },
+      onChange: (v: boolean) => { setPostLikes(v); save({ notify_post_likes: v }, () => setPostLikes(!v)); },
     },
     {
       label: "Post Comments",
       sub: "When someone comments on your post",
       icon: "chatbubble-outline",
       value: postComments,
-      onChange: (v: boolean) => { setPostComments(v); save({ notify_post_comments: v }); },
+      onChange: (v: boolean) => { setPostComments(v); save({ notify_post_comments: v }, () => setPostComments(!v)); },
     },
     {
       label: "Friends at Events",
       sub: "When a friend joins an event you're in",
       icon: "people-outline",
       value: friendJoinsEvent,
-      onChange: (v: boolean) => { setFriendJoinsEvent(v); save({ notify_friend_joins_event: v }); },
+      onChange: (v: boolean) => { setFriendJoinsEvent(v); save({ notify_friend_joins_event: v }, () => setFriendJoinsEvent(!v)); },
     },
     {
       label: "Event Reminders",
       sub: "1 hour before events you've joined",
       icon: "alarm-outline",
       value: eventReminders,
-      onChange: (v: boolean) => { setEventReminders(v); save({ notify_event_reminders: v }); },
+      onChange: (v: boolean) => { setEventReminders(v); save({ notify_event_reminders: v }, () => setEventReminders(!v)); },
     },
     {
       label: "New Venues Nearby",
       sub: "When new venues are added near you",
       icon: "location-outline",
       value: newVenues,
-      onChange: (v: boolean) => { setNewVenues(v); save({ notify_new_venues: v }); },
+      onChange: (v: boolean) => { setNewVenues(v); save({ notify_new_venues: v }, () => setNewVenues(!v)); },
     },
   ];
 
@@ -127,6 +144,18 @@ export default function NotificationsSettingScreen() {
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : loadError ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24, gap: 16 }}>
+          <Text style={{ color: Colors.textSecondary, textAlign: "center" }}>
+            Couldn&apos;t load your settings. Check your connection and try again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => setReloadKey((k) => k + 1)}
+            style={{ backgroundColor: Colors.primary, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 }}
+          >
+            <Text style={{ color: Colors.black, fontWeight: "700" }}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>

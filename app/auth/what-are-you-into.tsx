@@ -8,7 +8,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton, Screen } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";

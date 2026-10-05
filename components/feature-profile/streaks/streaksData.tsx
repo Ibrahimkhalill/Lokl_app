@@ -1,8 +1,6 @@
 import React from "react";
 import { Colors } from "../../../constants/colors";
 import FireIcon from "../../../assets/icons/fire.svg";
-import TrophyIcon from "../../../assets/icons/best.svg";
-import LoackIcon from "../../../assets/icons/loack.svg";
 import NeighboIcon from "../../../assets/icons/neighbo.svg";
 import ExploreStreaksIcon from "../../../assets/icons/explore_streaks.svg";
 import ActivityIcon from "../../../assets/icons/activity.svg";

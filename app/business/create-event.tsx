@@ -33,7 +33,7 @@ import {
   LocationPickerModal,
   type LocationResult,
 } from "../../components/primitives";
-import { pickCoverImage } from "../../lib/mediaPicker";
+import { pickCoverImage, toUploadFile } from "../../lib/mediaPicker";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage, api } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -100,7 +100,6 @@ export default function CreateEventScreen() {
   const [venueSearching, setVenueSearching] = useState(false);
   const [venueLoadingSuggestions, setVenueLoadingSuggestions] = useState(false);
   const [location, setLocation] = useState("");
-  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPickerVisible, setLocationPickerVisible] = useState(false);
   const [eventStartsAt, setEventStartsAt] = useState(initialEventStart);
   const [activePicker, setActivePicker] = useState<null | "date" | "time">(null);
@@ -174,12 +173,29 @@ export default function CreateEventScreen() {
       showToast({ type: "warning", title: "Validation", message: "Event title is required." });
       return;
     }
+    if (!eventType) {
+      showToast({ type: "warning", title: "Validation", message: "Please select an event type." });
+      return;
+    }
+    if (!venueId) {
+      showToast({ type: "warning", title: "Validation", message: "Please select a venue." });
+      return;
+    }
     if (!location.trim()) {
       showToast({ type: "warning", title: "Validation", message: "Location is required." });
       return;
     }
-    if (!maxParticipants || Number(maxParticipants) < 1) {
-      showToast({ type: "warning", title: "Validation", message: "Max participants must be at least 1." });
+    if (!/^\d+$/.test(maxParticipants.trim()) || Number(maxParticipants) < 1) {
+      showToast({ type: "warning", title: "Validation", message: "Max participants must be a whole number of at least 1." });
+      return;
+    }
+    const priceValue = (price.trim() || "0").replace(",", ".");
+    if (!/^\d+(\.\d{1,2})?$/.test(priceValue)) {
+      showToast({ type: "warning", title: "Validation", message: "Enter a valid price, e.g. 0 or 15.50." });
+      return;
+    }
+    if (eventStartsAt.getTime() < Date.now()) {
+      showToast({ type: "warning", title: "Validation", message: "The event start time is in the past." });
       return;
     }
 
@@ -189,25 +205,21 @@ export default function CreateEventScreen() {
       form.append("title", title.trim());
       form.append("description", desc.trim());
       form.append("event_type", eventType);
-      if (venueId) form.append("venue", String(venueId));
+      // `venue` is the free-text name; the picked venue is linked via `venue_ref_id`
+      // (the backend then fills coordinates from the venue record).
+      form.append("venue_ref_id", String(venueId));
+      if (venueName) form.append("venue", venueName);
       form.append("location", location.trim());
-      if (locationCoords) {
-        form.append("latitude", String(locationCoords.lat));
-        form.append("longitude", String(locationCoords.lng));
-      }
       form.append("date", toDateString(eventStartsAt));
       form.append("time", toTimeString(eventStartsAt));
-      form.append("max_participants", maxParticipants);
-      form.append("price", price || "0");
+      form.append("max_participants", maxParticipants.trim());
+      form.append("price", priceValue);
       if (website.trim()) form.append("website", website.trim());
       if (neighborhood) form.append("neighborhood", neighborhood);
       form.append("is_private", isPrivate ? "true" : "false");
 
       if (coverUri) {
-        const filename = coverUri.split("/").pop() ?? "cover.jpg";
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : "image/jpeg";
-        form.append("cover_image", { uri: coverUri, name: filename, type } as any);
+        form.append("cover_image", toUploadFile(coverUri, "image", "cover"));
       }
 
       await businessService.createEvent(form);
@@ -338,9 +350,6 @@ export default function CreateEventScreen() {
             onClose={() => setLocationPickerVisible(false)}
             onSelect={(result: LocationResult) => {
               setLocation(result.address);
-              if (result.latitude !== 0 && result.longitude !== 0) {
-                setLocationCoords({ lat: result.latitude, lng: result.longitude });
-              }
             }}
           />
 

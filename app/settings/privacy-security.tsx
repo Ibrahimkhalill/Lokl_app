@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import LocationIcon from "../../assets/icons/locations_sharing.svg";
 import EmailIcon from "../../assets/icons/email.svg";
 import { settingService } from "../../services/settingServices";
+import { getErrorMessage } from "../../lib/api";
+import { useToast } from "../../context/ToastContext";
 
 type Visibility = "public" | "followers" | "private";
 
@@ -22,29 +24,44 @@ export default function PrivacySecurityScreen() {
   const [visibility, setVisibility] = useState<Visibility>("public");
   const [locationSharing, setLocationSharing] = useState(true);
   const [activityStatus, setActivityStatus] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { showToast } = useToast();
+  const saveSeq = useRef<Record<string, number>>({});
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     settingService.getPrivacy().then((res) => {
       const d = res.data?.data ?? res.data;
       setVisibility(d.profile_visibility ?? "public");
       setLocationSharing(d.location_sharing ?? true);
       setActivityStatus(d.activity_status ?? true);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setLoadError(true)) // don't present defaults as if they were the real settings
+      .finally(() => setLoading(false));
+  }, [reloadKey]);
 
-  async function saveVisibility(val: Visibility) {
-    setVisibility(val);
-    settingService.updatePrivacy({ profile_visibility: val }).catch(() => {});
+  /** Optimistically applies a change; reverts (and tells the user) if the server rejects it. */
+  function persist<T>(key: string, value: T, previous: T, apply: (v: T) => void) {
+    apply(value);
+    const seq = (saveSeq.current[key] = (saveSeq.current[key] ?? 0) + 1);
+    settingService.updatePrivacy({ [key]: value } as any).catch((e) => {
+      if (saveSeq.current[key] !== seq) return; // a newer change for this setting is in flight
+      apply(previous);
+      showToast({ type: "error", title: "Couldn't save setting", message: getErrorMessage(e) });
+    });
   }
 
-  async function saveLocationSharing(val: boolean) {
-    setLocationSharing(val);
-    settingService.updatePrivacy({ location_sharing: val }).catch(() => {});
+  function saveVisibility(val: Visibility) {
+    persist("profile_visibility", val, visibility, setVisibility);
   }
 
-  async function saveActivityStatus(val: boolean) {
-    setActivityStatus(val);
-    settingService.updatePrivacy({ activity_status: val }).catch(() => {});
+  function saveLocationSharing(val: boolean) {
+    persist("location_sharing", val, locationSharing, setLocationSharing);
+  }
+
+  function saveActivityStatus(val: boolean) {
+    persist("activity_status", val, activityStatus, setActivityStatus);
   }
 
   if (loading) {
@@ -59,6 +76,31 @@ export default function PrivacySecurityScreen() {
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Privacy & security</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24, gap: 16 }}>
+          <Text style={{ color: Colors.textSecondary, textAlign: "center" }}>
+            Couldn&apos;t load your settings. Check your connection and try again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => setReloadKey((k) => k + 1)}
+            style={{ backgroundColor: Colors.primary, borderRadius: 24, paddingHorizontal: 28, paddingVertical: 12 }}
+          >
+            <Text style={{ color: Colors.black, fontWeight: "700" }}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -135,7 +177,7 @@ export default function PrivacySecurityScreen() {
             </View>
             <View>
               <Text style={s.rowLabel}>Activity Status</Text>
-              <Text style={s.rowSub}>Show when you're active</Text>
+              <Text style={s.rowSub}>Show when you&apos;re active</Text>
             </View>
           </View>
           <Switch

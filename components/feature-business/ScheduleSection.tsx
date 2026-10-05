@@ -20,10 +20,10 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage } from "../../../lib/api";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 import { CoachScheduleSlot } from "./types";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];

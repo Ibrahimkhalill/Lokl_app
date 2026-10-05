@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -39,8 +39,13 @@ export default function StreaksScreen() {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [leaderboardMode, setLeaderboardMode] = useState<"all" | "friends">("all");
+  const modeRef = useRef(leaderboardMode);
+  modeRef.current = leaderboardMode;
+  // Each leaderboard request gets a sequence number; only the latest one may update state.
+  const leaderboardSeq = useRef(0);
 
-  const fetchAll = useCallback(async (refresh = false, mode: "all" | "friends" = "all") => {
+  const fetchAll = useCallback(async (refresh = false, mode: "all" | "friends" = modeRef.current) => {
+    const seq = ++leaderboardSeq.current;
     if (refresh) setRefreshing(true);
     setLoadingStreaks(true);
     setLoadingAchievements(true);
@@ -66,7 +71,9 @@ export default function StreaksScreen() {
       console.log("[Achievements] error:", getErrorMessage(achievementsRes.reason));
     }
 
-    if (leaderboardRes.status === "fulfilled") {
+    if (seq !== leaderboardSeq.current) {
+      // a newer leaderboard request (e.g. mode switch) superseded this one
+    } else if (leaderboardRes.status === "fulfilled") {
       const d = leaderboardRes.value.data?.data ?? leaderboardRes.value.data;
       setLeaderboard(d);
     } else {
@@ -79,15 +86,22 @@ export default function StreaksScreen() {
     setRefreshing(false);
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchAll(false, leaderboardMode); }, [fetchAll, leaderboardMode]));
+  // Mode is read from a ref so switching modes doesn't also re-run the full focus fetch.
+  useFocusEffect(useCallback(() => { fetchAll(false, modeRef.current); }, [fetchAll]));
 
   const handleLeaderboardMode = (mode: "all" | "friends") => {
+    if (mode === modeRef.current) return;
     setLeaderboardMode(mode);
+    modeRef.current = mode;
     setLoadingLeaderboard(true);
+    const seq = ++leaderboardSeq.current;
     userService.getLeaderboard(mode).then((res) => {
+      if (seq !== leaderboardSeq.current) return;
       const d = res.data?.data ?? res.data;
       setLeaderboard(d);
-    }).catch(() => {}).finally(() => setLoadingLeaderboard(false));
+    }).catch(() => {}).finally(() => {
+      if (seq === leaderboardSeq.current) setLoadingLeaderboard(false);
+    });
   };
 
   return (
@@ -118,7 +132,7 @@ export default function StreaksScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true, modeRef.current)} tintColor={Colors.primary} />
         }
       >
         {activeTab === "streaks" && (

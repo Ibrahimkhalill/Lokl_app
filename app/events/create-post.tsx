@@ -13,7 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
-import { pickPostMedia } from "../../lib/mediaPicker";
+import { pickPostMedia, toUploadFile } from "../../lib/mediaPicker";
 import { getErrorMessage } from "../../lib/api";
 import { postService } from "@/services/postService";
 import { useToast } from "../../context/ToastContext";
@@ -46,12 +46,7 @@ export default function CreatePostScreen() {
       formData.append("group_id", groupId);
 
       if (media) {
-        const ext = media.uri.split(".").pop() ?? "jpg";
-        formData.append("media", {
-          uri: media.uri,
-          name: `post_${Date.now()}.${ext}`,
-          type: media.kind === "image" ? "image/jpeg" : "video/mp4",
-        } as any);
+        formData.append("media", toUploadFile(media.uri, media.kind === "image" ? "image" : "video", "post"));
         formData.append("type", media.kind);
       } else {
         formData.append("type", "text");

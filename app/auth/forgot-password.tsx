@@ -23,7 +23,16 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       const res = await authService.forgotPassword({ phone: formattedPhone });
-      const userId: number = res.data.data?.user_id;
+      const userId: number | undefined = res.data?.data?.user_id;
+      if (!userId) {
+        // Backend doesn't reveal whether the number is registered; there's nothing to verify.
+        showToast({
+          type: "info",
+          title: "Check your phone",
+          message: res.data?.message ?? "If an account exists with that number, an OTP has been sent.",
+        });
+        return;
+      }
       router.push({
         pathname: "/auth/otp",
         params: { user_id: String(userId) },

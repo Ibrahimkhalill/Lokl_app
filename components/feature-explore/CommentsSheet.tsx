@@ -174,16 +174,21 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
     }).start(() => onClose());
   }, [slideAnim, onClose]);
 
+  const commentsSeq = useRef(0);
+
   const fetchComments = useCallback(async () => {
+    const seq = ++commentsSeq.current;
+    setComments([]); // don't flash the previous post's thread
     setLoading(true);
     try {
       const res = await postService.getComments(postId);
+      if (seq !== commentsSeq.current) return; // a newer post's comments were requested
       const data = res.data?.data ?? res.data;
       setComments(Array.isArray(data) ? data : []);
     } catch (e) {
       console.log("[Comments] fetch error:", getErrorMessage(e));
     } finally {
-      setLoading(false);
+      if (seq === commentsSeq.current) setLoading(false);
     }
   }, [postId]);
 
@@ -192,7 +197,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
       open();
       fetchComments();
     }
-  }, [visible]);
+  }, [visible, open, fetchComments]);
 
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -232,7 +237,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
       showSub.remove();
       hideSub.remove();
     };
-  }, [keyboardHeight]);
+  }, [keyboardHeight, sheetHeight]);
 
   const handleReply = (id: number, name: string) => {
     setReplyTo({ id, name });

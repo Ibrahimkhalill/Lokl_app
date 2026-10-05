@@ -15,10 +15,10 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage } from "../../../lib/api";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 import { CoachOffering } from "./types";
 
 interface Props {
@@ -42,6 +42,19 @@ export default function OfferingsSection({
   const [saving, setSaving] = useState(false);
   const [deletingOfferingId, setDeletingOfferingId] = useState<number | null>(null);
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  // All hooks must run before this early return (hook order must not change between renders).
   const visible = isOwner || offerings.length > 0;
   if (!visible) return null;
 
@@ -73,8 +86,14 @@ export default function OfferingsSection({
       };
       if (offeringDescription.trim()) payload.description = offeringDescription.trim();
       if (offeringPrice.trim()) {
-        const parsed = parseFloat(offeringPrice.trim());
-        if (!isNaN(parsed)) payload.price = parsed;
+        // Accept comma decimals ("12,50") and reject anything that isn't a plain non-negative number.
+        const normalized = offeringPrice.trim().replace(",", ".");
+        const parsed = Number(normalized);
+        if (!/^\d+(\.\d{1,2})?$/.test(normalized) || !Number.isFinite(parsed)) {
+          Alert.alert("Validation", "Enter a valid price, e.g. 25 or 12.50.");
+          return; // finally resets saving
+        }
+        payload.price = parsed;
       } else {
         payload.price = null;
       }
@@ -118,18 +137,6 @@ export default function OfferingsSection({
       },
     ]);
   }
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
 
   return (
     <View>

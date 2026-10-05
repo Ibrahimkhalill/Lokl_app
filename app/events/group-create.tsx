@@ -15,9 +15,6 @@ import {
   PanResponder,
   Dimensions,
 } from "react-native";
-
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -26,11 +23,13 @@ import ImageIcon from "../../assets/icons/image.svg";
 import CheckIcon from "../../assets/icons/check.svg";
 import { MediaPickerCard, FormField, AppTextInput } from "../../components/primitives";
 import { LocationPickerModal, type LocationResult } from "../../components/primitives/LocationPickerModal";
-import { pickCoverImage } from "../../lib/mediaPicker";
+import { pickCoverImage, toUploadFile } from "../../lib/mediaPicker";
 import { eventService } from "../../services/eventService";
 import { userService } from "../../services/userService";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const ACTIVITY_CATEGORIES = [
   { value: "boxing_combat",     label: "Boxing & Combat" },
@@ -297,12 +296,7 @@ export default function GroupCreateScreen() {
               const picked = await pickCoverImage();
               if (picked) {
                 setGroupPhotoUri(picked.uri);
-                const ext = picked.uri.split(".").pop() ?? "jpg";
-                setGroupPhotoFile({
-                  uri: picked.uri,
-                  name: `group_${Date.now()}.${ext}`,
-                  type: picked.type === "video" ? "video/mp4" : "image/jpeg",
-                });
+                setGroupPhotoFile(toUploadFile(picked.uri, picked.type, "group"));
               }
             }}
             icon={<ImageIcon width={36} height={36} color={Colors.text} />}

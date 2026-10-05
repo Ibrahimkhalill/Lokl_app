@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Linking, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, Share, Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";

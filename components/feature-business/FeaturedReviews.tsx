@@ -14,10 +14,10 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Colors } from "../../../constants/colors";
+import { Colors } from "../../constants/colors";
 import { sharedStyles } from "./sharedStyles";
-import { businessService } from "../../../services/businessService";
-import { getErrorMessage } from "../../../lib/api";
+import { businessService } from "../../services/businessService";
+import { getErrorMessage } from "../../lib/api";
 import { FeaturedReview } from "./types";
 
 interface Props {
@@ -258,7 +258,7 @@ export function FeaturedReviews({ reviews, isOwner, businessProfileId, onUpdate 
                   )}
                   {!!r.comment && (
                     <Text style={[sharedStyles.reviewComment, { marginTop: 4 }]} numberOfLines={2}>
-                      "{r.comment}"
+                      &ldquo;{r.comment}&rdquo;
                     </Text>
                   )}
                 </View>

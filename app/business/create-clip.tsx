@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
-import { pickPostMedia } from "../../lib/mediaPicker";
+import { pickPostMedia, toUploadFile } from "../../lib/mediaPicker";
 import { businessService } from "../../services/businessService";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
@@ -57,7 +57,7 @@ export default function CreateClipScreen() {
       Alert.alert("No media", "Please pick a photo or video first.");
       return;
     }
-    if (!businessId) {
+    if (!businessId || !Number.isFinite(Number(businessId))) {
       Alert.alert("Error", "Business profile not found.");
       return;
     }
@@ -65,17 +65,8 @@ export default function CreateClipScreen() {
     setPosting(true);
     try {
       const form = new FormData();
-      const filename = media.uri.split("/").pop() ?? "clip.jpg";
-      const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
-      const mimeType = media.type === "video"
-        ? (ext === "mov" ? "video/quicktime" : "video/mp4")
-        : `image/${ext === "jpg" ? "jpeg" : ext}`;
-
-      form.append(media.type === "video" ? "video" : "image", {
-        uri: media.uri,
-        name: filename,
-        type: mimeType,
-      } as any);
+      const kind = media.type === "video" ? "video" : "image";
+      form.append(kind, toUploadFile(media.uri, kind, "clip"));
 
       // Upload the locally generated thumbnail as `image` so the grid can show it
       if (media.type === "video" && thumbUri) {

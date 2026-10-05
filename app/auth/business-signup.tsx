@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { BackButton, Input, PrimaryButton } from "../../components/ui";
+import { BackButton, Input, PhoneInput, PrimaryButton } from "../../components/ui";
 import { AuthFooterLinkRow } from "../../components/auth";
 import { SelectRow, InputRow } from "../../components/primitives";
 import { Colors } from "../../constants/colors";
@@ -21,7 +21,6 @@ import BusinessIcon from "../../assets/icons/bussiness.svg";
 import BusinessTypeIcon from "../../assets/icons/business_type.svg";
 import PersonIcon from "../../assets/icons/person.svg";
 import EmailIcon from "../../assets/icons/email.svg";
-import CallIcon from "../../assets/icons/call.svg";
 import LocationsIcon from "../../assets/icons/locations.svg";
 import LinkIcon from "../../assets/icons/link.svg";
 import LockIcon from "../../assets/icons/loack.svg";
@@ -216,6 +215,8 @@ export default function BusinessSignUp() {
   const [ownerName, setOwnerName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // International format (+<country code><number>) — same as personal sign-up, so login/reset can find it.
+  const [formattedPhone, setFormattedPhone] = useState("");
   const [address, setAddress] = useState("");
   const [website, setWebsite] = useState("");
   const [password, setPassword] = useState("");
@@ -320,7 +321,7 @@ const handleSignUp = async () => {
       business_type: businessType,
       owner_name: ownerName,
       email,
-      phone,
+      phone: formattedPhone || phone,
       address,
       website: website || undefined,
       password,
@@ -437,16 +438,11 @@ const handleSignUp = async () => {
           }}
           error={emailError}
         />
-        <Input
+        <PhoneInput
           label="Business Phone*"
-          placeholder="+1 (XXX) XXX-XXXX"
-          leftSlot={
-            <CallIcon width={18} height={18} color={Colors.textSecondary} />
-          }
-          keyboardType="phone-pad"
           value={phone}
           onChangeText={(v) => { setPhone(v); if (v.trim()) setPhoneError(""); }}
-          onBlur={() => setPhoneError(phone.trim() ? "" : "Phone number is required")}
+          onChangeFormattedText={setFormattedPhone}
           error={phoneError}
         />
         <Input
