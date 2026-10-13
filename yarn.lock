@@ -7652,9 +7652,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lokl-auth@workspace:.":
+"lokl-app@workspace:.":
   version: 0.0.0-use.local
-  resolution: "lokl-auth@workspace:."
+  resolution: "lokl-app@workspace:."
   dependencies:
     "@babel/core": "npm:^7.25.0"
     "@expo/vector-icons": "npm:^15.0.3"

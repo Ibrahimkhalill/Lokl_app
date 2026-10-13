@@ -14,9 +14,12 @@ import * as ExpoLocation from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
+import { api } from "../../lib/api";
 
-// Set in .env (see .env.example). Restrict this key to the Places API + app quota in Google Cloud.
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_KEY ?? "";
+// Location search goes through our backend (Google Places API New) — no Google key in the app.
+function unwrap<T>(res: { data: any }): T {
+  return (res.data?.data ?? res.data) as T;
+}
 
 export interface LocationResult {
   address: string;
@@ -64,17 +67,9 @@ export function LocationPickerModal({ visible, onClose, onSelect }: Props) {
       const { latitude, longitude } = loc.coords;
       setUserCoords({ lat: latitude, lng: longitude });
 
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=3000&key=${GOOGLE_API_KEY}&language=en`;
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.status === "OK") {
-        const places: Prediction[] = (json.results ?? []).slice(0, 8).map((p: any) => ({
-          place_id: p.place_id,
-          description: p.name + (p.vicinity ? `, ${p.vicinity}` : ""),
-          isNearby: true,
-        }));
-        setNearbyPlaces(places);
-      }
+      const res = await api.get("/venues/places/nearby/", { params: { lat: latitude, lng: longitude } });
+      const places = unwrap<Prediction[]>(res) ?? [];
+      setNearbyPlaces(places.slice(0, 8).map((p) => ({ ...p, isNearby: true })));
     } catch {
       // silently fail — user can still search manually
     } finally {
@@ -89,13 +84,13 @@ export function LocationPickerModal({ visible, onClose, onSelect }: Props) {
     }
     setLoading(true);
     try {
-      let url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${GOOGLE_API_KEY}&language=en`;
+      const params: Record<string, string | number> = { input: text };
       if (userCoords) {
-        url += `&location=${userCoords.lat},${userCoords.lng}&radius=50000`;
+        params.lat = userCoords.lat;
+        params.lng = userCoords.lng;
       }
-      const res = await fetch(url);
-      const json = await res.json();
-      setPredictions(json.status === "OK" ? (json.predictions ?? []) : []);
+      const res = await api.get("/venues/places/autocomplete/", { params });
+      setPredictions(unwrap<Prediction[]>(res) ?? []);
     } catch {
       setPredictions([]);
     } finally {
@@ -112,18 +107,14 @@ export function LocationPickerModal({ visible, onClose, onSelect }: Props) {
   async function handleSelect(prediction: Prediction) {
     setFetchingDetails(prediction.place_id);
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry,formatted_address&key=${GOOGLE_API_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.status === "OK") {
-        const loc = json.result.geometry.location;
-        onSelect({
-          address: json.result.formatted_address ?? prediction.description,
-          latitude: loc.lat,
-          longitude: loc.lng,
-        });
-        handleClose();
-      }
+      const res = await api.get(`/venues/places/${encodeURIComponent(prediction.place_id)}/`);
+      const loc = unwrap<LocationResult>(res);
+      onSelect({
+        address: loc.address || prediction.description,
+        latitude: loc.latitude ?? 0,
+        longitude: loc.longitude ?? 0,
+      });
+      handleClose();
     } catch {
       onSelect({ address: prediction.description, latitude: 0, longitude: 0 });
       handleClose();
