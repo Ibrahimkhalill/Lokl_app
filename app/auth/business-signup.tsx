@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PhoneInput, PrimaryButton } from "../../components/ui";
-import { AuthFooterLinkRow } from "../../components/auth";
+import { AuthFooterLinkRow, LegalAgreement } from "../../components/auth";
 import { SelectRow, InputRow } from "../../components/primitives";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -210,6 +210,7 @@ const modalStyles = StyleSheet.create({
 export default function BusinessSignUp() {
   const router = useRouter();
   const { showToast } = useToast();
+  const [agreed, setAgreed] = useState(false);
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -294,6 +295,10 @@ export default function BusinessSignUp() {
   const [loading, setLoading] = useState(false);
 
 const handleSignUp = async () => {
+  if (!agreed) {
+    showToast({ type: "error", title: "Terms", message: "Please agree to the Terms & Conditions and Privacy Policy." });
+    return;
+  }
   const bnErr = businessName.trim() ? "" : "Business name is required";
   const btErr = businessType ? "" : "Business type is required";
   const onErr = ownerName.trim() ? "" : "Owner name is required";
@@ -549,10 +554,12 @@ const handleSignUp = async () => {
           error={confirmPasswordError}
         />
 
+          <LegalAgreement value={agreed} onChange={setAgreed} />
+
           <PrimaryButton
             title={loading ? "Creating account..." : "Sign Up"}
             onPress={handleSignUp}
-            disabled={loading}
+            disabled={loading || !agreed}
             style={styles.signupBtn}
           />
 

@@ -20,7 +20,7 @@ import {
   OrDivider,
   SocialButtons,
 } from "../../components/ui";
-import { AuthHeaderBlock, AuthFooterLinkRow } from "../../components/auth";
+import { AuthHeaderBlock, AuthFooterLinkRow, LegalAgreement } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
 import { getErrorMessage } from "../../lib/api";
@@ -47,8 +47,13 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   async function handleSignUp() {
+    if (!agreed) {
+      showToast({ type: "error", title: "Terms", message: "Please agree to the Terms & Conditions and Privacy Policy." });
+      return;
+    }
     if (!username.trim() || !firstName.trim() || !formattedPhone || !password.trim()) {
       showToast({ type: "error", title: "Error", message: "Please fill in all required fields." });
       return;
@@ -188,12 +193,12 @@ export default function SignUp() {
         onChangeText={setPassword}
       />
 
-   
+      <LegalAgreement value={agreed} onChange={setAgreed} />
 
       <PrimaryButton
         title={loading ? "Creating account..." : "Sign Up"}
         onPress={handleSignUp}
-        disabled={loading}
+        disabled={loading || !agreed}
       />
 
       <OrDivider />
