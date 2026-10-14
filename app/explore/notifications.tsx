@@ -52,6 +52,11 @@ function Avatar({ uri, size = 46 }: { uri?: string | null; size?: number }) {
   );
 }
 
+/** Moderation / account notices from Lokl (no personal sender). */
+function isSystemAlert(item: ApiNotification) {
+  return item.type === "alert" && !item.sender_name;
+}
+
 function NotifRow({ item }: { item: ApiNotification }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -60,7 +65,13 @@ function NotifRow({ item }: { item: ApiNotification }) {
       activeOpacity={0.75}
       onPress={() => setExpanded((v) => !v)}
     >
-      <Avatar uri={item.sender_avatar} />
+      {isSystemAlert(item) ? (
+        <View style={styles.systemIcon}>
+          <Ionicons name="shield-checkmark" size={22} color={Colors.primary} />
+        </View>
+      ) : (
+        <Avatar uri={item.sender_avatar} />
+      )}
       <View style={styles.rowContent}>
         <Text style={styles.rowText} numberOfLines={expanded ? undefined : 2}>
           <Text style={styles.rowName}>{item.sender_name ?? item.title} </Text>
@@ -167,6 +178,16 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  systemIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row",
