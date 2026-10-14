@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "https://lamprey-included-lion.ngrok-free.app/api";
+  process.env.EXPO_PUBLIC_API_URL ?? "https://api.loklusa.com/api";
 
 /** WebSocket origin matching the API: https → wss, http → ws. */
 export const WS_BASE = BASE_URL.replace(/^http/, "ws").replace(/\/api\/?$/, "");
@@ -130,7 +130,7 @@ function extractMessage(data: any): string | null {
   return null;
 }
 
-const SERVER_ORIGIN = BASE_URL.replace(/\/api\/?$/, ""); // e.g. "https://example.ngrok-free.app"
+const SERVER_ORIGIN = BASE_URL.replace(/\/api\/?$/, ""); // e.g. "https://api.loklusa.com"
 const SERVER_HOST = SERVER_ORIGIN.replace(/^https?:\/\//, "");
 const SERVER_SCHEME = SERVER_ORIGIN.startsWith("https") ? "https" : "http";
 
