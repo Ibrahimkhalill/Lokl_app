@@ -92,7 +92,11 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
     const isRefreshCall = original?.url?.includes("/auth/refresh-token");
-    if (error.response?.status === 401 && original && !original._retry && !isRefreshCall) {
+    // Only requests that carried a login token can mean "your session is invalid".
+    const hadToken = Boolean(original?.headers?.Authorization);
+    if (error.response?.status === 401 && original && original._retry && hadToken && !isRefreshCall) {
+      await expireSession(); // even the renewed token was rejected → back to sign-in
+    } else if (error.response?.status === 401 && original && hadToken && !original._retry && !isRefreshCall) {
       original._retry = true;
       try {
         const newToken = await refreshAccessToken();
