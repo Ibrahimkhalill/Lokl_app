@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -21,6 +22,8 @@ import { Colors } from "../../constants/colors";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../primitives";
+import { useAuth } from "../../context/AuthContext";
+import { submitReport, confirmBlock } from "../../lib/safety";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
@@ -57,12 +60,32 @@ function Avatar({ uri, size = 38 }: { uri: string | null; size?: number }) {
   );
 }
 
+/** Report / block someone's comment (Alert-based: this sheet is already a Modal). */
+function openCommentMenu(author: { author_id: number; author_name: string; body: string }, onBlocked: () => void) {
+  Alert.alert(author.author_name || "Comment", undefined, [
+    {
+      text: "Report comment",
+      onPress: () => { submitReport({ userId: author.author_id }, "Inappropriate comment", author.body); },
+    },
+    {
+      text: `Block ${author.author_name || "user"}`,
+      style: "destructive",
+      onPress: async () => { if (await confirmBlock(author.author_id, author.author_name)) onBlocked(); },
+    },
+    { text: "Cancel", style: "cancel" },
+  ]);
+}
+
 function CommentRow({
   item,
   onReply,
+  myId,
+  onBlocked,
 }: {
   item: Comment;
   onReply: (id: number, name: string) => void;
+  myId?: number;
+  onBlocked: () => void;
 }) {
   const [showReplies, setShowReplies] = useState(false);
 
@@ -82,6 +105,11 @@ function CommentRow({
           <TouchableOpacity onPress={() => onReply(item.id, item.author_name)}>
             <Text style={styles.replyBtn}>Reply</Text>
           </TouchableOpacity>
+          {item.author_id !== myId && (
+            <TouchableOpacity onPress={() => openCommentMenu(item, onBlocked)}>
+              <Text style={styles.replyBtn}>Report</Text>
+            </TouchableOpacity>
+          )}
           {item.replies.length > 0 && (
             <TouchableOpacity onPress={() => setShowReplies((v) => !v)}>
               <Text style={styles.replyBtn}>
@@ -107,7 +135,11 @@ function CommentRow({
                   </View>
                   <Text style={styles.commentText}>{r.body}</Text>
                 </View>
-                
+                {r.author_id !== myId && (
+                  <TouchableOpacity style={{ paddingTop: 4 }} onPress={() => openCommentMenu(r, onBlocked)}>
+                    <Text style={styles.replyBtn}>Report</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           ))}
@@ -133,6 +165,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<{ id: number; name: string } | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const { user: me } = useAuth();
 
   const panResponder = useRef(
     PanResponder.create({
@@ -302,7 +335,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
               data={comments}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
-                <CommentRow item={item} onReply={handleReply} />
+                <CommentRow item={item} onReply={handleReply} myId={me?.id} onBlocked={fetchComments} />
               )}
               ListEmptyComponent={
                 <EmptyState icon="chatbubble-outline" title="No comments yet" subtitle="Be the first to comment!" />

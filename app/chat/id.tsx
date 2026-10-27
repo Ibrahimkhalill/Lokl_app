@@ -22,6 +22,7 @@ import { messageService } from "../../services/messageService";
 import { WS_BASE, fixMediaUrl, getErrorMessage } from "../../lib/api";
 import { useMessages } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
+import { ReportBlockSheet } from "../../components/overlays/ReportBlockSheet";
 
 type ChatMessage = {
   id: number | string;
@@ -60,6 +61,7 @@ export default function ChatDetailScreen() {
   const myId: number | null = user?.id ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [safetyOpen, setSafetyOpen] = useState(false);
   const [input, setInput] = useState("");
   const [attachmentDraft, setAttachmentDraft] = useState<{ uri: string; kind: "image" | "video" } | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -299,12 +301,26 @@ const handleTyping = useCallback(() => {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {safetyOpen && !!userId && (
+        <ReportBlockSheet
+          visible
+          onClose={() => setSafetyOpen(false)}
+          target={{ userId, name: displayName }}
+          onDone={(kind) => { if (kind === "blocked") router.back(); }}
+        />
+      )}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
-        <View style={{ width: 42 }} />
+        {userId ? (
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setSafetyOpen(true)} accessibilityLabel="More options">
+            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 42 }} />
+        )}
       </View>
 
       {/* Participant avatars — fixed at top of message area */}

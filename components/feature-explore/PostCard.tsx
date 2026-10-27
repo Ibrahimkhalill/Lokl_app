@@ -17,6 +17,7 @@ import BookmarkIcon from "../../assets/icons/bookmarks.svg";
 import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Avatar } from "../primitives/Avatar";
+import { ReportBlockSheet } from "../overlays/ReportBlockSheet";
 
 export type ApiPost = {
   id: number;
@@ -123,6 +124,11 @@ export const PostCard = React.memo(function PostCard({
   isVisible?: boolean;
 }) {
   const { preferences } = usePreferences();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const canReport = !item.is_author && !!item.author_id;
+
+  if (hidden) return null;
 
   function haptic() {
     if (preferences.haptic) Vibration.vibrate(10);
@@ -156,6 +162,16 @@ export const PostCard = React.memo(function PostCard({
             )}
           </View>
         </TouchableOpacity>
+        {canReport && (
+          <TouchableOpacity
+            onPress={() => setMenuOpen(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.moreBtn}
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        )}
         {!hideFollowBtn && (
           <TouchableOpacity
             style={[styles.followBtn, item.is_following && styles.followingBtn]}
@@ -208,6 +224,15 @@ export const PostCard = React.memo(function PostCard({
         <View style={styles.imageWrap}>
           <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && !!isVisible} />
         </View>
+      )}
+
+      {menuOpen && (
+        <ReportBlockSheet
+          visible
+          onClose={() => setMenuOpen(false)}
+          target={{ userId: item.author_id!, name: item.author_name, postId: item.id }}
+          onDone={() => setHidden(true)}
+        />
       )}
 
       <View style={styles.actions}>
@@ -291,6 +316,7 @@ const styles = StyleSheet.create({
   userName: { color: Colors.text, fontSize: 15, fontWeight: "700" },
   venueNameRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
   venueNameText: { color: Colors.primary, fontSize: 11, fontWeight: "600" },
+  moreBtn: { paddingHorizontal: 8, paddingVertical: 4 },
   followBtn: {
     borderWidth: 1,
     borderColor: Colors.white,

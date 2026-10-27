@@ -20,6 +20,7 @@ import { EmptyState } from "../../components/primitives";
 import { PostCardSkeleton } from "../../components/feature-explore/PostCardSkeleton";
 import { UserProfileHeaderSkeleton } from "../../components/primitives/Skeletons";
 import { openPostShare } from "../../lib/sharePost";
+import { ReportBlockSheet } from "../../components/overlays/ReportBlockSheet";
 
 type UserProfile = {
   id: number;
@@ -50,6 +51,7 @@ export default function UserProfileScreen() {
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
   const [followBusy, setFollowBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const fetchProfile = useCallback(async (silent = false) => {
     if (!user_id) {
@@ -271,7 +273,17 @@ export default function UserProfileScreen() {
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
-        <View style={{ width: 40 }} />
+        {!is_me && !!profile ? (
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {loading ? (
@@ -304,6 +316,15 @@ export default function UserProfileScreen() {
               subtitle="This user hasn't shared anything yet"
             />
           }
+        />
+      )}
+
+      {menuOpen && !!profile && (
+        <ReportBlockSheet
+          visible
+          onClose={() => setMenuOpen(false)}
+          target={{ userId: profile.id, name: profile.name }}
+          onDone={(kind) => { if (kind === "blocked") router.back(); }}
         />
       )}
 

@@ -39,6 +39,14 @@ const MENU_ITEMS = [
     route: "/settings/privacy-security",
     danger: false,
   },
+  {
+    label: "BLOCKED USERS",
+    sub: "People you've blocked",
+    icon: <Ionicons name="ban-outline" size={24} color={Colors.primary} />,
+    iconBg: "#3D4A1A",
+    route: "/settings/blocked-users",
+    danger: false,
+  },
 
   {
     label: "APP PREFERENCE CSE",

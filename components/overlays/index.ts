@@ -8,3 +8,4 @@ export {
   capturePressAnchor,
   type ContextMenuDropdownProps,
 } from "./ContextMenuDropdown";
+export { ReportBlockSheet, type ReportBlockTarget } from "./ReportBlockSheet";
