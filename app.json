@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.lokl.app",
+      "bundleIdentifier": "com.loklusa.app",
       "icon": "./assets/images/ios.png",
       "config": {
         "usesNonExemptEncryption": false
