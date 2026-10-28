@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
-      "channel": "development"
+      "channel": "development",
+      "node": "22.14.0"
     },
     "preview": {
       "distribution": "internal",
@@ -17,7 +18,8 @@
         "gradleCommand": "assembleRelease"
       },
       "environment": "preview",
-      "channel": "preview"
+      "channel": "preview",
+      "node": "22.14.0"
     },
     "production": {
       "autoIncrement": true,
@@ -25,7 +27,8 @@
         "buildType": "app-bundle"
       },
       "environment": "production",
-      "channel": "production"
+      "channel": "production",
+      "node": "22.14.0"
     }
   },
   "submit": {
