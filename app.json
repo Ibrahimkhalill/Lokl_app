@@ -89,15 +89,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "8bee028a-8a55-4019-a5d6-a13cfabc6640"
+        "projectId": "832f78c5-f7ba-4e69-9a50-ae9aef4815c0"
       }
     },
-    "owner": "aininja",
+    "owner": "lokl-inc",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/8bee028a-8a55-4019-a5d6-a13cfabc6640"
+      "url": "https://u.expo.dev/832f78c5-f7ba-4e69-9a50-ae9aef4815c0"
     }
   }
 }
