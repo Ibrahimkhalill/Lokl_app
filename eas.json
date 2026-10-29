@@ -9,8 +9,7 @@
       "distribution": "internal",
       "environment": "development",
       "channel": "development",
-      "node": "22.14.0",
-      "corepack": true
+      "node": "22.14.0"
     },
     "preview": {
       "distribution": "internal",
@@ -20,8 +19,7 @@
       },
       "environment": "preview",
       "channel": "preview",
-      "node": "22.14.0",
-      "corepack": true
+      "node": "22.14.0"
     },
     "production": {
       "autoIncrement": true,
@@ -30,8 +28,7 @@
       },
       "environment": "production",
       "channel": "production",
-      "node": "22.14.0",
-      "corepack": true
+      "node": "22.14.0"
     }
   },
   "submit": {
