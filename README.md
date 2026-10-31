@@ -1,3 +1,60 @@
+# LOKL (mobile app)
+
+**LOKL** is an iOS and Android app for finding places to play and train in New York City (courts, gyms, studios
+and other venues), joining events and groups, posting, and chatting with other people. Venue owners can sign up
+as **Business** accounts and publish their own events and clips.
+
+Built with **React Native + Expo (Expo Router)**, styled with **NativeWind (Tailwind)**. It talks to the
+[Lokl-backend](https://github.com/Ibrahimkhalill/Lokl-backend) API (`https://api.loklusa.com`).
+
+## Features
+
+- **Two account types** — personal (phone + password, SMS verification) and business sign-in/sign-up.
+- **Explore** — NYC venues on a map and list, with search, filters, photos and friends' opinions.
+- **Events and groups** — browse, create and join events, reviews, galleries, group chats.
+- **Posts and profiles** — feed, likes, comments, follow, streaks, blocked users.
+- **Chat** — inbox and real-time conversations.
+- **Push notifications** — via Expo (`expo-notifications`), plus in-app notifications.
+- **Safety and settings** — report/block, privacy and security, delete account, terms and privacy policy.
+
+## Tech
+
+Expo + Expo Router (file-based routes in `app/`), NativeWind, `react-native-maps`, `expo-location`,
+`expo-notifications`, `expo-image-picker`, `expo-video`, axios. Over-the-air updates via `expo-updates`.
+
+## Project layout
+
+| Folder | Contents |
+|--------|----------|
+| `app/` | Screens and routes (`auth/`, `(tabs)/`, `home/`, `events/`, `chat/`, `business/`, `settings/`, `user/`) |
+| `components/`, `hooks/`, `context/` | Reusable UI, hooks and app state |
+| `services/`, `lib/`, `constants/`, `types/` | API calls, helpers, theme constants, types |
+| `assets/` | Images, fonts, icons |
+
+## Run locally
+
+```bash
+yarn install
+yarn start        # Expo dev server (use a dev build: expo-dev-client)
+yarn ios          # or: yarn android
+```
+
+Environment variables: `EXPO_PUBLIC_API_URL` (defaults to the production API) and `GOOGLE_MAPS_API_KEY` (read in `app.config.js`; set it as an EAS env var for builds). Never commit secrets.
+
+## Build and release
+
+Builds run on **EAS** (Expo organization `lokl-inc`, project `@lokl-inc/lokl-app`):
+
+```bash
+npx eas-cli build --platform ios --profile production
+npx eas-cli submit --platform ios      # TestFlight / App Store
+```
+
+iOS bundle id `com.loklusa.app`, Android package `com.lokl.app`. Node 22 and Yarn 4 are pinned for EAS
+(`eas.json`, `.yarnrc.yml`).
+
+---
+
 # LOKL Auth — Screen Structure
 
 ## Colors
