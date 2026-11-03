@@ -151,23 +151,36 @@ export default function PostScreen() {
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [showPostToModal, setShowPostToModal] = useState(false);
-  const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [mediaKind, setMediaKind] = useState<"image" | "video">("image");
-  const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
+  // Up to 10 pictures/videos per post; each is cropped (or trimmed) when it is picked.
+  const [mediaItems, setMediaItems] = useState<{ uri: string; kind: "image" | "video"; thumb: string | null }[]>([]);
+  const MAX_MEDIA = 10;
   const [submitting, setSubmitting] = useState(false);
   const [locationName, setLocationName] = useState<string | null>(null);
 
   const resetForm = () => {
     setCaption("");
     setNotes("");
-    setMediaUri(null);
-    setMediaKind("image");
-    setVideoThumbnail(null);
+    setMediaItems([]);
     setPostToPublic(true);
     resetGroupIds([]);
     resetFriendIds([]);
     resetPostToGroupIds([]);
     setScore(SLIDER_DEFAULT);
+  };
+
+  const addMedia = async () => {
+    if (mediaItems.length >= MAX_MEDIA) return;
+    const picked = await pickPostMedia();
+    if (!picked) return;
+    let thumb: string | null = null;
+    if (picked.type === "video") {
+      try {
+        thumb = (await VideoThumbnails.getThumbnailAsync(picked.uri, { time: 0 })).uri;
+      } catch {
+        thumb = null;
+      }
+    }
+    setMediaItems((prev) => [...prev, { uri: picked.uri, kind: picked.type === "video" ? "video" : "image", thumb }]);
   };
 
   const handleSubmit = async () => {
@@ -181,13 +194,8 @@ export default function PostScreen() {
       form.append("lokl_score", String(lokiScore.toFixed(1)));
       form.append("is_public", postToPublic ? "true" : "false");
       if (locationName) form.append("location", locationName);
-      if (mediaUri) {
-        if (mediaKind === "video") {
-          form.append("video", toUploadFile(mediaUri, "video", "video"));
-        } else {
-          form.append("image", toUploadFile(mediaUri, "image", "image"));
-        }
-      }
+      // The server keeps the first one as the post's main picture/video and the rest in order.
+      mediaItems.forEach((m, i) => form.append("media", toUploadFile(m.uri, m.kind, m.kind === "video" ? "video" : `image${i}`)));
       selectedGroupIds.forEach((id) => form.append("tagged_group_ids", id));
       selectedFriendIds.forEach((id) => form.append("tagged_user_ids", id));
       postToGroupIds.forEach((id) => form.append("post_target_ids", id));
@@ -298,32 +306,47 @@ export default function PostScreen() {
           <Text style={styles.title}>Share Your Content</Text>
           <Text style={styles.subtitle}>Share Your Moments With The World</Text>
 
-          <MediaPickerCard
-            height={140}
-            previewUri={mediaUri}
-            previewKind={mediaKind}
-            videoThumbnailUri={videoThumbnail}
-            onPress={async () => {
-              const picked = await pickPostMedia();
-              if (!picked) return;
-              setMediaUri(picked.uri);
-              setMediaKind(picked.type === "video" ? "video" : "image");
-              if (picked.type === "video") {
-                try {
-                  const { uri } = await VideoThumbnails.getThumbnailAsync(picked.uri, { time: 0 });
-                  setVideoThumbnail(uri);
-                } catch {
-                  setVideoThumbnail(null);
-                }
-              } else {
-                setVideoThumbnail(null);
-              }
-            }}
-            icon={
-              <ImageIcon width={40} height={40} color={Colors.textSecondary} />
-            }
-            title="Select a image or video"
-          />
+          {mediaItems.length === 0 ? (
+            <MediaPickerCard
+              height={140}
+              onPress={addMedia}
+              icon={<ImageIcon width={40} height={40} color={Colors.textSecondary} />}
+              title="Select a image or video"
+              subtitle="You can add several and crop each one"
+            />
+          ) : (
+            <View style={styles.mediaStrip}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {mediaItems.map((m, i) => (
+                  <View key={`${m.uri}-${i}`} style={styles.mediaThumbWrap}>
+                    {/* contain: the whole picture is visible, the way it will look in the post */}
+                    <Image
+                      source={{ uri: m.kind === "video" ? m.thumb ?? undefined : m.uri }}
+                      style={styles.mediaThumb}
+                      resizeMode="contain"
+                    />
+                    {m.kind === "video" && (
+                      <View style={styles.mediaPlay}><Ionicons name="play" size={18} color={Colors.black} /></View>
+                    )}
+                    <TouchableOpacity
+                      style={styles.mediaRemove}
+                      hitSlop={8}
+                      onPress={() => setMediaItems((prev) => prev.filter((_, idx) => idx !== i))}
+                    >
+                      <Ionicons name="close" size={14} color={Colors.white} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {mediaItems.length < MAX_MEDIA && (
+                  <TouchableOpacity style={[styles.mediaThumbWrap, styles.mediaAdd]} onPress={addMedia}>
+                    <Ionicons name="add" size={28} color={Colors.textSecondary} />
+                    <Text style={styles.mediaAddText}>Add more</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+              <Text style={styles.mediaHint}>{mediaItems.length} of {MAX_MEDIA} selected</Text>
+            </View>
+          )}
 
           <FormField label="Caption" style={{ marginBottom: 18 }}>
             <AppTextInput
@@ -432,10 +455,10 @@ export default function PostScreen() {
             onPress={() => setShowPostToModal((prev) => !prev)}
           >
             <Text style={styles.dropdownPlaceholder}>
-              {postToPublic && postToGroupIds.length === 0
-                ? "Public"
+              {postToGroupIds.length === 0
+                ? postToPublic ? "Public" : "Private (friends only)"
                 : [
-                    postToPublic ? "Public" : null,
+                    postToPublic ? "Public" : "Private (friends only)",
                     ...groups
                       .filter((g) => postToGroupIds.includes(String(g.id)))
                       .map((g) => g.name),
@@ -452,20 +475,29 @@ export default function PostScreen() {
 
           {showPostToModal && (
             <View style={styles.inlineDropdownList}>
-              {/* Public option */}
+              {/* Public: everyone. Private: only friends see the post, but the score still counts for the venue. */}
               <TouchableOpacity
                 style={styles.inlineDropdownItem}
-                onPress={() => setPostToPublic((prev) => !prev)}
+                onPress={() => setPostToPublic(true)}
                 activeOpacity={0.75}
               >
                 <View style={[styles.checkbox, postToPublic && styles.checkboxChecked]}>
-                  {postToPublic && (
-                    <Ionicons name="checkmark" size={13} color={Colors.black} />
-                  )}
+                  {postToPublic && <Ionicons name="checkmark" size={13} color={Colors.black} />}
                 </View>
                 <View style={styles.inlineItemLeft}>
-                 
                   <Text style={styles.inlineDropdownText}>Public</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.inlineDropdownItem}
+                onPress={() => setPostToPublic(false)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.checkbox, !postToPublic && styles.checkboxChecked]}>
+                  {!postToPublic && <Ionicons name="checkmark" size={13} color={Colors.black} />}
+                </View>
+                <View style={styles.inlineItemLeft}>
+                  <Text style={styles.inlineDropdownText}>Private (friends only)</Text>
                 </View>
               </TouchableOpacity>
 
@@ -633,6 +665,24 @@ export default function PostScreen() {
 }
 
 const styles = StyleSheet.create({
+  mediaStrip: { marginBottom: 18 },
+  mediaThumbWrap: {
+    width: 120, height: 150, borderRadius: 14, overflow: "hidden",
+    backgroundColor: Colors.inputBg, borderWidth: 1, borderColor: Colors.cardBorder,
+    justifyContent: "center", alignItems: "center",
+  },
+  mediaThumb: { width: "100%", height: "100%" },
+  mediaPlay: {
+    position: "absolute", width: 34, height: 34, borderRadius: 17,
+    backgroundColor: Colors.primary, justifyContent: "center", alignItems: "center",
+  },
+  mediaRemove: {
+    position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "center", alignItems: "center",
+  },
+  mediaAdd: { borderStyle: "dashed" },
+  mediaAddText: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  mediaHint: { color: Colors.textSecondary, fontSize: 12, marginTop: 8 },
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40 },
   header: {

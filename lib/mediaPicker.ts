@@ -93,12 +93,12 @@ export async function pickAvatarImage(): Promise<PickedMedia | null> {
   };
 }
 
-/** Post composer — images or videos from library (no crop). */
+/** Post composer: one picture or video from the library, with the system crop (photos) / trim (videos) screen. */
 export async function pickPostMedia(): Promise<PickedMedia | null> {
   if (!(await ensureLibraryAccess())) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images", "videos"],
-    allowsEditing: false,
+    allowsEditing: true,
     quality: 0.85,
     videoMaxDuration: 120,
   });
