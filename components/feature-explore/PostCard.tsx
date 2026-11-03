@@ -18,6 +18,7 @@ import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Avatar } from "../primitives/Avatar";
 import { ReportBlockSheet } from "../overlays/ReportBlockSheet";
+import { PostMediaGallery, PostMediaItem } from "./PostMediaGallery";
 
 export type ApiPost = {
   id: number;
@@ -32,6 +33,7 @@ export type ApiPost = {
   location?: string;
   image_url?: string | null;
   video_url?: string | null;
+  media?: PostMediaItem[];
   likes?: number;
   comments?: number;
   shares?: number;
@@ -214,15 +216,20 @@ export const PostCard = React.memo(function PostCard({
       )}
       {!!item.notes && <ExpandableBody body={item.notes} isNotes />}
 
-      {!!item.image_url && (
+      {/* Every picture/video of the post (older posts only have image_url / video_url) */}
+      {!!(item.media?.length || item.image_url || item.video_url) && (
         <View style={styles.imageWrap}>
-          <Image source={{ uri: item.image_url }} style={styles.postImage} resizeMode="cover" />
-        </View>
-      )}
-
-      {!!item.video_url && (
-        <View style={styles.imageWrap}>
-          <PostVideoPlayer uri={item.video_url} isVisible={preferences.autoplay && !!isVisible} />
+          <PostMediaGallery
+            media={
+              item.media?.length
+                ? item.media
+                : [
+                    ...(item.image_url ? [{ type: "image" as const, url: item.image_url }] : []),
+                    ...(item.video_url ? [{ type: "video" as const, url: item.video_url }] : []),
+                  ]
+            }
+            autoplay={preferences.autoplay && !!isVisible}
+          />
         </View>
       )}
 
