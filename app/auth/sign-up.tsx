@@ -31,7 +31,7 @@ function formatDob(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const y = date.getFullYear();
-  return `${d}/${m}/${y}`;
+  return `${m}/${d}/${y}`; // US format: month/day/year
 }
 
 export default function SignUp() {
@@ -45,6 +45,7 @@ export default function SignUp() {
   const [phone, setPhone] = useState("");
   const [formattedPhone, setFormattedPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -56,6 +57,10 @@ export default function SignUp() {
     }
     if (!username.trim() || !firstName.trim() || !formattedPhone || !password.trim()) {
       showToast({ type: "error", title: "Error", message: "Please fill in all required fields." });
+      return;
+    }
+    if (password !== confirmPassword) {
+      showToast({ type: "error", title: "Passwords don't match", message: "Please type the same password in both boxes." });
       return;
     }
     if (!dobDate) {
@@ -124,7 +129,7 @@ export default function SignUp() {
         <Text style={styles.dobLabel}>Date of Birth*</Text>
         <View style={styles.dobRow}>
           <Text style={[styles.dobValue, !dobDate && styles.dobPlaceholder]}>
-            {dobDate ? formatDob(dobDate) : "DD/MM/YYYY"}
+            {dobDate ? formatDob(dobDate) : "MM/DD/YYYY"}
           </Text>
           <Ionicons
             name="calendar-outline"
@@ -191,6 +196,14 @@ export default function SignUp() {
         isPassword
         value={password}
         onChangeText={setPassword}
+      />
+      <Input
+        label="Confirm password*"
+        placeholder="Type the password again"
+        isPassword
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        error={confirmPassword.length > 0 && confirmPassword !== password ? "Passwords do not match" : undefined}
       />
 
       <LegalAgreement value={agreed} onChange={setAgreed} />

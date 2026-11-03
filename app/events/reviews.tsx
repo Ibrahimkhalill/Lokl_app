@@ -97,7 +97,7 @@ export default function ReviewsScreen() {
             <EmptyState
               icon="star-outline"
               title={resolvedVenueId ? "No rankings yet" : "No reviews yet"}
-              subtitle="Be the first to leave one"
+              subtitle={resolvedVenueId ? "Be the first to rank this location" : "Be the first to leave one"}
             />
           }
           renderItem={({ item }) => (

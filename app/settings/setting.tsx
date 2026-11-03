@@ -16,7 +16,7 @@ import { useAuth } from "../../context/AuthContext";
 
 const MENU_ITEMS = [
   {
-    label: "ACCOUNT SETTING",
+    label: "ACCOUNT SETTINGS",
     sub: "Profile, email, password",
     icon: <AccountIcon width={24} height={24} color={Colors.primary} />,
     iconBg: "#3D4A1A",

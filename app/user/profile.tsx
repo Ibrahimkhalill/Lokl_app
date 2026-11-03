@@ -185,7 +185,7 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hi, {profile?.name ?? "User"}</Text>
-            <Text style={styles.subGreeting}>Welcome at profile!</Text>
+            <Text style={styles.subGreeting}>Welcome to Lokl!</Text>
           </View>
           <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push("/settings/setting")}>
             <Ionicons name="settings-outline" size={20} color={Colors.text} />

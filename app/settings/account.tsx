@@ -166,7 +166,7 @@ export default function Account() {
           <AccountIcon width={24} height={24} color={Colors.primary} />
         </View>
         <View>
-          <Text style={s.bannerTitle}>ACCOUNT SETTING</Text>
+          <Text style={s.bannerTitle}>ACCOUNT SETTINGS</Text>
           <Text style={s.bannerSub}>Profile, email, password</Text>
         </View>
       </View>

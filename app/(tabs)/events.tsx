@@ -497,10 +497,10 @@ export default function EventsScreen() {
           </TouchableOpacity> */}
           <TouchableOpacity
             style={s.createBtn}
-            onPress={() => router.push("/events/group-create")}
+            onPress={() => router.push(activeTab === "events" ? "/business/create-event" : "/events/group-create")}
           >
             <CreateGroupIcon width={20} height={20} color={Colors.text} />
-            <Text style={s.createBtnText}>Create Group</Text>
+            <Text style={s.createBtnText}>{activeTab === "events" ? "Create Event" : "Create Group"}</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -668,7 +668,7 @@ export default function DetailsScreen() {
 
           {reviews.length === 0 ? (
             <Text style={styles.noReviews}>
-              No Raking yet. Be the first!
+              No Ranking Yet. Be the First!
             </Text>
           ) : (
             reviews.slice(0, 3).map((review) => (
