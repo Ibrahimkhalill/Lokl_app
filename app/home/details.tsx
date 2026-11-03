@@ -36,6 +36,7 @@ import NavigateIcon from "../../assets/icons/navigate.svg";
 import FriendsIcon from "../../assets/icons/friends.svg";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -132,6 +133,11 @@ export default function DetailsScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
+  const heroListRef = useRef<FlatList<string>>(null);
+  const goToPhoto = (i: number) => {
+    setImgIndex(i);
+    heroListRef.current?.scrollToIndex({ index: i, animated: true });
+  };
   const [userDistance, setUserDistance] = useState<string | null>(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarking, setBookmarking] = useState(false);
@@ -345,10 +351,20 @@ export default function DetailsScreen() {
         {/* ── Hero Image Carousel ───────────────────────────────────────── */}
         <View style={styles.heroWrap}>
           {allPhotos.length > 0 ? (
-            <Image
-              source={{ uri: allPhotos[imgIndex] }}
-              style={styles.heroImage}
-              resizeMode="cover"
+            <FlatList
+              ref={heroListRef}
+              data={allPhotos}
+              keyExtractor={(uri, i) => `${i}-${uri}`}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+              onMomentumScrollEnd={(e) =>
+                setImgIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))
+              }
+              renderItem={({ item }) => (
+                <Image source={{ uri: item }} style={{ width: SCREEN_WIDTH, height: 280 }} resizeMode="cover" />
+              )}
             />
           ) : (
             <View style={[styles.heroImage, styles.noImagePlaceholder]}>
@@ -364,10 +380,13 @@ export default function DetailsScreen() {
               <TouchableOpacity
                 style={styles.heroBtn}
                 onPress={() => {
-                  const url = `maps://?q=${venue.latitude},${venue.longitude}`;
-                  Linking.openURL(url).catch(() =>
-                    Linking.openURL(
-                      `https://maps.google.com/?q=${venue.latitude},${venue.longitude}`
+                  // Search by the business name around its coordinates, so Maps opens the real place
+                  // (name, phone, hours), not just a pin.
+                  const name = encodeURIComponent([venue.name, venue.address].filter(Boolean).join(", "));
+                  const ll = `${venue.latitude},${venue.longitude}`;
+                  Linking.openURL(`maps://?q=${name}&ll=${ll}`).catch(() =>
+                    Linking.openURL(`https://maps.apple.com/?q=${name}&ll=${ll}`).catch(() =>
+                      Linking.openURL(`https://maps.google.com/?q=${name}`)
                     )
                   );
                 }}
@@ -382,17 +401,13 @@ export default function DetailsScreen() {
             <View style={styles.slideBtnWrap}>
               <TouchableOpacity
                 style={[styles.slideBtn, { left: 12 }]}
-                onPress={() =>
-                  setImgIndex((i) => (i > 0 ? i - 1 : allPhotos.length - 1))
-                }
+                onPress={() => goToPhoto(imgIndex > 0 ? imgIndex - 1 : allPhotos.length - 1)}
               >
                 <Ionicons name="chevron-back" size={18} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.slideBtn, { right: 12 }]}
-                onPress={() =>
-                  setImgIndex((i) => (i < allPhotos.length - 1 ? i + 1 : 0))
-                }
+                onPress={() => goToPhoto(imgIndex < allPhotos.length - 1 ? imgIndex + 1 : 0)}
               >
                 <Ionicons name="chevron-forward" size={18} color={Colors.text} />
               </TouchableOpacity>
@@ -416,7 +431,16 @@ export default function DetailsScreen() {
         <View style={styles.content}>
 
           {/* Title + Meta */}
-          <Text style={styles.venueName}>{venue.name.toUpperCase()}</Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.venueName, { flex: 1 }]}>{venue.name.toUpperCase()}</Text>
+            <TouchableOpacity
+              style={styles.actionIconBtn}
+              accessibilityLabel="Rank this venue"
+              onPress={() => router.push(`/home/post?venueId=${venue.id}&venueName=${encodeURIComponent(venue.name)}&venueAddress=${encodeURIComponent(venue.address ?? "")}`)}
+            >
+              <PlusIcon width={20} height={20} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.metaRow}>
             <View style={styles.scoreChip}>
               <Text style={styles.scoreText}>
@@ -470,12 +494,6 @@ export default function DetailsScreen() {
               >
                 <Ionicons name="people-outline" size={14} color={Colors.white} />
                 <Text style={[styles.actionBtnText]}>Share to Group</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionIconBtn}
-                onPress={() => router.push(`/home/post?venueId=${venue.id}&venueName=${encodeURIComponent(venue.name)}&venueAddress=${encodeURIComponent(venue.address ?? "")}`)}
-              >
-                <PlusIcon width={20} height={20} color={Colors.text} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionIconBtn}
@@ -822,6 +840,7 @@ const styles = StyleSheet.create({
 
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
 
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   venueName: {
     color: Colors.text,
     fontSize: 22,

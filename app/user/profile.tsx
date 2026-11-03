@@ -55,6 +55,17 @@ type MeData = {
   activity_stats: ActivityStats;
   posts: ApiPost[];
   saved_posts: ApiPost[];
+  saved_venues?: SavedVenue[];
+};
+
+type SavedVenue = {
+  id: number;
+  name: string;
+  type?: string;
+  cover?: string | null;
+  score_display?: string;
+  neighborhood?: string;
+  address?: string;
 };
 
 
@@ -170,6 +181,7 @@ export default function ProfileScreen() {
   };
   const posts = meData?.posts ?? [];
   const savedPosts = meData?.saved_posts ?? [];
+  const savedVenues = meData?.saved_venues ?? [];
   const recentActivities = posts.slice(0, 3);
 
   return (
@@ -212,23 +224,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-
-        {/* Business Banner */}
-        <View style={styles.businessCard}>
-          <View style={styles.businessIcon}>
-            <BussinessIcon width={24} height={24} />
-          </View>
-          <View style={styles.businessText}>
-            <Text style={styles.businessTitle}>Run a Business?</Text>
-            <Text style={styles.businessSub}>
-              Create a business profile to showcase your services, get reviews, and connect with more customers
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.businessBtn} onPress={() => router.push("/auth/business-signup")}>
-            <Text style={styles.businessBtnText}>Create Business Profile</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.black} />
-          </TouchableOpacity>
         </View>
 
         {/* Bio */}
@@ -417,6 +412,42 @@ export default function ProfileScreen() {
         {activeTab === "saved" && (
           <>
             <View style={styles.recentHeader}>
+              <Text style={styles.recentTitle}>SAVED VENUES</Text>
+            </View>
+            {savedVenues.length === 0 ? (
+              <View style={styles.emptyActivity}>
+                <Ionicons name="location-outline" size={32} color={Colors.textSecondary} />
+                <Text style={styles.emptyText}>No saved venues yet. Tap the bookmark on a venue to add it here.</Text>
+              </View>
+            ) : (
+              savedVenues.map((v) => (
+                <TouchableOpacity
+                  key={v.id}
+                  style={styles.savedVenueRow}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(`/home/details?id=${v.id}`)}
+                >
+                  {v.cover ? (
+                    <Image source={{ uri: v.cover }} style={styles.savedVenueThumb} />
+                  ) : (
+                    <View style={[styles.savedVenueThumb, styles.savedVenueThumbEmpty]}>
+                      <Ionicons name="location-outline" size={18} color={Colors.textSecondary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.savedVenueName} numberOfLines={1}>{v.name}</Text>
+                    <Text style={styles.savedVenueMeta} numberOfLines={1}>
+                      {[v.type, v.neighborhood].filter(Boolean).join(" · ")}
+                    </Text>
+                  </View>
+                  {!!v.score_display && (
+                    <View style={styles.savedVenueScore}><Text style={styles.savedVenueScoreText}>{v.score_display}</Text></View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+
+            <View style={styles.recentHeader}>
               <Text style={styles.recentTitle}>SAVED POSTS</Text>
               {savedPosts.length > 0 && (
                 <TouchableOpacity onPress={() => router.push("/user/posts?tab=saved")}>
@@ -447,6 +478,22 @@ export default function ProfileScreen() {
             )}
           </>
         )}
+
+        {/* Business: small card at the bottom of the page */}
+        <TouchableOpacity
+          style={styles.businessCompact}
+          activeOpacity={0.85}
+          onPress={() => router.push("/auth/business-signup")}
+        >
+          <View style={styles.businessCompactIcon}>
+            <BussinessIcon width={18} height={18} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.businessCompactTitle}>Run a Business?</Text>
+            <Text style={styles.businessCompactSub} numberOfLines={1}>Create a business profile</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+        </TouchableOpacity>
       </ScrollView>
 
       <CommentsSheet
@@ -467,6 +514,26 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  savedVenueRow: {
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 10, marginBottom: 8,
+    backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  savedVenueThumb: { width: 52, height: 52, borderRadius: 10 },
+  savedVenueThumbEmpty: { backgroundColor: Colors.inputBg, justifyContent: "center", alignItems: "center" },
+  savedVenueName: { color: Colors.text, fontSize: 14, fontWeight: "700" },
+  savedVenueMeta: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  savedVenueScore: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  savedVenueScoreText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
+  businessCompact: {
+    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 24, padding: 12,
+    backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  businessCompactIcon: {
+    width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(0,200,150,0.18)",
+    justifyContent: "center", alignItems: "center",
+  },
+  businessCompactTitle: { color: Colors.text, fontSize: 13, fontWeight: "700" },
+  businessCompactSub: { color: Colors.textSecondary, fontSize: 11, marginTop: 1 },
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: { paddingBottom: 120 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
