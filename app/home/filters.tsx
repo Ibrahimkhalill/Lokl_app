@@ -9,6 +9,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
+import { NEIGHBORHOODS } from "../../constants/neighborhoods";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RangeSlider } from "../../components/primitives/RangeSlider";
 
@@ -28,27 +29,6 @@ const CATEGORIES = [
   "Wellness & Recovery",
 ];
 
-const NEIGHBORHOODS = [
-  "West Village",
-  "FiDi",
-  "East Village",
-  "Lower East Side",
-  "Tribeca",
-  "Midtown",
-  "Murray Hill",
-  "Chelsea",
-  "SoHo",
-  "NoHo",
-  "Nolita",
-  "Battery Park",
-  "Flatiron",
-  "Gramercy",
-  "Hudson Square",
-  "Hudson Yards",
-  "Greenwich Village",
-  "Upper West Side",
-  "Upper East Side",
-];
 
 const RATINGS: { label: string; value: string }[] = [
   { label: "Any", value: "" },
