@@ -142,6 +142,53 @@ interface VenuePin {
 
 const TAB_BAR_HEIGHT = 90;
 
+/**
+ * One venue pin. A custom-view marker has to be drawn into a bitmap; doing that for every pin on every
+ * map move exhausts memory on iPhones. So each pin redraws only when its own look changes (selected, score),
+ * and stops tracking view changes right after.
+ */
+const VenueMarker = React.memo(function VenueMarker({
+  pin,
+  isSelected,
+  onPress,
+}: {
+  pin: VenuePin;
+  isSelected: boolean;
+  onPress: (id: number) => void;
+}) {
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    setTrack(true);
+    const t = setTimeout(() => setTrack(false), 450);
+    return () => clearTimeout(t);
+  }, [isSelected, pin.score_display]);
+
+  return (
+    <Marker
+      coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
+      onPress={() => onPress(pin.id)}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={track}
+      zIndex={isSelected ? 999 : 1}
+    >
+      <View style={styles.markerOuter}>
+        <View collapsable={false} style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
+          <Ionicons
+            name={pin.icon as keyof typeof Ionicons.glyphMap}
+            size={14}
+            color={isSelected ? Colors.black : Colors.white}
+          />
+          <View collapsable={false}>
+            <Text style={[styles.mapPillScore, isSelected && styles.mapPillScoreSelected]}>
+              {pin.score_display}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Marker>
+  );
+});
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -161,13 +208,12 @@ export default function HomeScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [cardFriends, setCardFriends] = useState<{ id: number; name: string; profile_picture: string | null }[]>([]);
   const [mapReady, setMapReady] = useState(false);
-  const [tracksChanges, setTracksChanges] = useState(true);
-  const tracksTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [zoomRegion, setZoomRegion] = useState<typeof MANHATTAN_REGION | null>(null);
   const [locationReady, setLocationReady] = useState(false);
   const [totalInArea, setTotalInArea] = useState<number | null>(null);
   const regionRef = useRef<Region | null>(null);
+  const lastLoadedRegion = useRef<Region | null>(null);
   const regionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedIdRef = useRef<number | null>(null);
 
@@ -274,12 +320,9 @@ export default function HomeScreen() {
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
   const selectVenue = useCallback((id: number) => {
-    if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
-    setTracksChanges(true);
     setSelectedId(id);
     const venue = venuesRef.current.find((v) => v.id === id);
     if (venue) zoomToVenue(venue);
-    tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 500);
   }, [zoomToVenue]);
 
   // On focus: patch only the venue that was just reviewed (no full reload)
@@ -297,10 +340,6 @@ export default function HomeScreen() {
               : pin
           )
         );
-        // Force marker bitmap to re-render with new score
-        if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
-        setTracksChanges(true);
-        tracksTimerRef.current = setTimeout(() => setTracksChanges(false), 500);
       }).catch(() => {});
     }, [])
   );
@@ -334,7 +373,7 @@ export default function HomeScreen() {
   const venuesSeq = useRef(0);
 
   // Most markers the map draws at once (best rated first); zoom in to see the rest of a dense area.
-  const MAX_PINS = 150;
+  const MAX_PINS = 60;
 
   async function loadVenues(attempt = 0, seq = ++venuesSeq.current) {
     if (venuesRef.current.length === 0) setLoading(true); // spinner only for the first load
@@ -402,10 +441,14 @@ export default function HomeScreen() {
       const keep = venuesRef.current.find((v) => v.id === selectedIdRef.current);
       if (keep && !data.some((v) => v.id === keep.id)) data.push(keep);
 
-      venuesRef.current = data;
-      setVenues(data);
-      setTracksChanges(true);
-      setTimeout(() => setTracksChanges(false), 600);
+      // Reuse the pin objects already on the map so unchanged markers are not rebuilt.
+      const previous = new Map(venuesRef.current.map((v) => [v.id, v]));
+      const stable = data.map((v) => {
+        const old = previous.get(v.id);
+        return old && old.score_display === v.score_display && old.lat === v.lat && old.lng === v.lng ? old : v;
+      });
+      venuesRef.current = stable;
+      setVenues(stable);
       // The preview card starts on the best-rated venue of the area being looked at.
       if (data.length > 0) {
         if (!data.some((v) => v.id === selectedIdRef.current)) setSelectedId(data[0].id);
@@ -429,9 +472,21 @@ export default function HomeScreen() {
 
   // New venues load by themselves as the map is moved or zoomed (no button, no refresh).
   const onRegionChangeComplete = useCallback((region: Region) => {
+    const last = lastLoadedRegion.current;
     regionRef.current = region;
+    // Ignore tiny moves: reload only when the map moved a fair bit or its zoom changed.
+    if (last) {
+      const moved =
+        Math.abs(region.latitude - last.latitude) / last.latitudeDelta > 0.25 ||
+        Math.abs(region.longitude - last.longitude) / last.longitudeDelta > 0.25;
+      const zoomed = Math.abs(Math.log(region.latitudeDelta / last.latitudeDelta)) > 0.35;
+      if (!moved && !zoomed) return;
+    }
     if (regionTimerRef.current) clearTimeout(regionTimerRef.current);
-    regionTimerRef.current = setTimeout(() => loadVenues(), 350);
+    regionTimerRef.current = setTimeout(() => {
+      lastLoadedRegion.current = region;
+      loadVenues();
+    }, 600);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.type, params.min_rating, params.price_level, params.amenities, params.plan_tier, params.radius_km, params.neighborhood]);
 
@@ -492,42 +547,10 @@ export default function HomeScreen() {
         showsBuildings={false}
         showsTraffic={false}
       >
-        {/* Render selected marker last so it sits on top on Android */}
-        {[...venues].sort((a, b) =>
-          a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0
-        ).map((pin) => {
-          const isSelected = selectedId === pin.id;
-          return (
-            <Marker
-              key={String(pin.id)}
-              coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
-              onPress={() => selectVenue(pin.id)}
-              anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={tracksChanges}
-              zIndex={isSelected ? 999 : 1}
-            >
-              <View style={styles.markerOuter}>
-                <View collapsable={false} style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
-                  <Ionicons
-                    name={pin.icon as keyof typeof Ionicons.glyphMap}
-                    size={14}
-                    color={isSelected ? Colors.black : Colors.white}
-                  />
-                  <View collapsable={false}>
-                    <Text
-                      style={[
-                        styles.mapPillScore,
-                        isSelected && styles.mapPillScoreSelected,
-                      ]}
-                    >
-                      {pin.score_display}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </Marker>
-          );
-        })}
+        {/* Selected pin last so it sits on top */}
+        {venues.map((pin) => (
+          <VenueMarker key={pin.id} pin={pin} isSelected={selectedId === pin.id} onPress={selectVenue} />
+        ))}
       </MapView>
 
       {/* Search Bar overlay */}
