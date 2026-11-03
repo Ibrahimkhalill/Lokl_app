@@ -16,6 +16,7 @@ import { BackButton, Input, PhoneInput, PrimaryButton } from "../../components/u
 import { AuthFooterLinkRow, LegalAgreement } from "../../components/auth";
 import { SelectRow, InputRow } from "../../components/primitives";
 import { Colors } from "../../constants/colors";
+import { api } from "../../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BusinessIcon from "../../assets/icons/bussiness.svg";
 import BusinessTypeIcon from "../../assets/icons/business_type.svg";
@@ -219,6 +220,22 @@ export default function BusinessSignUp() {
   // International format (+<country code><number>) — same as personal sign-up, so login/reset can find it.
   const [formattedPhone, setFormattedPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [addressOptions, setAddressOptions] = useState<{ place_id: string; description: string }[]>([]);
+  const suggestTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // City, zip code or street typed -> a pop-up of full addresses to choose from.
+  const suggestAddress = (text: string) => {
+    if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    if (text.trim().length < 3) { setAddressOptions([]); return; }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.get("/venues/places/address-suggest/", { params: { input: text.trim() } });
+        const list = res.data?.data ?? res.data;
+        setAddressOptions(Array.isArray(list) ? list.slice(0, 5) : []);
+      } catch {
+        setAddressOptions([]);
+      }
+    }, 300);
+  };
   const [website, setWebsite] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -304,7 +321,7 @@ const handleSignUp = async () => {
   const onErr = ownerName.trim() ? "" : "Owner name is required";
   const emErr = !email.trim() ? "Email is required" : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Enter a valid email address" : "";
   const phErr = phone.trim() ? "" : "Phone number is required";
-  const adErr = address.trim() ? "" : "Address is required";
+  const adErr = ""; // the address is optional
   const pwErr = !password ? "Password is required" : password.length < 8 ? "Password must be at least 8 characters" : "";
   const cpErr = !confirmPassword ? "Please confirm your password" : confirmPassword !== password ? "Passwords do not match" : "";
 
@@ -451,8 +468,8 @@ const handleSignUp = async () => {
           error={phoneError}
         />
         <Input
-          label="Business Address*"
-          placeholder="Street address"
+          label="Business Address (optional)"
+          placeholder="Type a city, zip code or street"
           leftSlot={
             <LocationsIcon
               width={18}
@@ -461,10 +478,22 @@ const handleSignUp = async () => {
             />
           }
           value={address}
-          onChangeText={(v) => { setAddress(v); if (v.trim()) setAddressError(""); }}
-          onBlur={() => setAddressError(address.trim() ? "" : "Address is required")}
+          onChangeText={(v) => { setAddress(v); setAddressError(""); suggestAddress(v); }}
           error={addressError}
         />
+        {addressOptions.length > 0 && (
+          <View style={addressStyles.dropdown}>
+            {addressOptions.map((o) => (
+              <TouchableOpacity
+                key={o.place_id}
+                style={addressStyles.option}
+                onPress={() => { setAddress(o.description); setAddressOptions([]); }}
+              >
+                <Text style={addressStyles.optionText} numberOfLines={2}>{o.description}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <Input
           label="Website link"
           placeholder="Enter link"
@@ -746,4 +775,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+});
+
+const addressStyles = StyleSheet.create({
+  dropdown: {
+    backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder,
+    marginTop: -8, marginBottom: 14, overflow: "hidden",
+  },
+  option: { paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.cardBorder },
+  optionText: { color: Colors.text, fontSize: 13 },
 });
