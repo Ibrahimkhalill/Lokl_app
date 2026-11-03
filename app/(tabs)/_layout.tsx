@@ -13,6 +13,8 @@ import type { SvgProps } from "react-native-svg";
 
 type SvgIcon = React.ComponentType<SvgProps>;
 
+const ICON_SIZE = 20;
+
 function SvgTabIcon({
   Icon,
   focused,
@@ -22,11 +24,19 @@ function SvgTabIcon({
   focused: boolean;
   label: string;
 }) {
+  // Every tab looks the same: same icon size, same label size, same spacing. Only the colors change.
   const color = focused ? Colors.black : Colors.white;
   return (
     <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Icon width={20} height={20} color={color} />
-      {focused ? <Text style={styles.tabLabel}>{label}</Text> : null}
+      <Icon width={ICON_SIZE} height={ICON_SIZE} color={color} />
+      <Text
+        style={[styles.tabLabel, { color }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -142,24 +152,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
+  // The selected bubble hugs its icon + label, so it fits on small and large iPhones alike.
   tabItem: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 50,
-    gap: 4,
-    minHeight: 40,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 24,
+    gap: 2,
+    minWidth: 54,
   },
   tabItemActive: {
     backgroundColor: Colors.primary,
-    borderRadius: 50,
-    width: 80,
   },
   tabLabel: {
-    color: Colors.black,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: "700",
+    textAlign: "center",
   },
 });
