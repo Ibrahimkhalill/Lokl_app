@@ -34,6 +34,9 @@ type GroupDetail = {
   members_count?: number;
   is_member?: boolean;
   is_admin?: boolean;
+  is_private?: boolean;
+  my_request?: string | null;
+  admin?: { id: number; name: string } | null;
   recent_members?: { id: number; name: string; profile_picture: string | null }[];
   meetup?: { name?: string; address?: string; latitude?: number; longitude?: number } | null;
 };
@@ -206,8 +209,15 @@ export default function GroupDetailScreen() {
   const handleJoin = async () => {
     setJoining(true);
     try {
-      await eventService.joinSocialGroup(groupId);
-      setGroup((prev) => prev ? { ...prev, is_member: true } : prev);
+      const res = await eventService.joinSocialGroup(groupId);
+      const d = res.data?.data ?? res.data;
+      if (d?.requested) {
+        // Private group: the admin has to approve, so you are not a member yet.
+        setGroup((prev) => prev ? { ...prev, my_request: "pending" } : prev);
+        showToast({ type: "success", title: "Request sent", message: "The group admin will review your request." });
+      } else {
+        setGroup((prev) => prev ? { ...prev, is_member: true } : prev);
+      }
     } catch (e) {
       showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
     } finally {
@@ -415,9 +425,31 @@ export default function GroupDetailScreen() {
               </TouchableOpacity>
             </View>
           ) : !isMember ? (
-            <TouchableOpacity style={[s.joinBtn, joining && { opacity: 0.7 }]} onPress={handleJoin} disabled={joining}>
-              {joining ? <ActivityIndicator color={Colors.black} /> : <Text style={s.joinBtnText}>Join Group</Text>}
-            </TouchableOpacity>
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                style={[s.joinBtn, (joining || group.my_request === "pending") && { opacity: 0.7 }]}
+                onPress={handleJoin}
+                disabled={joining || group.my_request === "pending"}
+              >
+                {joining ? (
+                  <ActivityIndicator color={Colors.black} />
+                ) : (
+                  <Text style={s.joinBtnText}>
+                    {group.is_private
+                      ? group.my_request === "pending" ? "Request sent" : "Request to join"
+                      : "Join Group"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              {group.is_private && group.admin ? (
+                <TouchableOpacity
+                  style={s.outlineBtn}
+                  onPress={() => router.push(`/chat/id?user_id=${group.admin!.id}&name=${encodeURIComponent(group.admin!.name)}` as never)}
+                >
+                  <Text style={s.outlineBtnText}>Message the admin</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           ) : (
             <View style={s.actionRow}>
               <TouchableOpacity style={s.outlineBtn} onPress={() => router.push(`/chat/id?group_id=${groupId}&name=${encodeURIComponent(group.name)}` as never)}>
