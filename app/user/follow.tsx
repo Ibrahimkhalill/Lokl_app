@@ -274,11 +274,19 @@ export default function FollowScreen() {
               : "Unfollow";
             return (
               <View style={styles.userRow}>
-                <UserAvatar uri={item.avatar} size={46} />
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{item.name}</Text>
-                  {!!item.username && <Text style={styles.userHandle}>@{item.username}</Text>}
-                </View>
+                <TouchableOpacity
+                  style={styles.userTap}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    router.push(`/explore/user-profile?user_id=${item.id}&name=${encodeURIComponent(item.name ?? "")}`)
+                  }
+                >
+                  <UserAvatar uri={item.avatar} size={46} />
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{item.name}</Text>
+                    {!!item.username && <Text style={styles.userHandle}>@{item.username}</Text>}
+                  </View>
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, isOutline && styles.actionBtnOutline]}
                   onPress={() => handleToggleFollow(item.id)}
@@ -299,6 +307,7 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", gap: 12, paddingTop: 60 },
   emptyText: { color: Colors.textSecondary, fontSize: 15 },
   listContent: { paddingBottom: 80 },
+  userTap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
 
   profileHeader: {
     paddingHorizontal: 16,

@@ -25,6 +25,7 @@ export type ApiStreak = {
   calendar_days: { date: string; day_num: number; active: boolean }[];
   stats: { completed: number; missed: number; success_rate: number };
   streak_message: string;
+  rule?: string;
 };
 
 const STREAK_ICON_MAP: Record<string, { icon: React.ReactNode; gradient: readonly [string, string] }> = {
@@ -49,6 +50,13 @@ const STREAK_ICON_MAP: Record<string, { icon: React.ReactNode; gradient: readonl
     gradient: ["#7B61FF", "#4A00E0"] as const,
   },
 };
+
+/** Monday-first column of a "YYYY-MM-DD" date: Monday = 0 ... Sunday = 6. */
+function leadingBlanks(date?: string): number {
+  if (!date) return 0;
+  const [y, m, d] = date.split("-").map(Number);
+  return (new Date(y, m - 1, d).getDay() + 6) % 7;
+}
 
 function getStreakMeta(type: string) {
   return STREAK_ICON_MAP[type] ?? {
@@ -100,6 +108,7 @@ export function StreaksTabSection({
               <View style={styles.streakTitleWrap}>
                 <Text style={styles.streakTitle}>{streak.label.toUpperCase()}</Text>
                 <Text style={styles.streakSub}>{streak.last_active_label}</Text>
+                {!!streak.rule && <Text style={styles.streakRule}>{streak.rule}</Text>}
               </View>
 
               <View style={styles.streakDayBadge}>
@@ -111,7 +120,7 @@ export function StreaksTabSection({
             <View style={styles.streakProgressRow}>
               <Text style={styles.streakProgressLabel}>Progress to goal</Text>
               <Text style={styles.streakProgressVal}>
-                {String(streak.current).padStart(2, "0")}/{streak.goal} days
+                {String(streak.current).padStart(2, "0")}/{streak.goal} weeks
               </Text>
             </View>
             <View style={styles.progressTrack}>
@@ -147,6 +156,10 @@ export function StreaksTabSection({
                 </View>
 
                 <View style={styles.calendarGrid}>
+                  {/* Blank cells so the first date sits under its real weekday (the header starts on Monday). */}
+                  {Array.from({ length: leadingBlanks(streak.calendar_days[0]?.date) }).map((_, i) => (
+                    <View key={`blank-${i}`} style={styles.calCellWrap} />
+                  ))}
                   {streak.calendar_days.map((day, i) => (
                     <View key={i} style={styles.calCellWrap}>
                       {day.active ? (
@@ -182,6 +195,10 @@ export function StreaksTabSection({
                     <Text style={styles.calSumLabel}>Success Rate</Text>
                   </View>
                 </View>
+                <Text style={styles.calExplain}>
+                  Counted over the last 12 weeks (Monday to Sunday). A week is Completed if you did at least one
+                  qualifying action in it, and Missed if you did none. Success Rate = Completed weeks out of 12.
+                </Text>
 
                 <LinearGradient
                   colors={["#D1FF00", "#A8CC00"]}
@@ -192,7 +209,7 @@ export function StreaksTabSection({
                   <View style={styles.currentStreakHeader}>
                     <FireIcon width={17} height={17} color={Colors.black} />
                     <Text style={styles.currentStreakLabel}>Current Streak</Text>
-                    <Text style={styles.currentStreakDays}>{streak.current} days</Text>
+                    <Text style={styles.currentStreakDays}>{streak.current} {streak.current === 1 ? "week" : "weeks"}</Text>
                   </View>
                   <Text style={styles.currentStreakMsg}>{streak.streak_message}</Text>
                 </LinearGradient>
@@ -269,6 +286,8 @@ const styles = StyleSheet.create({
   calCellText: { color: "#4B556A", fontSize: 12, fontWeight: "500" },
   calCellTextActive: { color: "#141516", fontSize: 12, fontWeight: "700" },
   calFlame: { position: "absolute", bottom: 1, right: 1 },
+  streakRule: { color: "#99A0AE", fontSize: 11, marginTop: 4, lineHeight: 15 },
+  calExplain: { color: "#99A0AE", fontSize: 11, lineHeight: 15, marginBottom: 16 },
   calSummary: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   calSumItem: {},
   calSumNum: { color: Colors.text, fontSize: 20, fontWeight: "800" },
