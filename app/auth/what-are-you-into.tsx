@@ -46,6 +46,8 @@ const ALL_TAGS = [
   "Outdoor Workouts",
   "Kayaking",
   "Rock Climbing",
+  "Weight lifting",
+  "Skating",
 ];
 
 export default function WhatAreYouInto() {

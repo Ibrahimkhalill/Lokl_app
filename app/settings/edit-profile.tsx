@@ -371,6 +371,8 @@ function UserEditForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [originalUsername, setOriginalUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
@@ -386,7 +388,7 @@ function UserEditForm() {
     "Training","Tennis","Basketball","Running","Swimming","Pilates","HIIT",
     "CrossFit","Martial Arts","Dance","Rowing","Volleyball","Padel","Squash",
     "Softball / Baseball","Stretching / Mobility","Wellness","Meditation",
-    "Aerial / Acrobatics","Calisthenics","Outdoor Workouts","Kayaking","Rock Climbing",
+    "Aerial / Acrobatics","Calisthenics","Outdoor Workouts","Kayaking","Rock Climbing","Weight lifting","Skating",
   ];
 
   useEffect(() => {
@@ -401,6 +403,8 @@ function UserEditForm() {
         if (profileRes.status === "fulfilled") {
           const data = profileRes.value.data?.data || profileRes.value.data;
           setName(data.name || "");
+          setUsername(data.username || "");
+          setOriginalUsername(data.username || "");
           setBio(data.bio || "");
           setPhone(data.phone || "");
           setOriginalAvatarUrl(data.avatar || data.avatar_url || null);
@@ -439,6 +443,7 @@ function UserEditForm() {
     try {
       const formData = new FormData();
       formData.append("name", name);
+      if (username.trim() && username.trim() !== originalUsername) formData.append("username", username.trim());
       formData.append("bio", bio);
       // phone is read-only here — never send it, so a missing value can't clear it.
       if (avatarUri && avatarUri !== originalAvatarUrl) {
@@ -494,6 +499,15 @@ function UserEditForm() {
 
       <FormField label="Name" labelStyle={s.fieldLabel}>
         <AppTextInput placeholder="Enter your name" value={name} onChangeText={setName} />
+      </FormField>
+      <FormField label="Username" labelStyle={s.fieldLabel}>
+        <AppTextInput
+          placeholder="Choose a username"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
       </FormField>
 
       <FormField label="Phone" labelStyle={s.fieldLabel}>
