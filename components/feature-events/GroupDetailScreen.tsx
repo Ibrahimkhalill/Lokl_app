@@ -24,6 +24,7 @@ import { eventService } from "../../services/eventService";
 import { postService } from "../../services/postService";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
+import { GroupInviteModal } from "./GroupInviteModal";
 
 type GroupDetail = {
   id: number;
@@ -119,6 +120,7 @@ export default function GroupDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [localCoverUri, setLocalCoverUri] = useState<string | null>(null);
@@ -417,8 +419,8 @@ export default function GroupDetailScreen() {
 
           {isAdmin ? (
             <View style={s.actionRow}>
-              <TouchableOpacity style={s.outlineBtn}>
-                <Text style={s.outlineBtnText}>Admin</Text>
+              <TouchableOpacity style={s.outlineBtn} onPress={() => setInviteOpen(true)}>
+                <Text style={s.outlineBtnText}>Invite</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.outlineBtn} onPress={() => router.push(`/chat/id?group_id=${groupId}&name=${encodeURIComponent(group.name)}` as never)}>
                 <Text style={s.outlineBtnText}>Message</Text>
@@ -571,6 +573,7 @@ export default function GroupDetailScreen() {
           <Text style={s.deleteBtnText}>Delete</Text>
         </TouchableOpacity>
       </ContextMenuDropdown>
+      <GroupInviteModal visible={inviteOpen} groupId={groupId} groupName={group.name} onClose={() => setInviteOpen(false)} />
     </View>
   );
 }
