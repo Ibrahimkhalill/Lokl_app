@@ -37,7 +37,17 @@ export default function SignIn() {
       const { accessToken, refreshToken, user } = res.data.data;
       await login(accessToken, refreshToken, user);
       router.replace("/(tabs)");
-    } catch (err) {
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data?.errors?.code === "phone_unverified") {
+        // The number was never verified: the server just texted a new code, so finish verifying.
+        showToast({ type: "info", title: "Verify your phone", message: data.message });
+        router.push({
+          pathname: "/auth/email-otp-verifications",
+          params: { user_id: String(data.errors.user_id) },
+        });
+        return;
+      }
       showToast({ type: "error", title: "Sign In Failed", message: getErrorMessage(err) });
     } finally {
       setLoading(false);
@@ -82,7 +92,7 @@ export default function SignIn() {
       <SocialButtons />
 
       <AuthFooterLinkRow
-        prefixText="Already have an account? "
+        prefixText="Don't have an account? "
         linkText="Sign Up"
         onPress={() => router.push("/auth/sign-up")}
       />

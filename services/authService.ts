@@ -20,6 +20,10 @@ export const authService = {
     return api.post("/auth/verify-phone", data);
   },
 
+  resendCode(data: { user_id: number; purpose?: "signup" | "reset" }) {
+    return api.post("/auth/resend-code", data);
+  },
+
   registerBusiness(data: {
     business_name: string;
     business_type: string;

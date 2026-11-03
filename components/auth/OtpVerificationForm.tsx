@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ export interface OtpVerificationFormProps {
   ctaTitle?: string;
   onVerify: (otp: string) => void;
   onBack: () => void;
-  onResend?: () => void;
+  onResend?: () => void | Promise<unknown>;
   resendLinkText?: string;
   loading?: boolean;
   error?: string | null;
@@ -37,12 +37,42 @@ export function OtpVerificationForm({
   const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
 
+  const [cooldown, setCooldown] = useState(30);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   const handleChange = (text: string, index: number) => {
+    const digits = text.replace(/\D/g, "");
+    // iOS SMS autofill / paste delivers the whole code at once: spread it over the boxes.
+    if (digits.length > 1) {
+      const filled = digits.slice(0, length).split("");
+      setOtp(Array.from({ length }, (_, i) => filled[i] ?? ""));
+      inputs.current[Math.min(filled.length, length - 1)]?.focus();
+      return;
+    }
     const newOtp = [...otp];
-    newOtp[index] = text;
+    newOtp[index] = digits;
     setOtp(newOtp);
-    if (text && index < length - 1) {
+    if (digits && index < length - 1) {
       inputs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleResend = async () => {
+    if (!onResend || resending || cooldown > 0) return;
+    setResending(true);
+    try {
+      await onResend();
+      setOtp(Array(length).fill(""));
+      inputs.current[0]?.focus();
+      setCooldown(30);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -72,12 +102,14 @@ export function OtpVerificationForm({
               }}
               style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
               value={digit}
-              onChangeText={(text) => handleChange(text.slice(-1), index)}
+              onChangeText={(text) => handleChange(text, index)}
               onKeyPress={({ nativeEvent }) =>
                 handleKeyPress(nativeEvent.key, index)
               }
               keyboardType="number-pad"
-              maxLength={1}
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              maxLength={index === 0 ? length : 1}
               textAlign="center"
               selectionColor={Colors.primary}
               editable={!loading}
@@ -89,10 +121,12 @@ export function OtpVerificationForm({
 
         <View style={styles.resendRow}>
           <Text style={styles.resendText}>
-            Didn&apos;t you received any code?{" "}
+            Didn&apos;t get a code?{" "}
           </Text>
-          <TouchableOpacity onPress={onResend} disabled={loading}>
-            <Text style={styles.resendLink}>{resendLinkText}</Text>
+          <TouchableOpacity onPress={handleResend} disabled={loading || resending || cooldown > 0}>
+            <Text style={[styles.resendLink, cooldown > 0 || resending ? { opacity: 0.5 } : null]}>
+              {resending ? "Sending..." : cooldown > 0 ? `${resendLinkText} (${cooldown}s)` : resendLinkText}
+            </Text>
           </TouchableOpacity>
         </View>
 

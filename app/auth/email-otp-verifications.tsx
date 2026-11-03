@@ -44,9 +44,15 @@ export default function EmailOTPVerifications() {
   }
 
   async function handleResend() {
-    // Re-use the register flow is not ideal; typically there's a resend endpoint.
-    // For now just show a message.
-    showToast({ type: "info", title: "Resend OTP", message: "Please go back and try registering again if you didn't receive your code." });
+    if (!user_id) return;
+    setError(null);
+    try {
+      await authService.resendCode({ user_id: Number(user_id), purpose: "signup" });
+      showToast({ type: "success", title: "Code sent", message: "We sent you a new code. The old one no longer works." });
+    } catch (err) {
+      setError(getErrorMessage(err));
+      throw err;
+    }
   }
 
   return (

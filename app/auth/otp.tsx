@@ -36,12 +36,25 @@ export default function OTP() {
     }
   }
 
+  async function handleResend() {
+    if (!user_id) return;
+    setError(null);
+    try {
+      await authService.resendCode({ user_id: Number(user_id), purpose: "reset" });
+      showToast({ type: "success", title: "Code sent", message: "We sent you a new code. The old one no longer works." });
+    } catch (err) {
+      setError(getErrorMessage(err));
+      throw err;
+    }
+  }
+
   return (
     <OtpVerificationForm
       title="Phone Verification"
       subtitle="Enter your OTP code here"
       onBack={() => router.back()}
       onVerify={handleVerify}
+      onResend={handleResend}
       loading={loading}
       error={error}
     />
