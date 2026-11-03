@@ -13,9 +13,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { notificationService } from "../../services/notificationService";
+import { eventService } from "../../services/eventService";
+import { useToast } from "../../context/ToastContext";
 import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 import { NotifRowSkeleton } from "../../components/primitives/Skeletons";
+
+type GroupInvite = {
+  id: number;
+  group_id: number;
+  group_name: string;
+  group_photo: string | null;
+  invited_by: string;
+};
 
 type ApiNotification = {
   id: number;
@@ -107,10 +117,41 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [invites, setInvites] = useState<GroupInvite[]>([]);
+  const [answering, setAnswering] = useState<number | null>(null);
+  const { showToast } = useToast();
+
+  const fetchInvites = useCallback(async () => {
+    try {
+      const res = await eventService.getMyGroupInvites();
+      const raw = res.data?.data ?? res.data;
+      setInvites(Array.isArray(raw) ? raw : []);
+    } catch {
+      setInvites([]);
+    }
+  }, []);
+
+  const answerInvite = async (invite: GroupInvite, accept: boolean) => {
+    if (answering) return;
+    setAnswering(invite.id);
+    try {
+      await eventService.respondGroupInvite(invite.id, accept);
+      setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      if (accept) {
+        showToast({ type: "success", title: "Joined", message: `You joined ${invite.group_name}.` });
+        router.push(`/events/group-detail?id=${invite.group_id}` as never);
+      }
+    } catch (e) {
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+    } finally {
+      setAnswering(null);
+    }
+  };
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
+    fetchInvites();
     try {
       const res = await notificationService.getNotifications();
       const raw = res.data?.data ?? res.data;
@@ -128,6 +169,46 @@ export default function NotificationsScreen() {
       fetchNotifications();
     }, [fetchNotifications])
   );
+
+  const invitesHeader =
+    invites.length > 0 ? (
+      <View style={styles.inviteWrap}>
+        <Text style={styles.sectionLabel}>Group invitations</Text>
+        {invites.map((inv) => (
+          <View key={inv.id} style={styles.inviteCard}>
+            {inv.group_photo ? (
+              <Image source={{ uri: inv.group_photo }} style={styles.inviteImg} />
+            ) : (
+              <View style={[styles.inviteImg, styles.inviteImgEmpty]}>
+                <Ionicons name="people" size={20} color={Colors.textSecondary} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.inviteTitle} numberOfLines={1}>{inv.group_name}</Text>
+              <Text style={styles.inviteSub} numberOfLines={1}>
+                {inv.invited_by ? `${inv.invited_by} invited you` : "You were invited"}
+              </Text>
+              <View style={styles.inviteBtns}>
+                <TouchableOpacity
+                  style={[styles.inviteBtn, styles.inviteAccept]}
+                  disabled={answering === inv.id}
+                  onPress={() => answerInvite(inv, true)}
+                >
+                  <Text style={styles.inviteAcceptText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inviteBtn, styles.inviteDecline]}
+                  disabled={answering === inv.id}
+                  onPress={() => answerInvite(inv, false)}
+                >
+                  <Text style={styles.inviteDeclineText}>Decline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+    ) : null;
 
   const listData = buildList(notifications);
 
@@ -163,12 +244,15 @@ export default function NotificationsScreen() {
             }
             return <NotifRow item={item.data} />;
           }}
+          ListHeaderComponent={invitesHeader}
           ListEmptyComponent={
-            <EmptyState
-              icon="notifications-off-outline"
-              title="No notifications yet"
-              subtitle="You're all caught up!"
-            />
+            invites.length > 0 ? null : (
+              <EmptyState
+                icon="notifications-off-outline"
+                title="No notifications yet"
+                subtitle="You're all caught up!"
+              />
+            )
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
@@ -178,6 +262,21 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  inviteWrap: { paddingBottom: 6 },
+  inviteCard: {
+    flexDirection: "row", gap: 12, marginHorizontal: 16, marginBottom: 10, padding: 12,
+    backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  inviteImg: { width: 56, height: 56, borderRadius: 12 },
+  inviteImgEmpty: { backgroundColor: Colors.inputBg, justifyContent: "center", alignItems: "center" },
+  inviteTitle: { color: Colors.text, fontSize: 14, fontWeight: "700" },
+  inviteSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  inviteBtns: { flexDirection: "row", gap: 8, marginTop: 10 },
+  inviteBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 50 },
+  inviteAccept: { backgroundColor: Colors.primary },
+  inviteAcceptText: { color: Colors.black, fontSize: 13, fontWeight: "700" },
+  inviteDecline: { borderWidth: 1, borderColor: Colors.cardBorder },
+  inviteDeclineText: { color: Colors.text, fontSize: 13, fontWeight: "600" },
   systemIcon: {
     width: 46,
     height: 46,

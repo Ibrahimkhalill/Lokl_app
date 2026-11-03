@@ -73,6 +73,18 @@ export const eventService = {
     return api.get("/groups/");
   },
 
+  getMyGroupInvites() {
+    return api.get("/groups/invites/");
+  },
+
+  respondGroupInvite(inviteId: number, accept: boolean) {
+    return api.post(`/groups/invites/${inviteId}/respond/`, { accept });
+  },
+
+  inviteToGroup(groupId: number, userIds: number[]) {
+    return api.post(`/groups/${groupId}/invite/`, { user_ids: userIds });
+  },
+
   getMyGroups() {
     return api.get("/groups/", { params: { member: "me" } });
   },
