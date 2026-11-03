@@ -14,7 +14,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { api } from "../../lib/api";
 import FilterIcon from "../../assets/icons/filter.svg";
@@ -163,6 +163,10 @@ export default function HomeScreen() {
   const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [zoomRegion, setZoomRegion] = useState<typeof MANHATTAN_REGION | null>(null);
   const [locationReady, setLocationReady] = useState(false);
+  const [totalInArea, setTotalInArea] = useState<number | null>(null);
+  const regionRef = useRef<Region | null>(null);
+  const regionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedIdRef = useRef<number | null>(null);
 
   // Request GPS on mount — store user region or fall back to Manhattan
   useEffect(() => {
@@ -230,6 +234,8 @@ export default function HomeScreen() {
     );
   }, [insets.bottom]);
 
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
   const selectVenue = useCallback((id: number) => {
     if (tracksTimerRef.current) clearTimeout(tracksTimerRef.current);
     setTracksChanges(true);
@@ -290,11 +296,14 @@ export default function HomeScreen() {
   // Only the newest venue request may update the map (e.g. GPS result vs. initial Manhattan one).
   const venuesSeq = useRef(0);
 
+  // Most markers the map draws at once (best rated first); zoom in to see the rest of a dense area.
+  const MAX_PINS = 150;
+
   async function loadVenues(attempt = 0, seq = ++venuesSeq.current) {
-    setLoading(true);
+    if (venuesRef.current.length === 0) setLoading(true); // spinner only for the first load
     let retrying = false;
     try {
-      const queryParams: Record<string, any> = {};
+      const queryParams: Record<string, any> = { limit: MAX_PINS };
       if (params.type)        queryParams.type        = params.type;
       if (params.min_rating)  queryParams.min_rating  = params.min_rating;
       if (params.price_level) queryParams.price_level = params.price_level;
@@ -302,16 +311,28 @@ export default function HomeScreen() {
       if (params.plan_tier)   queryParams.plan_tier   = params.plan_tier;
       if (params.neighborhood) queryParams.neighborhood = params.neighborhood;
 
-      // Use GPS coords if available, otherwise fall back to Manhattan center.
+      // Everything inside the area the user is looking at (their location at first, then wherever
+      // they move or zoom the map). A chosen distance limits it to that radius around them.
       const center = userCoordsRef.current ?? MANHATTAN_REGION;
-      queryParams.lat       = center.latitude;
-      queryParams.lng       = center.longitude;
-      queryParams.radius_km = params.radius_km || "4000";
+      if (params.radius_km && Number(params.radius_km) > 0) {
+        const km = Number(params.radius_km);
+        const dLat = km / 111;
+        const dLng = km / (111 * Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.2));
+        queryParams.min_lat = center.latitude - dLat;
+        queryParams.max_lat = center.latitude + dLat;
+        queryParams.min_lng = center.longitude - dLng;
+        queryParams.max_lng = center.longitude + dLng;
+      } else {
+        const r = regionRef.current ?? zoomRegion ?? MANHATTAN_REGION;
+        queryParams.min_lat = r.latitude - r.latitudeDelta / 2;
+        queryParams.max_lat = r.latitude + r.latitudeDelta / 2;
+        queryParams.min_lng = r.longitude - r.longitudeDelta / 2;
+        queryParams.max_lng = r.longitude + r.longitudeDelta / 2;
+      }
 
       const res = await api.get("/venues/", { params: queryParams });
       if (seq !== venuesSeq.current) return; // superseded by a newer request
       const raw = res.data;
-      // Handle multiple API response shapes
       const payload = raw?.data ?? raw;
       const all: VenuePin[] = Array.isArray(payload?.venues)
         ? payload.venues
@@ -320,12 +341,7 @@ export default function HomeScreen() {
         : Array.isArray(payload)
         ? payload
         : [];
-
-      const hasFilters =
-        !!params.type || !!params.min_rating || !!params.price_level ||
-        !!params.amenities || !!params.plan_tier || !!params.radius_km || !!params.neighborhood;
-
-      let data: VenuePin[];
+      setTotalInArea(typeof payload?.total === "number" ? payload.total : all.length);
 
       // Normalize: backend may return latitude/longitude OR lat/lng
       const normalize = (v: any): VenuePin | null => {
@@ -343,31 +359,21 @@ export default function HomeScreen() {
         };
       };
 
-      if (hasFilters) {
-        data = all.map(normalize).filter(Boolean) as VenuePin[];
-      } else {
-        // No filters — 1 venue per type to keep Android marker count manageable
-        const byType: Record<string, VenuePin> = {};
-        for (const v of all) {
-          const pin = normalize(v);
-          if (pin && byType[pin.type] === undefined) {
-            byType[pin.type] = pin;
-          }
-        }
-        data = Object.values(byType);
-      }
+      const data = all.map(normalize).filter(Boolean) as VenuePin[];
+
+      // Keep the venue the user just tapped, even if the new area would not list it.
+      const keep = venuesRef.current.find((v) => v.id === selectedIdRef.current);
+      if (keep && !data.some((v) => v.id === keep.id)) data.push(keep);
 
       venuesRef.current = data;
       setVenues(data);
+      setTracksChanges(true);
+      setTimeout(() => setTracksChanges(false), 600);
+      // The preview card starts on the best-rated venue of the area being looked at.
       if (data.length > 0) {
-        setSelectedId(data[0].id);
-        setTracksChanges(true);
-        // Wait for map to be ready, then zoom to first venue
-        setTimeout(() => {
-          if (seq !== venuesSeq.current) return;
-          zoomToVenue(data[0]);
-          setTimeout(() => setTracksChanges(false), 500);
-        }, mapReady ? 100 : 1200);
+        if (!data.some((v) => v.id === selectedIdRef.current)) setSelectedId(data[0].id);
+      } else {
+        setSelectedId(null);
       }
     } catch (err: any) {
       const isNetworkErr = err?.message === "Network Error" || err?.code === "ERR_NETWORK";
@@ -383,6 +389,14 @@ export default function HomeScreen() {
       if (!retrying && seq === venuesSeq.current) setLoading(false);
     }
   }
+
+  // New venues load by themselves as the map is moved or zoomed (no button, no refresh).
+  const onRegionChangeComplete = useCallback((region: Region) => {
+    regionRef.current = region;
+    if (regionTimerRef.current) clearTimeout(regionTimerRef.current);
+    regionTimerRef.current = setTimeout(() => loadVenues(), 350);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.type, params.min_rating, params.price_level, params.amenities, params.plan_tier, params.radius_km, params.neighborhood]);
 
   // fitMapToVenues removed — fitToCoordinates crashes on Android with custom markers.
   // Map uses fixed initialRegion (Manhattan) instead.
@@ -412,6 +426,7 @@ export default function HomeScreen() {
         customMapStyle={DARK_MAP_STYLE}
         initialRegion={MANHATTAN_REGION}
         onMapReady={() => setMapReady(true)}
+        onRegionChangeComplete={onRegionChangeComplete}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
