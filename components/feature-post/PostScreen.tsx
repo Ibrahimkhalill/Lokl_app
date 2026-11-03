@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  PanResponder,
   View,
   Text,
   StyleSheet,
@@ -11,6 +9,7 @@ import {
   Platform,
   Image,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -19,6 +18,7 @@ import ImageIcon from "../../assets/icons/image.svg";
 import TagIcon from "../../assets/icons/find.svg";
 import ChevronDownIcon from "../../assets/icons/chevron-down.svg";
 import { MediaPickerCard, FormField, AppTextInput } from "../primitives";
+import { RangeSlider } from "../primitives/RangeSlider";
 import { BottomSheet, BOTTOM_SHEET_MAX_LIST_HEIGHT } from "../overlays";
 import { useToggleSet } from "../../hooks/useToggleSet";
 import { pickPostMedia, toUploadFile } from "../../lib/mediaPicker";
@@ -64,7 +64,6 @@ function Avatar({ uri, size = 38 }: { uri: string | null; size?: number }) {
 
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 10;
-const THUMB_SIZE = 34;
 const SLIDER_DEFAULT = 1.0;
 
 export default function PostScreen() {
@@ -120,38 +119,22 @@ export default function PostScreen() {
   const [caption, setCaption] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Slider — Animated values for zero-rerender drag
+  // Lokl score: drag the slider or type the number.
   const [lokiScore, setLokiScore] = useState(SLIDER_DEFAULT);
-  const trackWidthRef = useRef(1);
-  const initialRatio = (SLIDER_DEFAULT - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
-  const thumbAnim = useRef(new Animated.Value(0)).current;
-  const fillAnim = useRef(new Animated.Value(initialRatio * 100)).current;
-  const scoreDisplayRef = useRef(SLIDER_DEFAULT);
-  const [scoreDisplay, setScoreDisplay] = useState(SLIDER_DEFAULT);
+  const [scoreText, setScoreText] = useState(SLIDER_DEFAULT.toFixed(1));
 
-  const computeFromX = (x: number) => {
-    const tw = trackWidthRef.current;
-    const clamped = Math.min(Math.max(x, 0), tw);
-    const ratio = clamped / tw;
-    const next = SLIDER_MIN + ratio * (SLIDER_MAX - SLIDER_MIN);
-    const newLeft = Math.max(0, Math.min(ratio * tw - THUMB_SIZE / 2, tw - THUMB_SIZE));
-    thumbAnim.setValue(newLeft);
-    fillAnim.setValue(ratio * 100);
-    scoreDisplayRef.current = next;
-    setScoreDisplay(Math.round(next * 10) / 10);
+  const setScore = (v: number) => {
+    const clamped = Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, Math.round(v * 10) / 10));
+    setLokiScore(clamped);
+    setScoreText(clamped.toFixed(1));
   };
 
-  const sliderPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => computeFromX(e.nativeEvent.locationX),
-      onPanResponderMove: (e) => computeFromX(e.nativeEvent.locationX),
-      onPanResponderRelease: () => {
-        setLokiScore(Math.round(scoreDisplayRef.current * 10) / 10);
-      },
-    })
-  ).current;
+  const onScoreTyped = (text: string) => {
+    const cleaned = text.replace(",", ".").replace(/[^0-9.]/g, "");
+    setScoreText(cleaned);
+    const n = parseFloat(cleaned);
+    if (!isNaN(n) && n >= SLIDER_MIN && n <= SLIDER_MAX) setLokiScore(Math.round(n * 10) / 10);
+  };
 
   const [groups, setGroups] = useState<ApiGroup[]>([]);
   const [friends, setFriends] = useState<ApiFriend[]>([]);
@@ -184,12 +167,7 @@ export default function PostScreen() {
     resetGroupIds([]);
     resetFriendIds([]);
     resetPostToGroupIds([]);
-    setLokiScore(SLIDER_DEFAULT);
-    setScoreDisplay(SLIDER_DEFAULT);
-    const ratio = (SLIDER_DEFAULT - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
-    const tw = trackWidthRef.current;
-    thumbAnim.setValue(Math.max(0, Math.min(ratio * tw - THUMB_SIZE / 2, tw - THUMB_SIZE)));
-    fillAnim.setValue(ratio * 100);
+    setScore(SLIDER_DEFAULT);
   };
 
   const handleSubmit = async () => {
@@ -414,37 +392,29 @@ export default function PostScreen() {
           </TouchableOpacity>
 
           {/* Lokl Score */}
-          <Text style={styles.label}>Lokl Score (1-10)</Text>
+          <View style={styles.scoreHeader}>
+            <Text style={[styles.label, { marginBottom: 0 }]}>Lokl Score (1-10)</Text>
+            <TextInput
+              style={styles.scoreInput}
+              value={scoreText}
+              onChangeText={onScoreTyped}
+              onBlur={() => setScore(parseFloat(scoreText) || SLIDER_MIN)}
+              keyboardType="decimal-pad"
+              maxLength={4}
+              selectTextOnFocus
+              selectionColor={Colors.primary}
+              accessibilityLabel="Type your Lokl score"
+            />
+          </View>
           <View style={styles.sliderWrap}>
-            <View
-              style={styles.sliderTrack}
-              onLayout={(e) => {
-                const w = e.nativeEvent.layout.width;
-                trackWidthRef.current = w;
-                const ratio = (lokiScore - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
-                thumbAnim.setValue(Math.max(0, Math.min(ratio * w - THUMB_SIZE / 2, w - THUMB_SIZE)));
-                fillAnim.setValue(ratio * 100);
-              }}
-              {...sliderPan.panHandlers}
-            >
-              <Animated.View
-                style={[
-                  styles.sliderFill,
-                  {
-                    width: fillAnim.interpolate({
-                      inputRange: [0, 100],
-                      outputRange: ["0%", "100%"],
-                    }),
-                  },
-                ]}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.sliderThumb, { left: thumbAnim }]}
-              >
-                <Text style={styles.sliderThumbText}>{scoreDisplay.toFixed(1)}</Text>
-              </Animated.View>
-            </View>
+            <RangeSlider
+              value={lokiScore}
+              min={SLIDER_MIN}
+              max={SLIDER_MAX}
+              step={0.1}
+              onChange={setScore}
+              label={(v) => v.toFixed(1)}
+            />
           </View>
 
           {/* Location */}
@@ -781,6 +751,20 @@ const styles = StyleSheet.create({
   inlineLoading: { paddingVertical: 12, alignItems: "center" },
 
   sliderWrap: { marginBottom: 28, paddingHorizontal: 4 },
+  scoreHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
+  scoreInput: {
+    minWidth: 64,
+    textAlign: "center",
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   sliderTrack: {
     marginTop: 10,
     height: 6,

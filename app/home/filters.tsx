@@ -5,16 +5,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  PanResponder,
-  Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { RangeSlider } from "../../components/primitives/RangeSlider";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SLIDER_WIDTH = SCREEN_WIDTH - 40;
+const KM_PER_MILE = 1.609344;
+const csv = (v?: string) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
+const toggle = (list: string[], item: string) =>
+  list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 
 const CATEGORIES = [
   "Boxing & Combat",
@@ -68,11 +69,12 @@ export default function FiltersScreen() {
     neighborhood?: string;
   }>();
 
-  const [distance,       setDistance]       = useState(Number(existing.radius_km) || 10);
+  // The map is told the radius in km; the screen shows miles.
+  const [distance,       setDistance]       = useState(existing.radius_km ? Math.max(1, Math.round(Number(existing.radius_km) / KM_PER_MILE)) : 10);
   const [planTier,       setPlanTier]        = useState(existing.plan_tier ?? "");
-  const [activeCategory, setActiveCategory]  = useState(existing.type ?? "");
+  const [categories,     setCategories]      = useState<string[]>(csv(existing.type));
   const [activeRating,   setActiveRating]    = useState(existing.min_rating ?? "");
-  const [neighborhood,   setNeighborhood]    = useState(existing.neighborhood ?? "");
+  const [neighborhoods,  setNeighborhoods]   = useState<string[]>(csv(existing.neighborhood));
   // Only send a radius if the user actually set one — otherwise Reset could never clear it.
   const [distanceSet,    setDistanceSet]     = useState(!!existing.radius_km);
 
@@ -80,34 +82,23 @@ export default function FiltersScreen() {
     setDistance(10);
     setDistanceSet(false);
     setPlanTier("");
-    setActiveCategory("");
+    setCategories([]);
     setActiveRating("");
-    setNeighborhood("");
+    setNeighborhoods([]);
   }
 
   function apply() {
     // Always send every key ("" = cleared) so filters removed here are also removed on the map.
     const params: Record<string, string> = {
-      type:         activeCategory,
+      type:         categories.join(","),
       min_rating:   activeRating,
       plan_tier:    planTier,
-      neighborhood: neighborhood,
-      radius_km:    distanceSet ? String(distance) : "",
+      neighborhood: neighborhoods.join(","),
+      radius_km:    distanceSet ? String(Math.round(distance * KM_PER_MILE * 10) / 10) : "",
     };
     // Go back to the existing tabs screen instead of stacking a new one on top.
     router.dismissTo({ pathname: "/(tabs)" as any, params });
   }
-
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: (_, gs) => {
-      const ratio = Math.max(0, Math.min(1, gs.moveX / SLIDER_WIDTH));
-      setDistance(Math.round(ratio * 10) || 1);
-      setDistanceSet(true);
-    },
-  });
-
-  const thumbLeft = (distance / 10) * (SLIDER_WIDTH - 20);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -132,10 +123,14 @@ export default function FiltersScreen() {
           <Text style={styles.highlight}>{distance} mi</Text>
           <Text style={styles.labelSub}> / 10 mi</Text>
         </Text>
-        <View style={styles.sliderTrack} {...panResponder.panHandlers}>
-          <View style={[styles.sliderFill, { width: `${distance * 10}%` }]} />
-          <View style={[styles.sliderThumb, { left: thumbLeft }]} />
-        </View>
+        <RangeSlider
+          value={distance}
+          min={1}
+          max={10}
+          step={1}
+          onChange={(v) => { setDistance(v); setDistanceSet(true); }}
+          label={(v) => String(Math.round(v))}
+        />
 
         {/* ── Accessibility ────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Accessibility</Text>
@@ -172,16 +167,14 @@ export default function FiltersScreen() {
               key={cat}
               style={[
                 styles.chip,
-                activeCategory === cat && styles.chipActive,
+                categories.includes(cat) && styles.chipActive,
               ]}
-              onPress={() =>
-                setActiveCategory((prev) => (prev === cat ? "" : cat))
-              }
+              onPress={() => setCategories((prev) => toggle(prev, cat))}
             >
               <Text
                 style={[
                   styles.chipText,
-                  activeCategory === cat && styles.chipTextActive,
+                  categories.includes(cat) && styles.chipTextActive,
                 ]}
               >
                 {cat}
@@ -196,13 +189,13 @@ export default function FiltersScreen() {
           {NEIGHBORHOODS.map((n) => (
             <TouchableOpacity
               key={n}
-              style={[styles.chip, neighborhood === n && styles.chipActive]}
-              onPress={() => setNeighborhood((prev) => (prev === n ? "" : n))}
+              style={[styles.chip, neighborhoods.includes(n) && styles.chipActive]}
+              onPress={() => setNeighborhoods((prev) => toggle(prev, n))}
             >
               <Text
                 style={[
                   styles.chipText,
-                  neighborhood === n && styles.chipTextActive,
+                  neighborhoods.includes(n) && styles.chipTextActive,
                 ]}
               >
                 {n}
