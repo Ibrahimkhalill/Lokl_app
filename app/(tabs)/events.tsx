@@ -83,6 +83,10 @@ type ApiGroup = {
   is_member?: boolean;
   is_admin?: boolean;
   members_preview?: GroupMember[];
+  cover_photo_url?: string | null;
+  neighborhood_label?: string;
+  is_private?: boolean;
+  my_request?: string | null;
 };
 
 type Tab = "events" | "allGroups" | "myGroups";
@@ -411,72 +415,70 @@ export default function EventsScreen() {
 
   const renderGroupCard = ({ item: group }: { item: ApiGroup }) => {
     const members = (group.members_preview ?? []).slice(0, 3);
-    const AVATAR_SIZE = 44;
-    const OVERLAP = 16;
+    const AVATAR = 26;
+    const OVERLAP = 9;
+    const cover = group.photo_url || group.cover_photo_url || null; // the picture uploaded for the group
+    const count = group.members_count ?? members.length;
+    const open = () => router.push(`/events/group-detail?id=${group.id}` as never);
+    const label = group.is_member
+      ? "View"
+      : group.is_private
+      ? group.my_request === "pending" ? "Request sent" : "Request to join"
+      : "Join Group";
 
     return (
-      <TouchableOpacity
-        style={s.groupCard}
-        activeOpacity={0.85}
-        onPress={() =>
-          router.push(`/events/group-detail?id=${group.id}` as never)
-        }
-      >
+      <TouchableOpacity style={s.groupCard} activeOpacity={0.85} onPress={open}>
         <View style={s.groupCardTop}>
-          {/* Overlapping member avatars */}
-          <View style={[s.groupAvatarsRow, { width: AVATAR_SIZE + (members.length - 1) * (AVATAR_SIZE - OVERLAP) }]}>
-            {members.map((m, i) => (
-              <View
-                key={m.id}
-                style={[
-                  s.groupMemberAvatar,
-                  {
-                    width: AVATAR_SIZE,
-                    height: AVATAR_SIZE,
-                    borderRadius: AVATAR_SIZE / 2,
-                    left: i * (AVATAR_SIZE - OVERLAP),
-                    zIndex: members.length - i,
-                  },
-                ]}
-              >
-                {m.avatar ? (
-                  <Image
-                    source={{ uri: m.avatar }}
-                    style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }}
-                  />
-                ) : (
-                  <View style={[{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }, s.groupMemberAvatarPlaceholder]}>
-                    <Ionicons name="person" size={18} color={Colors.textSecondary} />
-                  </View>
-                )}
-              </View>
-            ))}
-            {members.length === 0 ? (
-              <View style={[s.groupMemberAvatar, { width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }]}>
-                <View style={[{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }, s.groupMemberAvatarPlaceholder]}>
-                  <Ionicons name="people" size={20} color={Colors.textSecondary} />
-                </View>
-              </View>
-            ) : null}
-          </View>
+          {cover ? (
+            <Image source={{ uri: cover }} style={s.groupCover} />
+          ) : (
+            <View style={[s.groupCover, s.groupCoverEmpty]}>
+              <Ionicons name="people" size={26} color={Colors.textSecondary} />
+            </View>
+          )}
 
           <View style={s.groupInfo}>
-            <Text style={s.groupName}>{group.name}</Text>
+            <View style={s.groupTitleRow}>
+              <Text style={[s.groupName, { flex: 1 }]} numberOfLines={1}>{group.name}</Text>
+              {group.is_private ? <Ionicons name="lock-closed" size={13} color={Colors.textSecondary} /> : null}
+              <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+            </View>
+            {!!group.neighborhood_label && (
+              <View style={s.groupHoodRow}>
+                <Ionicons name="location-sharp" size={12} color={Colors.primary} />
+                <Text style={s.groupHood} numberOfLines={1}>{group.neighborhood_label}</Text>
+              </View>
+            )}
             <Text style={s.groupDesc} numberOfLines={2}>
               {group.bio || group.description || ""}
             </Text>
+            <View style={s.groupMembersRow}>
+              <View style={{ width: members.length ? AVATAR + (members.length - 1) * (AVATAR - OVERLAP) : 0, height: AVATAR }}>
+                {members.map((m, i) => (
+                  <View
+                    key={m.id}
+                    style={[s.groupMemberAvatar, { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, left: i * (AVATAR - OVERLAP), zIndex: members.length - i }]}
+                  >
+                    {m.avatar ? (
+                      <Image source={{ uri: m.avatar }} style={{ width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2 }} />
+                    ) : (
+                      <View style={[{ width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2 }, s.groupMemberAvatarPlaceholder]}>
+                        <Ionicons name="person" size={12} color={Colors.textSecondary} />
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+              <Text style={s.groupMemberCount}>{count} {count === 1 ? "member" : "members"}</Text>
+            </View>
           </View>
         </View>
 
         <TouchableOpacity
-          style={s.groupActionBtn}
-          onPress={() =>
-            router.push(`/events/group-detail?id=${group.id}` as never)
-          }
+          style={[s.groupActionBtn, label === "Request sent" && { opacity: 0.6 }]}
+          onPress={open}
         >
-          <Text style={s.groupActionBtnText}>
-            {group.is_member ? "View" : "Join Group"}
-          </Text>
+          <Text style={s.groupActionBtnText}>{label}</Text>
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -594,7 +596,7 @@ export default function EventsScreen() {
 
         {(activeTab === "allGroups" || activeTab === "myGroups") && (() => {
           const displayGroups = activeTab === "myGroups"
-            ? filteredGroups.filter((g) => g.is_admin)
+            ? filteredGroups.filter((g) => g.is_member)
             : filteredGroups;
           return loadingGroups ? (
             <View style={{ paddingTop: 8 }}>
@@ -804,7 +806,7 @@ const s = StyleSheet.create({
     gap: 12,
     marginBottom: 14,
   },
-  groupCardTop: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 4 },
+  groupCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 14, marginBottom: 10 },
   groupAvatarWrap: { width: 56, height: 56 },
   groupAvatar: { width: 56, height: 56, borderRadius: 12 },
   groupAvatarPlaceholder: {
@@ -824,6 +826,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  groupCover: { width: 84, height: 84, borderRadius: 14 },
+  groupCoverEmpty: { backgroundColor: Colors.inputBg, justifyContent: "center", alignItems: "center" },
+  groupTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  groupHoodRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 },
+  groupHood: { color: Colors.textSecondary, fontSize: 12, flex: 1 },
+  groupMembersRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  groupMemberCount: { color: Colors.textSecondary, fontSize: 12 },
   groupInfo: { flex: 1 },
   groupName: { color: Colors.text, fontSize: 15, fontWeight: "700", marginBottom: 4 },
   groupDesc: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17 },
