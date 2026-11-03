@@ -9,6 +9,9 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Animated,
+  PanResponder,
+  FlatList,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -168,6 +171,40 @@ export default function HomeScreen() {
   const regionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedIdRef = useRef<number | null>(null);
 
+  // Photos of the selected venue (cover + gallery), swipeable inside the card.
+  const photoCache = useRef<Record<number, string[]>>({});
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  // The preview card can be dragged down to show more of the map, and back up.
+  const sheetY = useRef(new Animated.Value(0)).current;
+  const sheetBase = useRef(0);
+  const sheetHeight = useRef(260);
+  const [collapsed, setCollapsed] = useState(false);
+  const PEEK = 74; // what stays visible when the card is pulled down: handle + venue name
+  const snapSheet = (toCollapsed: boolean) => {
+    const target = toCollapsed ? Math.max(sheetHeight.current - PEEK, 0) : 0;
+    sheetBase.current = target;
+    setCollapsed(toCollapsed);
+    Animated.spring(sheetY, { toValue: target, useNativeDriver: true, bounciness: 4 }).start();
+  };
+  const sheetPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
+      onPanResponderMove: (_, g) => {
+        const max = Math.max(sheetHeight.current - PEEK, 0);
+        sheetY.setValue(Math.min(Math.max(sheetBase.current + g.dy, 0), max));
+      },
+      onPanResponderRelease: (_, g) => {
+        const wasCollapsed = sheetBase.current > 0;
+        if (g.dy > 30 || g.vy > 0.6) snapSheet(true);
+        else if (g.dy < -30 || g.vy < -0.6) snapSheet(false);
+        else snapSheet(wasCollapsed && Math.abs(g.dy) < 6 ? false : wasCollapsed);
+      },
+    })
+  ).current;
+
   // Request GPS on mount — store user region or fall back to Manhattan
   useEffect(() => {
     (async () => {
@@ -209,7 +246,7 @@ export default function HomeScreen() {
 
     // Pixel heights of the UI that covers the map
     const TOP_CLEARANCE    = 110;                          // safe area + search bar
-    const CARD_HEIGHT      = 220;                          // approximate venue card height
+    const CARD_HEIGHT      = 190;                          // approximate venue card height
     const BOTTOM_CLEARANCE = TAB_BAR_HEIGHT + insets.bottom + CARD_HEIGHT;
 
     // Y position (px from top) we want the pin to sit at
@@ -405,6 +442,28 @@ export default function HomeScreen() {
   const selectedVenue = venues.find((v) => v.id === selectedId);
 
   useEffect(() => {
+    setPhotoIndex(0);
+    if (!selectedId) { setPhotos([]); return; }
+    const cached = photoCache.current[selectedId];
+    if (cached) { setPhotos(cached); return; }
+    setPhotos(selectedVenue?.cover ? [selectedVenue.cover] : []);
+    let cancelled = false;
+    api.get(`/venues/${selectedId}/`).then((res) => {
+      if (cancelled) return;
+      const v = res.data?.data ?? res.data;
+      const list: string[] = [];
+      if (v?.cover) list.push(v.cover);
+      (v?.photos ?? []).forEach((p: { url?: string }) => {
+        if (p?.url && !list.includes(p.url)) list.push(p.url);
+      });
+      photoCache.current[selectedId] = list;
+      setPhotos(list);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  useEffect(() => {
     if (!selectedId) { setCardFriends([]); return; }
     let cancelled = false; // a quicker tap on another marker must not be overwritten by this response
     setCardFriends([]);
@@ -509,7 +568,19 @@ export default function HomeScreen() {
       </SafeAreaView>
 
       {/* Venue Card */}
-      <View style={[styles.venueSheet, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT }]}>
+      <Animated.View
+        style={[styles.venueSheet, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT, transform: [{ translateY: sheetY }] }]}
+        onLayout={(e) => { sheetHeight.current = e.nativeEvent.layout.height; }}
+      >
+        {/* Drag handle: pull the card down to see more map, pull it up (or tap) to bring it back */}
+        <View style={styles.sheetHandleArea} {...sheetPan.panHandlers}>
+          <View style={styles.sheetHandle} />
+          {totalInArea !== null && (
+            <Text style={styles.sheetCount}>
+              {totalInArea} {totalInArea === 1 ? "venue" : "venues"} in this area
+            </Text>
+          )}
+        </View>
         {loading ? (
           <View style={[styles.venueCard, styles.centeredCard]}>
             <ActivityIndicator color={Colors.primary} size="large" />
@@ -522,21 +593,37 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.venueCard}>
-              {/* Cover image */}
+              {/* Photos: swipe sideways to look through them */}
               <View style={styles.venueImageWrap}>
-                {selectedVenue.cover ? (
-                  <Image
-                    source={{ uri: selectedVenue.cover }}
-                    style={styles.venueImage}
-                    resizeMode="cover"
+                {photos.length > 0 ? (
+                  <FlatList
+                    data={photos}
+                    keyExtractor={(uri, i) => `${i}-${uri}`}
+                    horizontal
+                    pagingEnabled
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) =>
+                      setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / (width - 32)))
+                    }
+                    renderItem={({ item }) => (
+                      <Image source={{ uri: item }} style={[styles.venueImage, { width: width - 32 }]} resizeMode="cover" />
+                    )}
                   />
                 ) : (
                   <View style={[styles.venueImage, styles.noImagePlaceholder]}>
                     <Ionicons
                       name={selectedVenue.icon as any}
-                      size={48}
+                      size={40}
                       color={Colors.textSecondary}
                     />
+                  </View>
+                )}
+                {photos.length > 1 && (
+                  <View style={styles.photoDots} pointerEvents="none">
+                    {photos.slice(0, 7).map((_, i) => (
+                      <View key={i} style={[styles.photoDot, i === photoIndex && styles.photoDotActive]} />
+                    ))}
                   </View>
                 )}
                 {!!selectedVenue.distance && (
@@ -631,7 +718,7 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -719,6 +806,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  sheetHandleArea: { alignItems: "center", paddingTop: 6, paddingBottom: 8 },
+  sheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
+  sheetCount: { color: Colors.text, fontSize: 12, fontWeight: "600", marginTop: 6 },
+  photoDots: { position: "absolute", bottom: 8, alignSelf: "center", flexDirection: "row", gap: 5 },
+  photoDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
+  photoDotActive: { width: 14, backgroundColor: Colors.primary },
   venueCard: {
     backgroundColor: Colors.card,
     borderRadius: 20,
@@ -740,7 +833,7 @@ const styles = StyleSheet.create({
 
   venueImageWrap: {
     position: "relative",
-    height: 160,
+    height: 108,
     overflow: "hidden",
   },
   venueImage: { width: "100%", height: "100%" },
@@ -769,19 +862,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  venueInfo: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  venueInfo: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 0 },
   venueName: {
     color: Colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     letterSpacing: 0.3,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   venueMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 6,
     flexWrap: "wrap",
   },
   scoreChip: {
@@ -801,14 +894,14 @@ const styles = StyleSheet.create({
 
   venueActions: {
     flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
   detailsBtn: {
     flex: 1,
-    height: 48,
+    height: 40,
     borderRadius: 12,
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -819,7 +912,7 @@ const styles = StyleSheet.create({
   detailsBtnText: { color: Colors.text, fontSize: 15, fontWeight: "600" },
   reviewBtn: {
     flex: 1,
-    height: 48,
+    height: 40,
     borderRadius: 12,
     backgroundColor: Colors.primary,
     justifyContent: "center",
