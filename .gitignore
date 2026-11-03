@@ -9,3 +9,9 @@ node_modules
 .env
 .DS_Store
 .yml
+# keep the committed Yarn release: EAS needs it to install dependencies
+.yarn/*
+!.yarn/releases
+dist/
+.claude/
+settings.json   
