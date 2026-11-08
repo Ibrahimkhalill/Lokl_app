@@ -417,7 +417,7 @@ export default function ProfileScreen() {
             {savedVenues.length === 0 ? (
               <View style={styles.emptyActivity}>
                 <Ionicons name="location-outline" size={32} color={Colors.textSecondary} />
-                <Text style={styles.emptyText}>No saved venues yet. Tap the bookmark on a venue to add it here.</Text>
+                <Text style={[styles.emptyText, { fontSize: 13, textAlign: "center", paddingHorizontal: 24 }]}>No saved venues yet.{"\n"}Tap the bookmark on a venue to add it here.</Text>
               </View>
             ) : (
               savedVenues.map((v) => (

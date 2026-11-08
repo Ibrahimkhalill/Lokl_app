@@ -58,10 +58,11 @@ export default function SignIn() {
     <Screen scrollable>
       <LogoText />
 
-      <AuthHeaderBlock title="Sign In" subtitle="Hi welcome back" />
+      <AuthHeaderBlock title="Sign In" subtitle="Hi, Welcome Back" />
 
       <View>
         <PhoneInput
+          label="Phone Number"
           value={phone}
           onChangeText={setPhone}
           onChangeFormattedText={setFormattedPhone}
@@ -78,7 +79,7 @@ export default function SignIn() {
           style={styles.forgotBtn}
           onPress={() => router.push("/auth/forgot-password")}
         >
-          <Text style={styles.forgotText}>Forget Password?</Text>
+          <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
       </View>
 

@@ -8,7 +8,7 @@ import { useToast } from "../../context/ToastContext";
 export default function OTP() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { user_id } = useLocalSearchParams<{ user_id: string }>();
+  const { user_id, via } = useLocalSearchParams<{ user_id: string; via?: string }>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ export default function OTP() {
     if (!user_id) return;
     setError(null);
     try {
-      await authService.resendCode({ user_id: Number(user_id), purpose: "reset" });
+      await authService.resendCode({ user_id: Number(user_id), purpose: "reset", ...(via === "email" ? { channel: "email" as const } : {}) });
       showToast({ type: "success", title: "Code sent", message: "We sent you a new code. The old one no longer works." });
     } catch (err) {
       setError(getErrorMessage(err));

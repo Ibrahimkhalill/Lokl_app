@@ -197,8 +197,8 @@ export default function SignUp() {
         onChangeText={setPassword}
       />
       <Input
-        label="Confirm password*"
-        placeholder="Type the password again"
+        label="Confirm Password"
+        placeholder="Re-enter password"
         isPassword
         value={confirmPassword}
         onChangeText={setConfirmPassword}

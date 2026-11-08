@@ -140,7 +140,7 @@ export default function SplashScreen() {
 
         <SafeAreaView style={styles.safe} edges={["top"]}>
           <View style={styles.slideContent}>
-            <Text style={styles.slideTitle}>Find your</Text>
+            <Text style={styles.slideTitle}>Find Your</Text>
             <View style={styles.titleRow}>
               <Text style={styles.slideTitle}>Lokl </Text>
               <Animated.View

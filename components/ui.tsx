@@ -57,7 +57,7 @@ export function OrDivider() {
   return (
     <View style={divStyles.container}>
       <View style={divStyles.line} />
-      <Text style={divStyles.text}>Or continue With</Text>
+      <Text style={divStyles.text}>Or continue with</Text>
       <View style={divStyles.line} />
     </View>
   );
@@ -79,11 +79,15 @@ export function SocialButtons() {
   return (
     <View style={socialStyles.container}>
       <TouchableOpacity style={socialStyles.btn} activeOpacity={0.8}>
-        <GoogleIcon width={20} height={20} />
+        <View style={socialStyles.iconBox}>
+          <GoogleIcon width={20} height={20} />
+        </View>
         <Text style={socialStyles.socialText}>Google</Text>
       </TouchableOpacity>
       <TouchableOpacity style={socialStyles.btn} activeOpacity={0.8}>
-        <AppleIcon width={20} height={20} />
+        <View style={socialStyles.iconBox}>
+          <AppleIcon width={18} height={20} color="#000000" />
+        </View>
         <Text style={socialStyles.socialText}>Apple</Text>
       </TouchableOpacity>
     </View>
@@ -104,6 +108,7 @@ const socialStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
+  iconBox: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   socialText: {
     color: Colors.black,
     fontSize: 15,

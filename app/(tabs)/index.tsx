@@ -701,7 +701,7 @@ export default function HomeScreen() {
                   </View>
                   {selectedVenue.ratings_count > 0 && (
                     <Text style={styles.venueMetaText}>
-                      ({selectedVenue.ratings_count.toLocaleString()} {selectedVenue.ratings_count === 1 ? "rating" : "ratings"})
+                      ({selectedVenue.ratings_count.toLocaleString()} {selectedVenue.ratings_count === 1 ? "ranking" : "rankings"})
                     </Text>
                   )}
                   <View style={styles.dot} />

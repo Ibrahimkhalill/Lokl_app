@@ -70,7 +70,7 @@ export default function PrivacySecurityScreen() {
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Privacy & security</Text>
+          <Text style={s.headerTitle}>Privacy & Security</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -87,7 +87,7 @@ export default function PrivacySecurityScreen() {
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Privacy & security</Text>
+          <Text style={s.headerTitle}>Privacy & Security</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24, gap: 16 }}>
@@ -111,7 +111,7 @@ export default function PrivacySecurityScreen() {
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Privacy & security</Text>
+        <Text style={s.headerTitle}>Privacy & Security</Text>
         <View style={{ width: 40 }} />
       </View>
 

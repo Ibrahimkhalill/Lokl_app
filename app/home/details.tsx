@@ -448,7 +448,7 @@ export default function DetailsScreen() {
               </Text>
             </View>
             <Text style={styles.metaText}>
-              ({venue.ratings_count.toLocaleString()} {venue.ratings_count === 1 ? "rating" : "ratings"})
+              ({venue.ratings_count.toLocaleString()} {venue.ratings_count === 1 ? "ranking" : "rankings"})
             </Text>
             <View style={styles.metaDot} />
             <Text style={styles.metaText}>{venue.type}</Text>

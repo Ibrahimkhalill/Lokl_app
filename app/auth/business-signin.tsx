@@ -66,7 +66,7 @@ export default function BusinessSignIn() {
           style={styles.forgotBtn}
           onPress={() => router.push("/auth/forgot-password")}
         >
-          <Text style={styles.forgotText}>Forget Password?</Text>
+          <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
       </View>
 

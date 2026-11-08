@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { Screen, BackButton, PhoneInput, PrimaryButton } from "../../components/ui";
+import { Screen, BackButton, Input, PhoneInput, PrimaryButton } from "../../components/ui";
 import { AuthHeaderBlock } from "../../components/auth";
 import { Colors } from "../../constants/colors";
 import { authService } from "../../services/authService";
@@ -14,28 +14,35 @@ export default function ForgotPassword() {
   const [phone, setPhone] = useState("");
   const [formattedPhone, setFormattedPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  const [email, setEmail] = useState("");
 
   async function handleNext() {
-    if (!formattedPhone) {
-      showToast({ type: "error", title: "Error", message: "Please enter your phone number." });
+    const byEmail = mode === "email";
+    if (byEmail ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) : !formattedPhone) {
+      showToast({
+        type: "error",
+        title: "Error",
+        message: byEmail ? "Please enter a valid email address." : "Please enter your phone number.",
+      });
       return;
     }
     setLoading(true);
     try {
-      const res = await authService.forgotPassword({ phone: formattedPhone });
+      const res = await authService.forgotPassword(byEmail ? { email: email.trim() } : { phone: formattedPhone });
       const userId: number | undefined = res.data?.data?.user_id;
       if (!userId) {
         // Backend doesn't reveal whether the number is registered; there's nothing to verify.
         showToast({
           type: "info",
-          title: "Check your phone",
-          message: res.data?.message ?? "If an account exists with that number, an OTP has been sent.",
+          title: byEmail ? "Check your email" : "Check your phone",
+          message: res.data?.message ?? "If an account exists, a code has been sent.",
         });
         return;
       }
       router.push({
         pathname: "/auth/otp",
-        params: { user_id: String(userId) },
+        params: { user_id: String(userId), ...(byEmail ? { via: "email" } : {}) },
       });
     } catch (err) {
       showToast({ type: "error", title: "Error", message: getErrorMessage(err) });
@@ -49,20 +56,39 @@ export default function ForgotPassword() {
       <BackButton onPress={() => router.back()} />
 
       <AuthHeaderBlock
-        title="Forget Password"
+        title="Forgot Password"
         subtitle={
-          "Enter your address to receive a reset link and regain\naccess to your account."
+          mode === "email"
+            ? "Enter your email address to receive a verification code and regain\naccess to your account."
+            : "Enter your phone number to receive a verification code and regain\naccess to your account."
         }
         titleStyle={styles.title}
         subtitleStyle={styles.subtitle}
       />
 
       <View style={styles.form}>
-        <PhoneInput
-          value={phone}
-          onChangeText={setPhone}
-          onChangeFormattedText={setFormattedPhone}
-        />
+        {mode === "phone" ? (
+          <PhoneInput
+            value={phone}
+            onChangeText={setPhone}
+            onChangeFormattedText={setFormattedPhone}
+          />
+        ) : (
+          <Input
+            label="Email"
+            placeholder="Enter your email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        )}
+        <TouchableOpacity onPress={() => setMode((m) => (m === "phone" ? "email" : "phone"))} style={{ marginTop: 14 }}>
+          <Text style={{ color: Colors.primary, fontSize: 14, fontWeight: "600" }}>
+            {mode === "phone" ? "Use my email instead" : "Use my phone number instead"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.bottom}>

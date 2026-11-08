@@ -24,7 +24,7 @@ const MENU_ITEMS = [
     danger: false,
   },
   {
-    label: "NOTIFICATION",
+    label: "NOTIFICATIONS",
     sub: "Push, email, SMS preferences",
     icon: <NotificationsIcon width={24} height={24} color={Colors.primary} />,
     iconBg: "#3D4A1A",
@@ -112,7 +112,7 @@ export default function Settings() {
       {/* Header */}
       <View style={s.header}>
         <View style={{ width: 40 }} />
-        <Text style={s.headerTitle}>Setting</Text>
+        <Text style={s.headerTitle}>Settings</Text>
         <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
           <Ionicons name="close" size={20} color={Colors.text} />
         </TouchableOpacity>

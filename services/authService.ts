@@ -20,7 +20,7 @@ export const authService = {
     return api.post("/auth/verify-phone", data);
   },
 
-  resendCode(data: { user_id: number; purpose?: "signup" | "reset" }) {
+  resendCode(data: { user_id: number; purpose?: "signup" | "reset"; channel?: "email" }) {
     return api.post("/auth/resend-code", data);
   },
 
@@ -39,7 +39,7 @@ export const authService = {
     return api.post("/auth/register/business/", data);
   },
 
-  forgotPassword(data: { phone: string }) {
+  forgotPassword(data: { phone?: string; email?: string }) {
     return api.post("/auth/forgot-password", data);
   },
 
