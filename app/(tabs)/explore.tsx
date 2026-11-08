@@ -267,7 +267,8 @@ export default function ExploreScreen() {
       if (isFollowing) {
         await postService.unfollowUser(authorId);
       } else {
-        await postService.followUser(authorId);
+        const res = await postService.followUser(authorId);
+        if ((res.data?.data ?? res.data)?.requested) setFollowing(false); // private: request sent, not following yet
       }
     } catch (e) {
       console.log("[Follow] error:", getErrorMessage(e));

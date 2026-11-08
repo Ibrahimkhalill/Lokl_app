@@ -10,11 +10,10 @@ import { settingService } from "../../services/settingServices";
 import { getErrorMessage } from "../../lib/api";
 import { useToast } from "../../context/ToastContext";
 
-type Visibility = "public" | "followers" | "private";
+type Visibility = "public" | "private";
 
 const visibilityOptions: { key: Visibility; label: string }[] = [
   { key: "public", label: "Public" },
-  { key: "followers", label: "Followers" },
   { key: "private", label: "Private" },
 ];
 
@@ -34,7 +33,7 @@ export default function PrivacySecurityScreen() {
     setLoadError(false);
     settingService.getPrivacy().then((res) => {
       const d = res.data?.data ?? res.data;
-      setVisibility(d.profile_visibility ?? "public");
+      setVisibility(d.profile_visibility === "public" || !d.profile_visibility ? "public" : "private");
       setLocationSharing(d.location_sharing ?? true);
       setActivityStatus(d.activity_status ?? true);
     }).catch(() => setLoadError(true)) // don't present defaults as if they were the real settings
@@ -133,16 +132,11 @@ export default function PrivacySecurityScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {visibility === "private" && (
-            <Text style={s.visibilityDesc}>
-              Only people you approve can see your profile and posts.
-            </Text>
-          )}
-          {visibility === "followers" && (
-            <Text style={s.visibilityDesc}>
-              Anyone who follows you can see your profile and posts.
-            </Text>
-          )}
+          <Text style={s.visibilityDesc}>
+            {visibility === "private"
+              ? "Anyone who follows you can see your profile and posts"
+              : "Anyone can see your profile and posts"}
+          </Text>
         </View>
       </View>
 

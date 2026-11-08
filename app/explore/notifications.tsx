@@ -14,10 +14,19 @@ import { Colors } from "../../constants/colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { notificationService } from "../../services/notificationService";
 import { eventService } from "../../services/eventService";
+import { userService } from "../../services/userService";
 import { useToast } from "../../context/ToastContext";
 import { getErrorMessage } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 import { NotifRowSkeleton } from "../../components/primitives/Skeletons";
+
+type FollowRequestRow = {
+  id: number;
+  user_id: number;
+  name: string;
+  username: string | null;
+  avatar: string | null;
+};
 
 type GroupInvite = {
   id: number;
@@ -118,6 +127,7 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [invites, setInvites] = useState<GroupInvite[]>([]);
+  const [followRequests, setFollowRequests] = useState<FollowRequestRow[]>([]);
   const [answering, setAnswering] = useState<number | null>(null);
   const { showToast } = useToast();
 
@@ -130,6 +140,29 @@ export default function NotificationsScreen() {
       setInvites([]);
     }
   }, []);
+
+  const fetchFollowRequests = useCallback(async () => {
+    try {
+      const res = await userService.getFollowRequests();
+      const raw = res.data?.data ?? res.data;
+      setFollowRequests(Array.isArray(raw) ? raw : []);
+    } catch {
+      setFollowRequests([]);
+    }
+  }, []);
+
+  const answerFollowRequest = async (row: FollowRequestRow, accept: boolean) => {
+    if (answering) return;
+    setAnswering(-row.id);
+    try {
+      await userService.respondFollowRequest(row.id, accept);
+      setFollowRequests((prev) => prev.filter((r) => r.id !== row.id));
+    } catch (e) {
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+    } finally {
+      setAnswering(null);
+    }
+  };
 
   const answerInvite = async (invite: GroupInvite, accept: boolean) => {
     if (answering) return;
@@ -152,6 +185,7 @@ export default function NotificationsScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     fetchInvites();
+    fetchFollowRequests();
     try {
       const res = await notificationService.getNotifications();
       const raw = res.data?.data ?? res.data;
@@ -169,6 +203,44 @@ export default function NotificationsScreen() {
       fetchNotifications();
     }, [fetchNotifications])
   );
+
+  const requestsHeader =
+    followRequests.length > 0 ? (
+      <View style={styles.inviteWrap}>
+        <Text style={styles.sectionLabel}>Follow requests</Text>
+        {followRequests.map((r) => (
+          <View key={r.id} style={styles.inviteCard}>
+            <TouchableOpacity
+              onPress={() => router.push(`/explore/user-profile?user_id=${r.user_id}&name=${encodeURIComponent(r.name ?? "")}` as never)}
+            >
+              <Avatar uri={r.avatar} size={56} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.inviteTitle} numberOfLines={1}>{r.name}</Text>
+              <Text style={styles.inviteSub} numberOfLines={1}>
+                {r.username ? `@${r.username} wants to follow you` : "wants to follow you"}
+              </Text>
+              <View style={styles.inviteBtns}>
+                <TouchableOpacity
+                  style={[styles.inviteBtn, styles.inviteAccept]}
+                  disabled={answering === -r.id}
+                  onPress={() => answerFollowRequest(r, true)}
+                >
+                  <Text style={styles.inviteAcceptText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inviteBtn, styles.inviteDecline]}
+                  disabled={answering === -r.id}
+                  onPress={() => answerFollowRequest(r, false)}
+                >
+                  <Text style={styles.inviteDeclineText}>Decline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+    ) : null;
 
   const invitesHeader =
     invites.length > 0 ? (
@@ -244,9 +316,14 @@ export default function NotificationsScreen() {
             }
             return <NotifRow item={item.data} />;
           }}
-          ListHeaderComponent={invitesHeader}
+          ListHeaderComponent={
+            <>
+              {requestsHeader}
+              {invitesHeader}
+            </>
+          }
           ListEmptyComponent={
-            invites.length > 0 ? null : (
+            invites.length > 0 || followRequests.length > 0 ? null : (
               <EmptyState
                 icon="notifications-off-outline"
                 title="No notifications yet"

@@ -11,6 +11,14 @@ export const userService = {
   },
 
 
+  getFollowRequests() {
+    return api.get("/users/follow-requests/");
+  },
+
+  respondFollowRequest(requestId: number, accept: boolean) {
+    return api.post(`/users/follow-requests/${requestId}/respond/`, { accept });
+  },
+
   getMe() {
     return api.get("/users/me/");
   },

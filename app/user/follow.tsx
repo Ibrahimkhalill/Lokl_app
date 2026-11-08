@@ -136,7 +136,16 @@ export default function FollowScreen() {
     }
     try {
       if (alreadyFollowing) await postService.unfollowUser(userId);
-      else await postService.followUser(userId);
+      else {
+        const res = await postService.followUser(userId);
+        if ((res.data?.data ?? res.data)?.requested) {
+          setFollowingIds((prev) => {            // private account: request sent, not following yet
+            const next = new Set(prev);
+            next.delete(userId);
+            return next;
+          });
+        }
+      }
     } catch {
       setFollowingIds((prev) => {
         const next = new Set(prev);

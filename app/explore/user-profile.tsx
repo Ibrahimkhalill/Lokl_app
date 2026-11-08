@@ -44,6 +44,7 @@ export default function UserProfileScreen() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isRequested, setIsRequested] = useState(false);
   const [is_me, setIsMe] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
@@ -66,6 +67,7 @@ export default function UserProfileScreen() {
       setStats(data.stats);
       setPosts(data.posts ?? []);
       setIsFollowing(data.is_following ?? false);
+      setIsRequested(data.is_requested ?? false);
       setIsMe(data.is_me ?? false);
       setIsLocked(data.is_locked ?? false);
       setLockReason(data.lock_reason ?? null);
@@ -81,18 +83,25 @@ export default function UserProfileScreen() {
   const handleFollow = async () => {
     if (followBusy) return;
     setFollowBusy(true);
-    const prev = isFollowing;
-    setIsFollowing(!prev);
+    const prevFollowing = isFollowing;
+    const prevRequested = isRequested;
     try {
-      if (prev) {
+      if (prevFollowing || prevRequested) {
+        // Unfollow, or cancel a pending request
+        setIsFollowing(false);
+        setIsRequested(false);
         await postService.unfollowUser(Number(user_id));
       } else {
-        await postService.followUser(Number(user_id));
+        const res = await postService.followUser(Number(user_id));
+        const requested = !!(res.data?.data ?? res.data)?.requested;
+        // A private account asks first: the button says "Requested" until they accept.
+        setIsRequested(requested);
+        setIsFollowing(!requested);
       }
-      // Refresh follower count + unlock posts of followers-only / private profiles.
       await fetchProfile(true);
     } catch {
-      setIsFollowing(prev);
+      setIsFollowing(prevFollowing);
+      setIsRequested(prevRequested);
     } finally {
       setFollowBusy(false);
     }
@@ -150,7 +159,15 @@ export default function UserProfileScreen() {
       if (following) {
         postService.unfollowUser(authorId).catch(() => setIsFollowing(following));
       } else {
-        postService.followUser(authorId).catch(() => setIsFollowing(following));
+        postService
+          .followUser(authorId)
+          .then((res) => {
+            if ((res.data?.data ?? res.data)?.requested) {
+              setIsFollowing(false);
+              setIsRequested(true);
+            }
+          })
+          .catch(() => setIsFollowing(following));
       }
       fetchProfile();
     }
@@ -222,12 +239,12 @@ export default function UserProfileScreen() {
       {!is_me && (
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.followBtn, isFollowing && styles.followingBtn]}
+            style={[styles.followBtn, (isFollowing || isRequested) && styles.followingBtn]}
             onPress={handleFollow}
             activeOpacity={0.85}
           >
-            <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
-              {isFollowing ? "Following" : "Follow"}
+            <Text style={[styles.followBtnText, (isFollowing || isRequested) && styles.followingBtnText]}>
+              {isFollowing ? "Following" : isRequested ? "Requested" : "Follow"}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -248,16 +265,16 @@ export default function UserProfileScreen() {
       {isLocked && (
         <View style={styles.lockedCard}>
           <Ionicons
-            name={lockReason === "private" ? "lock-closed" : "people"}
+            name="lock-closed"
             size={36}
             color={Colors.textSecondary}
           />
           <Text style={styles.lockedTitle}>
-            {lockReason === "private" ? "This account is private" : "Followers only"}
+            This account is private
           </Text>
           <Text style={styles.lockedSub}>
-            {lockReason === "private"
-              ? "Follow this account to see their posts."
+            {isRequested
+              ? "Your request is waiting for them to accept."
               : "Follow this account to see their posts and activity."}
           </Text>
         </View>
