@@ -14,7 +14,7 @@ import CommentsIcon from "../../assets/icons/comments.svg";
 import NavigateIcon from "../../assets/icons/navigate.svg";
 import BookmarkIcon from "../../assets/icons/bookmarks.svg";
 import BookmarkFilledIcon from "../../assets/icons/bookmark-filled.svg";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { PostVideo } from "./PostVideo";
 import { Avatar } from "../primitives/Avatar";
 import { ReportBlockSheet } from "../overlays/ReportBlockSheet";
 import { PostMediaGallery, PostMediaItem } from "./PostMediaGallery";
@@ -79,28 +79,7 @@ function ExpandableBody({ body, isNotes = false }: { body: string; isNotes?: boo
 }
 
 function PostVideoPlayer({ uri, isVisible }: { uri: string; isVisible: boolean }) {
-  const player = useVideoPlayer(
-    { uri, useCaching: true },
-    (p) => {
-      p.loop = true;
-      p.bufferOptions = { preferredForwardBufferDuration: 10 };
-    }
-  );
-
-  React.useEffect(() => {
-    if (isVisible) player.play();
-    else player.pause();
-  }, [isVisible, player]);
-
-  return (
-    <VideoView
-      player={player}
-      style={styles.postVideo}
-      contentFit="cover"
-      nativeControls
-      requiresLinearPlayback
-    />
-  );
+  return <PostVideo uri={uri} active={isVisible} width="100%" height={220} />;
 }
 
 export const PostCard = React.memo(function PostCard({

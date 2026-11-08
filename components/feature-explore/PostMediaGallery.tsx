@@ -12,7 +12,7 @@ import {
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { PostVideo } from "./PostVideo";
 import { Colors } from "../../constants/colors";
 
 export type PostMediaItem = { type: "image" | "video"; url: string };
@@ -21,14 +21,7 @@ const SCREEN = Dimensions.get("window");
 const DEFAULT_WIDTH = SCREEN.width - 32;
 
 function InlineVideo({ uri, active, width }: { uri: string; active: boolean; width: number }) {
-  const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
-    p.loop = true;
-  });
-  React.useEffect(() => {
-    if (active) player.play();
-    else player.pause();
-  }, [active, player]);
-  return <VideoView player={player} style={[styles.media, { width }]} contentFit="cover" nativeControls />;
+  return <PostVideo uri={uri} active={active} width={width} height={240} />;
 }
 
 /**
