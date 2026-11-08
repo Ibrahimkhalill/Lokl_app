@@ -112,6 +112,14 @@ export const eventService = {
     return api.post(`/groups/${id}/join/`);
   },
 
+  leaveSocialGroup(id: number) {
+    return api.delete(`/groups/${id}/join/`);
+  },
+
+  updateGroup(id: number, data: { name?: string; bio?: string; is_private?: boolean; max_members?: number | null }) {
+    return api.patch(`/groups/${id}/`, data);
+  },
+
   uploadGroupCover(id: number, form: FormData) {
     return api.patch(`/groups/${id}/`, form, {
       headers: { "Content-Type": "multipart/form-data" },

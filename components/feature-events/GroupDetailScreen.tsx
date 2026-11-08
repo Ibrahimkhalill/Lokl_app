@@ -8,7 +8,10 @@ import {
   Image,
   ActivityIndicator,
   TextInput,
-  Modal, Keyboard } from "react-native";
+  Modal,
+  Switch,
+  Keyboard,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -120,6 +123,12 @@ export default function GroupDetailScreen() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editPrivate, setEditPrivate] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [localCoverUri, setLocalCoverUri] = useState<string | null>(null);
@@ -204,6 +213,50 @@ export default function GroupDetailScreen() {
       setLocalPhotoUri(null);
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  const handleLeave = () => {
+    setMenuOpen(false);
+    showConfirm({
+      title: "Leave group",
+      message: `Do you want to leave ${group?.name ?? "this group"}?`,
+      confirmText: "Leave",
+      cancelText: "Cancel",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await eventService.leaveSocialGroup(groupId);
+          showToast({ type: "success", title: "Left group", message: "You left the group." });
+          router.back();
+        } catch (e) {
+          showToast({ type: "error", title: "Can't leave", message: getErrorMessage(e) });
+        }
+      },
+    });
+  };
+
+  const openEdit = () => {
+    setMenuOpen(false);
+    setEditName(group?.name ?? "");
+    setEditBio(group?.bio ?? "");
+    setEditPrivate(!!group?.is_private);
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editName.trim() || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const res = await eventService.updateGroup(groupId, { name: editName.trim(), bio: editBio.trim(), is_private: editPrivate });
+      const d = res.data?.data ?? res.data;
+      setGroup((prev) => (prev ? { ...prev, ...d } : prev));
+      setEditOpen(false);
+      showToast({ type: "success", title: "Saved", message: "Group updated." });
+    } catch (e) {
+      showToast({ type: "error", title: "Error", message: getErrorMessage(e) });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -371,6 +424,28 @@ export default function GroupDetailScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
 
+        {isMember && (
+          <>
+            <TouchableOpacity style={s.menuBtn} onPress={() => setMenuOpen((o) => !o)} accessibilityLabel="Group options">
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text} />
+            </TouchableOpacity>
+            {menuOpen && (
+              <View style={s.menuCard}>
+                {isAdmin && (
+                  <TouchableOpacity style={s.menuItem} onPress={openEdit}>
+                    <Ionicons name="create-outline" size={18} color={Colors.text} />
+                    <Text style={s.menuText}>Edit group</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={s.menuItem} onPress={handleLeave}>
+                  <Ionicons name="exit-outline" size={18} color="#FF4D4F" />
+                  <Text style={[s.menuText, { color: "#FF4D4F" }]}>Leave group</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
+
         {/* Group avatar */}
         <TouchableOpacity
           style={s.groupAvatarWrap}
@@ -408,13 +483,13 @@ export default function GroupDetailScreen() {
               <MemberIcon width={14} height={14} color={Colors.textSecondary} />
               <Text style={s.metaChipText}>{group.members_count ?? 0} Members</Text>
             </TouchableOpacity>
-            {!!group.meetup?.name && (
-              <View style={s.metaChip}>
-                <LocationsIcon width={14} height={14} color={Colors.textSecondary} />
-                <Text style={s.metaChipText} numberOfLines={1}>{group.meetup.name}</Text>
-              </View>
-            )}
           </View>
+          {!!group.meetup?.name && (
+            <View style={s.locationLine}>
+              <LocationsIcon width={14} height={14} color={Colors.textSecondary} />
+              <Text style={s.metaChipText} numberOfLines={2}>{group.meetup.name}</Text>
+            </View>
+          )}
 
           {isAdmin ? (
             <View style={s.actionRow}>
@@ -572,6 +647,39 @@ export default function GroupDetailScreen() {
           <Text style={s.deleteBtnText}>Delete</Text>
         </TouchableOpacity>
       </ContextMenuDropdown>
+      <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
+        <View style={s.editBackdrop}>
+          <View style={s.editSheet}>
+            <Text style={s.editTitle}>Edit group</Text>
+            <Text style={s.editLabel}>Group name</Text>
+            <TextInput style={s.editInput} value={editName} onChangeText={setEditName} placeholder="Group name" placeholderTextColor={Colors.textSecondary} />
+            <Text style={s.editLabel}>Bio</Text>
+            <TextInput
+              style={[s.editInput, { minHeight: 90, textAlignVertical: "top" }]}
+              value={editBio}
+              onChangeText={setEditBio}
+              multiline
+              placeholder="What is this group about?"
+              placeholderTextColor={Colors.textSecondary}
+            />
+            <View style={s.editSwitchRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.menuText}>Private group</Text>
+                <Text style={s.editLabel}>People need your approval to join.</Text>
+              </View>
+              <Switch value={editPrivate} onValueChange={setEditPrivate} trackColor={{ true: Colors.primary }} />
+            </View>
+            <View style={s.editBtns}>
+              <TouchableOpacity style={[s.outlineBtn, { flex: 1 }]} onPress={() => setEditOpen(false)}>
+                <Text style={s.outlineBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.joinBtn, { flex: 1, marginTop: 0 }, (!editName.trim() || savingEdit) && { opacity: 0.6 }]} onPress={saveEdit} disabled={!editName.trim() || savingEdit}>
+                {savingEdit ? <ActivityIndicator color={Colors.black} /> : <Text style={s.joinBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <GroupInviteModal visible={inviteOpen} groupId={groupId} groupName={group.name} onClose={() => setInviteOpen(false)} />
     </View>
   );
@@ -648,7 +756,28 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 40 },
   groupName: { color: Colors.text, fontSize: 22, fontWeight: "800", marginBottom: 6 },
   groupDesc: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 14 },
-  groupMeta: { flexDirection: "row", gap: 14, marginBottom: 18 },
+  groupMeta: { flexDirection: "row", gap: 14, marginBottom: 8 },
+  locationLine: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: 18, paddingRight: 8 },
+  menuBtn: {
+    position: "absolute", top: 52, right: 16, width: 40, height: 40, borderRadius: 20, zIndex: 20,
+    backgroundColor: "rgba(20,22,26,0.7)", justifyContent: "center", alignItems: "center",
+  },
+  menuCard: {
+    position: "absolute", top: 98, right: 16, zIndex: 30, minWidth: 170, paddingVertical: 6,
+    backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  menuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  menuText: { color: Colors.text, fontSize: 14, fontWeight: "600" },
+  editBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  editSheet: { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
+  editTitle: { color: Colors.text, fontSize: 18, fontWeight: "800", marginBottom: 14 },
+  editLabel: { color: Colors.textSecondary, fontSize: 12, marginBottom: 6, marginTop: 10 },
+  editInput: {
+    color: Colors.text, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.cardBorder,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
+  },
+  editSwitchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 },
+  editBtns: { flexDirection: "row", gap: 10, marginTop: 20 },
   metaChip: { flexDirection: "row", alignItems: "center", gap: 6 },
   metaChipText: { color: Colors.textSecondary, fontSize: 13 },
   joinBtn: {
