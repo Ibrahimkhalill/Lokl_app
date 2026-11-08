@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Pressable,
   Dimensions,
   ActivityIndicator,
   Animated,
@@ -143,25 +144,22 @@ interface VenuePin {
 const TAB_BAR_HEIGHT = 90;
 
 /**
- * One venue pin. A custom-view marker has to be drawn into a bitmap; doing that for every pin on every
- * map move exhausts memory on iPhones. So each pin redraws only when its own look changes (selected, score),
- * and stops tracking view changes right after.
+ * A venue pin. Pins never change their look, so they are drawn once and then left alone (redrawing pins is what
+ * made the map lag and crash). Only a pin whose score changes is drawn again.
  */
 const VenueMarker = React.memo(function VenueMarker({
   pin,
-  isSelected,
   onPress,
 }: {
   pin: VenuePin;
-  isSelected: boolean;
   onPress: (id: number) => void;
 }) {
   const [track, setTrack] = useState(true);
   useEffect(() => {
     setTrack(true);
-    const t = setTimeout(() => setTrack(false), 450);
+    const t = setTimeout(() => setTrack(false), 700);
     return () => clearTimeout(t);
-  }, [isSelected, pin.score_display]);
+  }, [pin.score_display]);
 
   return (
     <Marker
@@ -169,19 +167,43 @@ const VenueMarker = React.memo(function VenueMarker({
       onPress={() => onPress(pin.id)}
       anchor={{ x: 0.5, y: 0.5 }}
       tracksViewChanges={track}
-      zIndex={isSelected ? 999 : 1}
+      zIndex={1}
     >
       <View style={styles.markerOuter}>
-        <View collapsable={false} style={[styles.mapPill, isSelected && styles.mapPillSelected]}>
-          <Ionicons
-            name={pin.icon as keyof typeof Ionicons.glyphMap}
-            size={14}
-            color={isSelected ? Colors.black : Colors.white}
-          />
+        <View collapsable={false} style={styles.mapPill}>
+          <Ionicons name={pin.icon as keyof typeof Ionicons.glyphMap} size={14} color={Colors.white} />
           <View collapsable={false}>
-            <Text style={[styles.mapPillScore, isSelected && styles.mapPillScoreSelected]}>
-              {pin.score_display}
-            </Text>
+            <Text style={styles.mapPillScore}>{pin.score_display}</Text>
+          </View>
+        </View>
+      </View>
+    </Marker>
+  );
+});
+
+/**
+ * The tapped venue: a larger, highlighted pin drawn on top of its normal pin, so the place stands out on the map
+ * and nothing disappears. A fresh marker is created for every selection, so it is always drawn.
+ */
+const SelectedMarker = React.memo(function SelectedMarker({ pin }: { pin: VenuePin }) {
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setTrack(false), 700);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Marker
+      coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={track}
+      zIndex={1000}
+      tappable={false}
+    >
+      <View style={styles.markerOuter}>
+        <View collapsable={false} style={[styles.mapPill, styles.mapPillSelected, styles.mapPillBig]}>
+          <Ionicons name={pin.icon as keyof typeof Ionicons.glyphMap} size={18} color={Colors.black} />
+          <View collapsable={false}>
+            <Text style={[styles.mapPillScore, styles.mapPillScoreSelected, { fontSize: 16 }]}>{pin.score_display}</Text>
           </View>
         </View>
       </View>
@@ -227,9 +249,10 @@ export default function HomeScreen() {
   const sheetBase = useRef(0);
   const sheetHeight = useRef(260);
   const [collapsed, setCollapsed] = useState(false);
-  const PEEK = 74; // what stays visible when the card is pulled down: handle + venue name
+  const PEEK = 64; // what stays visible ABOVE the bottom bar when the card is pulled down: the handle + venue count
+  const sheetBottomPad = useRef(0);
   const snapSheet = (toCollapsed: boolean) => {
-    const target = toCollapsed ? Math.max(sheetHeight.current - PEEK, 0) : 0;
+    const target = toCollapsed ? Math.max(sheetHeight.current - sheetBottomPad.current - PEEK, 0) : 0;
     sheetBase.current = target;
     setCollapsed(toCollapsed);
     Animated.spring(sheetY, { toValue: target, useNativeDriver: true, bounciness: 4 }).start();
@@ -239,7 +262,7 @@ export default function HomeScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
       onPanResponderMove: (_, g) => {
-        const max = Math.max(sheetHeight.current - PEEK, 0);
+        const max = Math.max(sheetHeight.current - sheetBottomPad.current - PEEK, 0);
         sheetY.setValue(Math.min(Math.max(sheetBase.current + g.dy, 0), max));
       },
       onPanResponderRelease: (_, g) => {
@@ -287,33 +310,23 @@ export default function HomeScreen() {
   // Animate map so the pin lands in the centre of the visible area
   // between the search bar (top) and the venue card (bottom).
   const zoomToVenue = useCallback((venue: VenuePin, animated = true) => {
-    const LAT_DELTA = 0.018;
-    const LNG_DELTA = 0.012;
+    // Keep the zoom the user chose: only move the map so the pin sits in the free area between the
+    // search bar and the card. (Zooming in on every tap hid the surrounding pins.)
+    const current = regionRef.current;
+    const latDelta = current?.latitudeDelta ?? 0.018;
+    const lngDelta = current?.longitudeDelta ?? 0.012;
 
-    // Pixel heights of the UI that covers the map
-    const TOP_CLEARANCE    = 110;                          // safe area + search bar
-    const CARD_HEIGHT      = 190;                          // approximate venue card height
+    const TOP_CLEARANCE = 110;
+    const CARD_HEIGHT = 190;
     const BOTTOM_CLEARANCE = TAB_BAR_HEIGHT + insets.bottom + CARD_HEIGHT;
-
-    // Y position (px from top) we want the pin to sit at
-    const usableH  = height - TOP_CLEARANCE - BOTTOM_CLEARANCE;
-    const targetY  = TOP_CLEARANCE + usableH * 0.5;
-
-    // How many px is targetY above the screen centre?
-    const pxAboveCenter = height / 2 - targetY;           // positive → above centre
-
-    // Convert to a latitude delta shift:
-    // (px / screenHeight) × LAT_DELTA gives the lat fraction
-    const latShift = (pxAboveCenter / height) * LAT_DELTA;
+    const usableH = height - TOP_CLEARANCE - BOTTOM_CLEARANCE;
+    const targetY = TOP_CLEARANCE + usableH * 0.5;
+    const pxAboveCenter = height / 2 - targetY;
+    const latShift = (pxAboveCenter / height) * latDelta;
 
     mapRef.current?.animateToRegion(
-      {
-        latitude:      venue.lat - latShift,
-        longitude:     venue.lng,
-        latitudeDelta: LAT_DELTA,
-        longitudeDelta: LNG_DELTA,
-      },
-      animated ? 450 : 0
+      { latitude: venue.lat - latShift, longitude: venue.lng, latitudeDelta: latDelta, longitudeDelta: lngDelta },
+      animated ? 350 : 0
     );
   }, [insets.bottom]);
 
@@ -495,6 +508,7 @@ export default function HomeScreen() {
 
 
   const selectedVenue = venues.find((v) => v.id === selectedId);
+  sheetBottomPad.current = insets.bottom + TAB_BAR_HEIGHT;
 
   useEffect(() => {
     setPhotoIndex(0);
@@ -547,10 +561,10 @@ export default function HomeScreen() {
         showsBuildings={false}
         showsTraffic={false}
       >
-        {/* Selected pin last so it sits on top */}
         {venues.map((pin) => (
-          <VenueMarker key={pin.id} pin={pin} isSelected={selectedId === pin.id} onPress={selectVenue} />
+          <VenueMarker key={pin.id} pin={pin} onPress={selectVenue} />
         ))}
+        {selectedVenue ? <SelectedMarker key={`sel-${selectedVenue.id}`} pin={selectedVenue} /> : null}
       </MapView>
 
       {/* Search Bar overlay */}
@@ -630,17 +644,28 @@ export default function HomeScreen() {
                       setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / (width - 32)))
                     }
                     renderItem={({ item }) => (
-                      <Image source={{ uri: item }} style={[styles.venueImage, { width: width - 32 }]} resizeMode="cover" />
+                      <Pressable
+                        onPress={() =>
+                          router.push(`/home/details?id=${selectedVenue.id}&distance=${encodeURIComponent(selectedVenue.distance ?? "")}`)
+                        }
+                      >
+                        <Image source={{ uri: item }} style={[styles.venueImage, { width: width - 32 }]} resizeMode="cover" />
+                      </Pressable>
                     )}
                   />
                 ) : (
-                  <View style={[styles.venueImage, styles.noImagePlaceholder]}>
+                  <Pressable
+                    style={[styles.venueImage, styles.noImagePlaceholder]}
+                    onPress={() =>
+                      router.push(`/home/details?id=${selectedVenue.id}&distance=${encodeURIComponent(selectedVenue.distance ?? "")}`)
+                    }
+                  >
                     <Ionicons
                       name={selectedVenue.icon as any}
                       size={40}
                       color={Colors.textSecondary}
                     />
-                  </View>
+                  </Pressable>
                 )}
                 {photos.length > 1 && (
                   <View style={styles.photoDots} pointerEvents="none">
@@ -809,6 +834,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  mapPillBig: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 14, borderWidth: 2 },
   mapPillSelected: {
     backgroundColor: Colors.white,
     borderColor: Colors.white,
@@ -829,7 +855,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  sheetHandleArea: { alignItems: "center", paddingTop: 6, paddingBottom: 8 },
+  sheetHandleArea: { alignItems: "center", paddingTop: 10, paddingBottom: 12, backgroundColor: "rgba(20,22,26,0.55)", borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   sheetHandle: { width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
   sheetCount: { color: Colors.text, fontSize: 12, fontWeight: "600", marginTop: 6 },
   photoDots: { position: "absolute", bottom: 8, alignSelf: "center", flexDirection: "row", gap: 5 },
