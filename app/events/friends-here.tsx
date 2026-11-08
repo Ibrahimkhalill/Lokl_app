@@ -66,7 +66,7 @@ export default function FriendsHereScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={friends}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}

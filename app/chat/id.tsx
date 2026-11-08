@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -315,7 +316,7 @@ const handleTyping = useCallback(() => {
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
         {userId ? (
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setSafetyOpen(true)} accessibilityLabel="More options">
+          <TouchableOpacity style={styles.iconBtn} onPress={() => { Keyboard.dismiss(); setSafetyOpen(true); }} accessibilityLabel="More options">
             <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text} />
           </TouchableOpacity>
         ) : (
@@ -332,7 +333,7 @@ const handleTyping = useCallback(() => {
             <ActivityIndicator size="large" color={Colors.primary} />
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             ref={listRef}
             data={messages}
             inverted

@@ -82,7 +82,7 @@ export default function CreatePostScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView keyboardDismissMode="on-drag" style={styles.content}>
         <TextInput
           style={styles.input}
           placeholder="What's on your mind?"

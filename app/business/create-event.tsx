@@ -12,6 +12,7 @@ import {
   Switch,
   ActivityIndicator,
   TextInput,
+  Keyboard,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -252,7 +253,7 @@ export default function CreateEventScreen() {
           />
         </View>
 
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -328,7 +329,7 @@ export default function CreateEventScreen() {
           <Text style={s.label}>Location*</Text>
           <TouchableOpacity
             style={[s.pickerField, s.locationField]}
-            onPress={() => setLocationPickerVisible(true)}
+            onPress={() => { Keyboard.dismiss(); setLocationPickerVisible(true); }}
             activeOpacity={0.8}
           >
             <Ionicons
@@ -623,7 +624,7 @@ export default function CreateEventScreen() {
             </View>
           </View>
 
-          <ScrollView
+          <ScrollView keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={s.venueList}

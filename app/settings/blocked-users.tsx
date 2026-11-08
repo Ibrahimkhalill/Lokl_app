@@ -59,7 +59,7 @@ export default function BlockedUsersScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={Colors.primary} />
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={users}
           keyExtractor={(u) => String(u.id)}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}

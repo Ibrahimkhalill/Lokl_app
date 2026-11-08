@@ -633,7 +633,7 @@ export default function HomeScreen() {
               {/* Photos: swipe sideways to look through them */}
               <View style={styles.venueImageWrap}>
                 {photos.length > 0 ? (
-                  <FlatList
+                  <FlatList keyboardDismissMode="on-drag"
                     data={photos}
                     keyExtractor={(uri, i) => `${i}-${uri}`}
                     horizontal

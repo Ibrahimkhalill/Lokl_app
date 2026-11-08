@@ -46,7 +46,7 @@ export function PostMediaGallery({ media, autoplay }: { media: PostMediaItem[]; 
 
   return (
     <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width) || DEFAULT_WIDTH)}>
-      <FlatList
+      <FlatList keyboardDismissMode="on-drag"
         data={media}
         keyExtractor={(m, i) => `${i}-${m.url}`}
         horizontal
@@ -78,7 +78,7 @@ export function PostMediaGallery({ media, autoplay }: { media: PostMediaItem[]; 
       <Modal visible={viewerAt !== null} transparent animationType="fade" onRequestClose={() => setViewerAt(null)}>
         <StatusBar hidden />
         <View style={styles.viewer}>
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             ref={viewerRef}
             data={images}
             keyExtractor={(m) => String(m.i)}

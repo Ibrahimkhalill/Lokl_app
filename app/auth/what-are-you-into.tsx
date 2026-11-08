@@ -90,7 +90,7 @@ export default function WhatAreYouInto() {
         </View>
 
         {/* Tags */}
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           style={styles.tagsScroll}
           keyboardShouldPersistTaps="handled"

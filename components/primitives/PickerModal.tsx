@@ -90,7 +90,7 @@ export function PickerModal({
           )}
 
           {/* List */}
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={filtered}
             keyExtractor={(item) => item.value}
             keyboardShouldPersistTaps="handled"

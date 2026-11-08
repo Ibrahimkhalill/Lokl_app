@@ -197,7 +197,7 @@ export default function Account() {
         <View style={s.divider} />
         <TouchableOpacity 
           style={s.row}
-          onPress={() => setPasswordModalVisible(true)}
+          onPress={() => { Keyboard.dismiss(); setPasswordModalVisible(true); }}
         >
           <Text style={s.rowLabel}>Change Password</Text>
           <LockIcon width={24} height={24} color={Colors.text} />
@@ -208,7 +208,7 @@ export default function Account() {
       <View style={s.deleteSection}>
         <TouchableOpacity 
           style={s.deleteRow}
-          onPress={() => setDeleteModalVisible(true)}
+          onPress={() => { Keyboard.dismiss(); setDeleteModalVisible(true); }}
         >
           <Text style={s.deleteLabel}>Delete Account</Text>
           <DeleteIcon width={24} height={24} color="#FF4444" />
@@ -237,7 +237,7 @@ export default function Account() {
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView 
+                <ScrollView keyboardDismissMode="on-drag" 
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={s.modalScrollContent}
@@ -328,7 +328,7 @@ export default function Account() {
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView 
+                <ScrollView keyboardDismissMode="on-drag" 
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={s.modalScrollContent}

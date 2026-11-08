@@ -4,8 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
-} from "react-native";
+  FlatList, Keyboard } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -293,7 +292,7 @@ export default function UserProfileScreen() {
         {!is_me && !!profile ? (
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => setMenuOpen(true)}
+            onPress={() => { Keyboard.dismiss(); setMenuOpen(true); }}
             accessibilityLabel="More options"
           >
             <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text} />
@@ -309,7 +308,7 @@ export default function UserProfileScreen() {
           {Array.from({ length: 2 }).map((_, i) => <PostCardSkeleton key={i} />)}
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={posts}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}

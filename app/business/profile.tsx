@@ -182,7 +182,7 @@ export default function BusinessProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
+      <ScrollView keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={

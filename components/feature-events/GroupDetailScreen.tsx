@@ -8,8 +8,7 @@ import {
   Image,
   ActivityIndicator,
   TextInput,
-  Modal,
-} from "react-native";
+  Modal, Keyboard } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -337,7 +336,7 @@ export default function GroupDetailScreen() {
 
   return (
     <View style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
         {/* Hero cover - same as before */}
         <TouchableOpacity
           style={s.hero}
@@ -419,7 +418,7 @@ export default function GroupDetailScreen() {
 
           {isAdmin ? (
             <View style={s.actionRow}>
-              <TouchableOpacity style={s.outlineBtn} onPress={() => setInviteOpen(true)}>
+              <TouchableOpacity style={s.outlineBtn} onPress={() => { Keyboard.dismiss(); setInviteOpen(true); }}>
                 <Text style={s.outlineBtnText}>Invite</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.outlineBtn} onPress={() => router.push(`/chat/id?group_id=${groupId}&name=${encodeURIComponent(group.name)}` as never)}>

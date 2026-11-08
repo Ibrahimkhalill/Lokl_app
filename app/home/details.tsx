@@ -346,12 +346,12 @@ export default function DetailsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
 
         {/* ── Hero Image Carousel ───────────────────────────────────────── */}
         <View style={styles.heroWrap}>
           {allPhotos.length > 0 ? (
-            <FlatList
+            <FlatList keyboardDismissMode="on-drag"
               ref={heroListRef}
               data={allPhotos}
               keyExtractor={(uri, i) => `${i}-${uri}`}
@@ -461,7 +461,7 @@ export default function DetailsScreen() {
           </View>
 
           {/* Action Buttons */}
-          <ScrollView
+          <ScrollView keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.actionsScroll}
@@ -742,7 +742,7 @@ export default function DetailsScreen() {
           ) : groups.length === 0 ? (
             <Text style={styles.modalEmpty}>You haven&apos;t joined any groups yet.</Text>
           ) : (
-            <FlatList
+            <FlatList keyboardDismissMode="on-drag"
               data={groups}
               keyExtractor={(g) => String(g.id)}
               renderItem={({ item }) => (

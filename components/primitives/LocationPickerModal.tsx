@@ -187,7 +187,7 @@ export function LocationPickerModal({ visible, onClose, onSelect }: Props) {
             <Text style={styles.nearbyLoadingText}>Finding nearby places…</Text>
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={displayList}
             keyExtractor={(item) => item.place_id}
             keyboardShouldPersistTaps="handled"

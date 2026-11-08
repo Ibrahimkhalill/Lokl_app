@@ -93,7 +93,7 @@ export default function FiltersScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <ScrollView keyboardDismissMode="on-drag"
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >

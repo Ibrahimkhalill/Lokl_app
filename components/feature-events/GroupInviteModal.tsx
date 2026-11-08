@@ -82,7 +82,7 @@ export function GroupInviteModal({
           {loading ? (
             <ActivityIndicator color={Colors.primary} style={{ marginVertical: 30 }} />
           ) : (
-            <FlatList
+            <FlatList keyboardDismissMode="on-drag"
               data={friends}
               keyExtractor={(f) => String(f.id)}
               style={{ maxHeight: 360 }}

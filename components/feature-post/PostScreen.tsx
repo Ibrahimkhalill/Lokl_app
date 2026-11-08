@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
   TextInput,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -282,7 +283,7 @@ export default function PostScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -316,7 +317,7 @@ export default function PostScreen() {
             />
           ) : (
             <View style={styles.mediaStrip}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+              <ScrollView keyboardDismissMode="on-drag" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                 {mediaItems.map((m, i) => (
                   <View key={`${m.uri}-${i}`} style={styles.mediaThumbWrap}>
                     {/* contain: the whole picture is visible, the way it will look in the post */}
@@ -376,7 +377,7 @@ export default function PostScreen() {
           <Text style={styles.label}>Tag your Groups</Text>
           <TouchableOpacity
             style={styles.dropdownBtn}
-            onPress={() => setShowGroupModal(true)}
+            onPress={() => { Keyboard.dismiss(); setShowGroupModal(true); }}
           >
             <TagIcon width={16} height={16} color={Colors.textSecondary} />
             {selectedGroupNames.length > 0 ? (
@@ -397,7 +398,7 @@ export default function PostScreen() {
           <Text style={styles.label}>Tag a friend</Text>
           <TouchableOpacity
             style={styles.dropdownBtn}
-            onPress={() => setShowFriendModal(true)}
+            onPress={() => { Keyboard.dismiss(); setShowFriendModal(true); }}
           >
             <TagIcon width={16} height={16} color={Colors.textSecondary} />
             {selectedFriendNames.length > 0 ? (
@@ -452,7 +453,7 @@ export default function PostScreen() {
           <Text style={styles.label}>Where you want to post?</Text>
           <TouchableOpacity
             style={styles.dropdownBtn}
-            onPress={() => setShowPostToModal((prev) => !prev)}
+            onPress={() => { Keyboard.dismiss(); setShowPostToModal((prev) => !prev); }}
           >
             <Text style={styles.dropdownPlaceholder}>
               {postToGroupIds.length === 0
@@ -559,7 +560,7 @@ export default function PostScreen() {
           <TagIcon width={16} height={16} color={Colors.textSecondary} />
           <Text style={styles.groupsFieldText}>Choose Groups</Text>
         </View>
-        <ScrollView style={styles.sheetList}>
+        <ScrollView keyboardDismissMode="on-drag" style={styles.sheetList}>
           {loadingGroups ? (
             <View style={styles.sheetLoading}>
               <ActivityIndicator size="large" color={Colors.primary} />
@@ -614,7 +615,7 @@ export default function PostScreen() {
           <TagIcon width={16} height={16} color={Colors.textSecondary} />
           <Text style={styles.groupsFieldText}>Tag Friends</Text>
         </View>
-        <ScrollView style={styles.sheetList}>
+        <ScrollView keyboardDismissMode="on-drag" style={styles.sheetList}>
           {loadingFriends ? (
             <View style={styles.sheetLoading}>
               <ActivityIndicator size="large" color={Colors.primary} />

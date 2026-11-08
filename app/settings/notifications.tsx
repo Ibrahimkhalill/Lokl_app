@@ -158,7 +158,7 @@ export default function NotificationsSettingScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
           {/* Channels */}
           <View style={s.card}>
             <Text style={s.sectionTitle}>NOTIFICATION CHANNELS</Text>

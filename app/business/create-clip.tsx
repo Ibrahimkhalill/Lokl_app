@@ -120,7 +120,7 @@ export default function CreateClipScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           style={{ flex: 1 }}
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"

@@ -128,7 +128,7 @@ export default function StreaksScreen() {
         ))}
       </View>
 
-      <ScrollView
+      <ScrollView keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         refreshControl={

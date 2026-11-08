@@ -299,7 +299,7 @@ export default function NotificationsScreen() {
           {Array.from({ length: 6 }).map((_, i) => <NotifRowSkeleton key={i} />)}
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={listData}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}

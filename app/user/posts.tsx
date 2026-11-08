@@ -84,7 +84,7 @@ export default function SavedPostsScreen() {
           {Array.from({ length: 3 }).map((_, i) => <PostCardSkeleton key={i} />)}
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={savedPosts}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}

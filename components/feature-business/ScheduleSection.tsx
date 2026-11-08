@@ -10,8 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
-} from "react-native";
+  Platform, Keyboard } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetModal,
@@ -224,7 +223,7 @@ export default function ScheduleSection({ slots, isOwner, businessProfileId, onU
           <Text style={sharedStyles.modalLabel}>Day</Text>
           <TouchableOpacity
             style={sharedStyles.modalPickerBtn}
-            onPress={() => setDayPickerVisible(true)}
+            onPress={() => { Keyboard.dismiss(); setDayPickerVisible(true); }}
           >
             <Text style={sharedStyles.modalPickerBtnText}>{slotDay}</Text>
             <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
@@ -233,7 +232,7 @@ export default function ScheduleSection({ slots, isOwner, businessProfileId, onU
           <Text style={sharedStyles.modalLabel}>Time</Text>
           <TouchableOpacity
             style={sharedStyles.modalPickerBtn}
-            onPress={() => setShowTimePicker(true)}
+            onPress={() => { Keyboard.dismiss(); setShowTimePicker(true); }}
           >
             <Text style={sharedStyles.modalPickerBtnText}>{formatTimeDisplay(slotTime)}</Text>
             <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
@@ -300,7 +299,7 @@ export default function ScheduleSection({ slots, isOwner, businessProfileId, onU
               <Text style={sharedStyles.pickerDone}>Done</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView>
+          <ScrollView keyboardDismissMode="on-drag">
             {DAYS.map((day) => {
               const active = day === slotDay;
               return (

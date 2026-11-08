@@ -268,7 +268,7 @@ export default function EventDetailsScreen() {
 
   return (
     <View style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={s.hero}>
           {event.cover_image_url ? (
@@ -357,7 +357,7 @@ export default function EventDetailsScreen() {
           <Text style={s.title}>{event.title.toUpperCase()}</Text>
 
           {/* Meta row — horizontal scroll so all chips stay in one line */}
-          <ScrollView
+          <ScrollView keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.metaRow}

@@ -54,7 +54,7 @@ export default function FriendsThinkScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>What your friends think</Text>
 
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={FRIENDS}
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <View style={styles.separator} />}

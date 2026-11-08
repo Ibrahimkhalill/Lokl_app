@@ -85,7 +85,7 @@ export default function MessagesScreen() {
           {Array.from({ length: 6 }).map((_, i) => <ChatRowSkeleton key={i} />)}
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={filtered}
           keyExtractor={(item) => `${item.type}-${item.id}`}
           showsVerticalScrollIndicator={false}

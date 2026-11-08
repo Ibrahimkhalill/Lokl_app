@@ -291,7 +291,7 @@ export function TrainingLocations({
           </View>
 
           {/* Results */}
-          <ScrollView
+          <ScrollView keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.listContent}

@@ -115,7 +115,7 @@ export default function MembersScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={filtered}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}

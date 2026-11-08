@@ -56,7 +56,7 @@ export default function PostLikesScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={users}
           keyExtractor={(item) => String(item.id)}
           ListHeaderComponent={

@@ -5,8 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Vibration,
-} from "react-native";
+  Vibration, Keyboard } from "react-native";
 import { usePreferences } from "../../context/PreferencesContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -166,7 +165,7 @@ export const PostCard = React.memo(function PostCard({
         </TouchableOpacity>
         {canReport && (
           <TouchableOpacity
-            onPress={() => setMenuOpen(true)}
+            onPress={() => { Keyboard.dismiss(); setMenuOpen(true); }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.moreBtn}
             accessibilityLabel="More options"

@@ -275,7 +275,7 @@ export default function SearchScreen() {
 
         {hoodOpen && (
           <View style={styles.hoodDropdown}>
-            <FlatList
+            <FlatList keyboardDismissMode="on-drag"
               data={hoodMatches}
               keyExtractor={(n) => n}
               keyboardShouldPersistTaps="handled"
@@ -293,7 +293,7 @@ export default function SearchScreen() {
         {/* Categories */}
         <View style={styles.categorySection}>
           <Text style={styles.categoryTitle}>Choose Categories</Text>
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             horizontal
             showsHorizontalScrollIndicator={false}
             data={CATEGORIES}
@@ -326,7 +326,7 @@ export default function SearchScreen() {
             <ActivityIndicator color={Colors.primary} size="large" />
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={showRecent ? recentVenues : results}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderResult}

@@ -83,7 +83,7 @@ export default function GalleryScreen() {
       ) : images.length === 0 ? (
         <EmptyState icon="images-outline" title="No photos yet" subtitle="No one has added photos to this event" />
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={images}
           keyExtractor={(item) => String(item.id)}
           numColumns={3}

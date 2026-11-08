@@ -86,7 +86,7 @@ export default function ReviewsScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={reviews}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={reviews.length === 0 ? s.centerContent : s.list}

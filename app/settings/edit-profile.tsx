@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -230,7 +231,7 @@ function BusinessEditForm() {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView keyboardDismissMode="on-drag" contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={s.fieldLabel}>Profile Photo</Text>
       <MediaPickerCard
         height={150}
@@ -259,7 +260,7 @@ function BusinessEditForm() {
           value={businessType}
           placeholder="Select business type"
           rightSlot={<ChevronDownIcon width={18} height={18} color={Colors.textSecondary} />}
-          onPress={() => setShowTypePicker(true)}
+          onPress={() => { Keyboard.dismiss(); setShowTypePicker(true); }}
         />
       </FormField>
 
@@ -473,7 +474,7 @@ function UserEditForm() {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView keyboardDismissMode="on-drag" contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={s.circlePhotoSection}>
         <TouchableOpacity
           style={s.circlePhotoWrap}

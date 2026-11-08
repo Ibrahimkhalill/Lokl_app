@@ -86,7 +86,7 @@ export function LegalDocumentScreen({ doc }: { doc: LegalDoc }) {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardDismissMode="on-drag" contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           <Text style={s.meta}>Effective {data.effective} · Lokl, Inc.</Text>
 
           <View style={s.card}>

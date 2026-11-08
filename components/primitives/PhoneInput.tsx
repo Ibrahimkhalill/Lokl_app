@@ -8,8 +8,7 @@ import {
   FlatList,
   StyleSheet,
   Pressable,
-  Dimensions,
-} from "react-native";
+  Dimensions, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -101,7 +100,7 @@ export function PhoneInput({
       >
         <TouchableOpacity
           style={styles.flagBtn}
-          onPress={() => setPickerVisible(true)}
+          onPress={() => { Keyboard.dismiss(); setPickerVisible(true); }}
           activeOpacity={0.7}
         >
           <Text style={styles.flagEmoji}>{getFlag(country.code)}</Text>
@@ -164,7 +163,7 @@ export function PhoneInput({
             )}
           </View>
 
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={filtered}
             keyExtractor={(item) => item.code}
             renderItem={({ item }) => (

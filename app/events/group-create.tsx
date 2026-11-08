@@ -14,6 +14,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -156,7 +157,7 @@ function PickerModal({
             </TouchableOpacity>
           </View>
         </View>
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={items}
           keyExtractor={(i) => i.value}
           showsVerticalScrollIndicator={false}
@@ -282,7 +283,7 @@ export default function GroupCreateScreen() {
           <Text style={s.headerTitle}>Create Group</Text>
         </View>
 
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -331,7 +332,7 @@ export default function GroupCreateScreen() {
           <FormField label="Activity / Sport" labelStyle={s.fieldLabel}>
             <TouchableOpacity
               style={s.dropdownBtn}
-              onPress={() => setShowActivityPicker(true)}
+              onPress={() => { Keyboard.dismiss(); setShowActivityPicker(true); }}
               activeOpacity={0.7}
             >
               <Text style={[s.dropdownText, !!activityLabel && s.dropdownTextSelected]}>
@@ -345,7 +346,7 @@ export default function GroupCreateScreen() {
           <FormField label="Neighborhood" labelStyle={s.fieldLabel}>
             <TouchableOpacity
               style={s.dropdownBtn}
-              onPress={() => setShowNeighborhoodPicker(true)}
+              onPress={() => { Keyboard.dismiss(); setShowNeighborhoodPicker(true); }}
               activeOpacity={0.7}
             >
               <Text style={[s.dropdownText, !!neighborhoodLabel && s.dropdownTextSelected]}>
@@ -403,7 +404,7 @@ export default function GroupCreateScreen() {
 
           {/* Meetup Location */}
           <FormField label="Meetup Location" labelStyle={s.fieldLabel}>
-            <TouchableOpacity style={s.locationBtn} onPress={() => setLocationModalVisible(true)} activeOpacity={0.7}>
+            <TouchableOpacity style={s.locationBtn} onPress={() => { Keyboard.dismiss(); setLocationModalVisible(true); }} activeOpacity={0.7}>
               <Ionicons name="location-outline" size={18} color={meetupLocation ? Colors.primary : Colors.textMuted} />
               <Text style={[s.locationBtnText, meetupLocation && s.locationBtnTextSelected]} numberOfLines={1}>
                 {meetupLocation ? meetupLocation.address : "Search or enter a location..."}

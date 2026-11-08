@@ -155,7 +155,7 @@ export default function PostVenueSearch() {
             <ActivityIndicator color={Colors.primary} size="large" />
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={results}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}

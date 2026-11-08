@@ -507,7 +507,7 @@ export default function EventsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.title}>EVENTS & GROUPS</Text>
           <Text style={s.subtitle}>Join local sports activities and meet new people</Text>
@@ -526,7 +526,7 @@ export default function EventsScreen() {
           />
         </View>
 
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           horizontal
           showsHorizontalScrollIndicator={false}
           style={s.tabsScroll}
@@ -547,7 +547,7 @@ export default function EventsScreen() {
 
         {activeTab === "events" && (
           <>
-            {/* <ScrollView
+            {/* <ScrollView keyboardDismissMode="on-drag"
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.filterContent}
@@ -577,7 +577,7 @@ export default function EventsScreen() {
                 subtitle="Try adjusting your filters or search"
               />
             ) : (
-              <FlatList
+              <FlatList keyboardDismissMode="on-drag"
                 data={filteredEvents}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={renderEventCard}
@@ -610,7 +610,7 @@ export default function EventsScreen() {
             />
           ) : (
             <View style={s.groupsList}>
-              <FlatList
+              <FlatList keyboardDismissMode="on-drag"
                 data={displayGroups}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={renderGroupCard}

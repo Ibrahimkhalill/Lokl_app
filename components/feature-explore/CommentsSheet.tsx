@@ -331,7 +331,7 @@ export default function CommentsSheet({ visible, postId, onClose, onCommentAdded
               <ActivityIndicator size="large" color={Colors.primary} />
             </View>
           ) : (
-            <FlatList
+            <FlatList keyboardDismissMode="on-drag"
               data={comments}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (

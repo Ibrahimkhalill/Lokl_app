@@ -210,7 +210,7 @@ export default function FollowScreen() {
             <View style={styles.center}><ActivityIndicator size="large" color={"#51A2FF"} /></View>
           </>
         ) : (
-          <FlatList
+          <FlatList keyboardDismissMode="on-drag"
             data={displayPosts}
             keyExtractor={(item) => String(item.id)}
             ListHeaderComponent={renderHeader}
@@ -264,7 +264,7 @@ export default function FollowScreen() {
           <View style={styles.center}><ActivityIndicator size="large" color={"#51A2FF"} /></View>
         </>
       ) : (
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={listData}
           keyExtractor={(item) => String(item.id)}
           ListHeaderComponent={renderHeader}

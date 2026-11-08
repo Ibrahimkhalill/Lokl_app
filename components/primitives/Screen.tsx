@@ -26,7 +26,7 @@ export function Screen({ children, scrollable = false, style }: ScreenProps) {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
-          <ScrollView
+          <ScrollView keyboardDismissMode="on-drag"
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

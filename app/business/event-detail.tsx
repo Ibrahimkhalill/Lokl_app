@@ -239,7 +239,7 @@ export default function HostEventDetailScreen() {
 
   return (
     <View style={s.safe}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         {/* Hero */}
         <View style={s.hero}>
           {event.cover_image_url ? (

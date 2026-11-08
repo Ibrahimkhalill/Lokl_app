@@ -9,8 +9,7 @@ import {
   Pressable,
   Alert,
   Switch,
-  Linking,
-} from "react-native";
+  Linking, Keyboard } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetModal,
@@ -249,7 +248,7 @@ export function ContactSection({
           <View style={styles.contactRow}>
             <TouchableOpacity
               style={[sharedStyles.modalPickerBtn, { flex: 0, marginBottom: 0, paddingVertical: 12 }]}
-              onPress={() => setPlatformPickerVisible(true)}
+              onPress={() => { Keyboard.dismiss(); setPlatformPickerVisible(true); }}
               activeOpacity={0.8}
             >
               <Ionicons name={socialIcon(selectedPlatform) as any} size={18} color={Colors.primary} />

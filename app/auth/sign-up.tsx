@@ -6,8 +6,7 @@ import {
   StyleSheet,
   Platform,
   Modal,
-  Pressable,
-} from "react-native";
+  Pressable, Keyboard } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -123,7 +122,7 @@ export default function SignUp() {
       />
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => setShowDobPicker(true)}
+        onPress={() => { Keyboard.dismiss(); setShowDobPicker(true); }}
         style={styles.dobBlock}
       >
         <Text style={styles.dobLabel}>Date of Birth*</Text>

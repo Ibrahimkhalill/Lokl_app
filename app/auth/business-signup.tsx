@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { BackButton, Input, PhoneInput, PrimaryButton } from "../../components/ui";
@@ -369,7 +370,7 @@ const handleSignUp = async () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
-        <ScrollView
+        <ScrollView keyboardDismissMode="on-drag"
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -423,7 +424,7 @@ const handleSignUp = async () => {
                 color={Colors.textSecondary}
               />
             }
-            onPress={() => setShowTypeModal(true)}
+            onPress={() => { Keyboard.dismiss(); setShowTypeModal(true); }}
           />
           {businessTypeError ? <Text style={styles.errorText}>{businessTypeError}</Text> : null}
         </View>
@@ -618,7 +619,7 @@ const handleSignUp = async () => {
             onChangeText={setTypeSearch}
           />
         </View>
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={filteredTypes}
           keyExtractor={keyByValue}
           renderItem={renderBusinessTypeItem}
@@ -637,7 +638,7 @@ const handleSignUp = async () => {
         onClose={() => setShowSocialModal(false)}
         title="Select social media type"
       >
-        <FlatList
+        <FlatList keyboardDismissMode="on-drag"
           data={SOCIAL_PLATFORMS}
           keyExtractor={(item) => item.name}
           renderItem={({ item }) => (
