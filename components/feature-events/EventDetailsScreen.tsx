@@ -157,7 +157,8 @@ export default function EventDetailsScreen() {
       if (currentUser?.id && hostId && Number(currentUser.id) === Number(hostId)) {
         eventService.getJoinRequests(Number(id)).then((r) => {
           const d = r.data?.data ?? r.data;
-          setJoinRequests(Array.isArray(d) ? d : []);
+          const list = Array.isArray(d) ? d : [];
+          setJoinRequests(list.filter((r: { status?: string }) => !r.status || r.status === "Pending"));
         }).catch(() => {});
       }
     } catch (e) {
@@ -294,7 +295,7 @@ export default function EventDetailsScreen() {
               }
             </TouchableOpacity>
           )}
-          {!isHost && !event.is_registered && event.is_private && !event.join_request_status && (
+          {!isHost && !event.is_registered && event.is_private && event.join_request_status !== "Pending" && (
             <TouchableOpacity style={s.joinBtn} onPress={handleRequestToJoin} disabled={requestingJoin}>
               {requestingJoin
                 ? <ActivityIndicator size="small" color={Colors.black} />
@@ -363,6 +364,12 @@ export default function EventDetailsScreen() {
             style={{ marginBottom: 14 }}
           >
             <View style={[s.metaTypeView, event.is_private ? s.privateBadge : s.publicBadge]}>
+              <Ionicons
+                name={event.is_private ? "lock-closed" : "people"}
+                size={13}
+                color={event.is_private ? Colors.primary : "#05DF72"}
+                style={{ marginRight: 5 }}
+              />
               <Text style={[s.metaText, event.is_private ? s.privateBadgeText : s.publicBadgeText]}>
                 {event.is_private ? "Private" : "Public"}
               </Text>
@@ -474,7 +481,7 @@ export default function EventDetailsScreen() {
             >
               <View style={s.friendsHeader}>
                 <FriendsIcon width={18} height={18} color={Colors.primary} />
-                <Text style={s.friendsTitle}>FRIENDS HERE</Text>
+                <Text style={s.friendsTitle}>ATTENDING</Text>
               </View>
               <View style={s.friendRow}>
                 <View style={s.friendAvatars}>
@@ -500,7 +507,6 @@ export default function EventDetailsScreen() {
                     {event.participants.slice(0, 2).map((p) => p.name.split(" ")[0]).join(", ")}
                     {event.participants.length > 2 ? ` +${event.participants.length - 2}` : ""}
                   </Text>
-                  <Text style={s.friendStatus}>are here now</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -726,9 +732,9 @@ const s = StyleSheet.create({
   },
   seeAll: { color: Colors.textSecondary, fontSize: 13 },
 
-  publicBadge: { borderColor: "#05DF72", backgroundColor: "rgba(5,223,114,0.1)" },
+  publicBadge: { borderColor: "#05DF72", backgroundColor: "rgba(5,223,114,0.1)", flexDirection: "row", alignItems: "center" },
   publicBadgeText: { color: "#05DF72" },
-  privateBadge: { borderColor: Colors.primary, backgroundColor: "rgba(123,97,255,0.1)" },
+  privateBadge: { borderColor: Colors.primary, backgroundColor: "rgba(123,97,255,0.1)", flexDirection: "row", alignItems: "center" },
   privateBadgeText: { color: Colors.primary },
 
   organizerBadge: {

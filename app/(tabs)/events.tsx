@@ -490,7 +490,7 @@ export default function EventsScreen() {
         <View>
           <Text style={s.greeting}>Hi, {(user?.name || user?.username || "there").split(" ").slice(0, 2).join(" ")}</Text>
           <Text style={s.greetingSub}>
-            {activeTab === "events" ? "Find an event" : "joined the event"}
+            {activeTab === "events" ? "Find an event" : activeTab === "allGroups" ? "Find a group" : "My Groups"}
           </Text>
         </View>
         <View style={s.headerActions}>
@@ -517,7 +517,7 @@ export default function EventsScreen() {
           <SearchIcon width={20} height={20} color={Colors.textSecondary} />
           <TextInput
             style={s.searchInput}
-            placeholder="Search events..."
+            placeholder="Search Events and Groups..."
             placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
