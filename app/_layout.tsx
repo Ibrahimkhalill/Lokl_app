@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Colors } from "../constants/colors";
+import { BadgeCelebration } from "../components/feature-profile/BadgeCelebration";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { PreferencesProvider } from "../context/PreferencesContext";
@@ -88,6 +89,7 @@ export default function RootLayout() {
     <BottomSheetModalProvider>
     <AuthProvider>
       <SessionTracker />
+      <BadgeCelebration />
       <PreferencesProvider>
       <MessageProvider>
       <ToastProvider>
