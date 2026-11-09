@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { CategoryIcon } from "../../components/primitives/CategoryIcon";
 import { Colors } from "../../constants/colors";
 import { NEIGHBORHOODS } from "../../constants/neighborhoods";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -151,14 +152,17 @@ export default function FiltersScreen() {
               ]}
               onPress={() => setCategories((prev) => toggle(prev, cat))}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  categories.includes(cat) && styles.chipTextActive,
-                ]}
-              >
-                {cat}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <CategoryIcon type={cat} size={16} color={categories.includes(cat) ? Colors.black : Colors.textSecondary} />
+                <Text
+                  style={[
+                    styles.chipText,
+                    categories.includes(cat) && styles.chipTextActive,
+                  ]}
+                >
+                  {cat}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>

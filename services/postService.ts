@@ -24,6 +24,10 @@ export const postService = {
     return api.get("/groups/");
   },
 
+  getPost(id: number) {
+    return api.get(`/posts/${id}/`);
+  },
+
   likePost(id: number) {
     return api.post(`/posts/${id}/like/`);
   },

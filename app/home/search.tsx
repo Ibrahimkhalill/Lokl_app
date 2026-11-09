@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { CategoryIcon } from "../../components/primitives/CategoryIcon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../../constants/colors";
 import { NEIGHBORHOODS } from "../../constants/neighborhoods";
@@ -309,7 +310,7 @@ export default function SearchScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={[styles.categoryIconWrap, isActive && styles.categoryIconActive]}>
-                    <Ionicons name={cat.icon} size={22} color={iconColor} />
+                    <CategoryIcon type={cat.type} size={22} color={iconColor} />
                   </View>
                   <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
                     {cat.label}

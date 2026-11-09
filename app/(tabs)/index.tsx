@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { CategoryIcon } from "../../components/primitives/CategoryIcon";
 import { Colors } from "../../constants/colors";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
@@ -171,7 +172,7 @@ const VenueMarker = React.memo(function VenueMarker({
     >
       <View style={styles.markerOuter}>
         <View collapsable={false} style={styles.mapPill}>
-          <Ionicons name={pin.icon as keyof typeof Ionicons.glyphMap} size={14} color={Colors.white} />
+          <CategoryIcon type={pin.type} size={14} color={Colors.white} fallback={pin.icon} />
           <View collapsable={false}>
             <Text style={styles.mapPillScore}>{pin.score_display}</Text>
           </View>
@@ -201,7 +202,7 @@ const SelectedMarker = React.memo(function SelectedMarker({ pin }: { pin: VenueP
     >
       <View style={styles.markerOuter}>
         <View collapsable={false} style={[styles.mapPill, styles.mapPillSelected, styles.mapPillBig]}>
-          <Ionicons name={pin.icon as keyof typeof Ionicons.glyphMap} size={18} color={Colors.black} />
+          <CategoryIcon type={pin.type} size={18} color={Colors.black} fallback={pin.icon} />
           <View collapsable={false}>
             <Text style={[styles.mapPillScore, styles.mapPillScoreSelected, { fontSize: 16 }]}>{pin.score_display}</Text>
           </View>

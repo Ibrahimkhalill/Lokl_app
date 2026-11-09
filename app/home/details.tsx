@@ -48,6 +48,8 @@ interface VenuePhoto {
 }
 
 interface VenueDetail {
+  upcoming_events?: { id: number; title: string; date: string; time: string; cover_image_url: string | null }[];
+  neighborhood?: string | null;
   id: number;
   name: string;
   type: string;
@@ -77,6 +79,7 @@ interface VenueDetail {
 
 interface Review {
   id: number;
+  post_id?: number | null;
   user_name: string;
   user_avatar: string | null;
   rating: number;
@@ -87,6 +90,7 @@ interface Review {
 
 interface Friend {
   id: number;
+  post_id?: number | null;
   name: string;
   profile_picture: string | null;
   rating: number | null;
@@ -452,6 +456,12 @@ export default function DetailsScreen() {
             </Text>
             <View style={styles.metaDot} />
             <Text style={styles.metaText}>{venue.type}</Text>
+            {!!venue.neighborhood && (
+              <>
+                <View style={styles.metaDot} />
+                <Text style={styles.metaText}>{venue.neighborhood}</Text>
+              </>
+            )}
             {!!(userDistance || venue.distance) && (
               <>
                 <View style={styles.metaDot} />
@@ -633,6 +643,30 @@ export default function DetailsScreen() {
             </>
           )}
 
+          {/* Upcoming Events at this venue */}
+          {!!venue.upcoming_events?.length && (
+            <>
+              <Text style={styles.sectionTitle}>UPCOMING EVENTS</Text>
+              {venue.upcoming_events.map((ev) => (
+                <TouchableOpacity
+                  key={ev.id}
+                  style={styles.infoCard}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/events/event-details?id=${ev.id}` as never)}
+                >
+                  <Ionicons name="calendar-outline" size={22} color={Colors.primary} />
+                  <View style={styles.infoText}>
+                    <Text style={styles.infoLabel}>
+                      {new Date(`${ev.date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {ev.time}
+                    </Text>
+                    <Text style={styles.infoValue}>{ev.title}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
           {/* Friends' Rankings — shown above All Rankings */}
           {friends.length > 0 && (
             <>
@@ -640,7 +674,12 @@ export default function DetailsScreen() {
                 <Text style={styles.sectionTitle}>{"FRIENDS' RANKINGS"}</Text>
               </View>
               {friends.map((f) => (
-                <View key={f.id} style={styles.reviewCard}>
+                <TouchableOpacity
+                  key={f.id}
+                  style={styles.reviewCard}
+                  activeOpacity={f.post_id ? 0.8 : 1}
+                  onPress={() => f.post_id && router.push(`/explore/post?id=${f.post_id}` as never)}
+                >
                   <View style={styles.reviewTop}>
                     {f.profile_picture ? (
                       <Image source={{ uri: f.profile_picture }} style={styles.reviewAvatar} />
@@ -667,7 +706,7 @@ export default function DetailsScreen() {
                       </View>
                     )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </>
           )}
@@ -690,7 +729,12 @@ export default function DetailsScreen() {
             </Text>
           ) : (
             reviews.slice(0, 3).map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
+              <TouchableOpacity
+                key={review.id}
+                style={styles.reviewCard}
+                activeOpacity={review.post_id ? 0.8 : 1}
+                onPress={() => review.post_id && router.push(`/explore/post?id=${review.post_id}` as never)}
+              >
                 <View style={styles.reviewTop}>
                   {review.user_avatar ? (
                     <Image source={{ uri: review.user_avatar }} style={styles.reviewAvatar} />
@@ -715,7 +759,7 @@ export default function DetailsScreen() {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -1025,7 +1069,8 @@ const styles = StyleSheet.create({
   reviewText: {
     color: Colors.textSecondary,
     fontSize: 13,
-    lineHeight: 10,
+    lineHeight: 19,
+    marginBottom: 6,
   },
   reviewRatingBadge: {
     backgroundColor: Colors.primary,
