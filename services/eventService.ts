@@ -11,6 +11,14 @@ export const eventService = {
     return api.get(`/events/${id}/`);
   },
 
+  updateEvent(id: number, data: Record<string, unknown>) {
+    return api.patch(`/events/${id}/`, data);
+  },
+
+  cancelEvent(id: number) {
+    return api.post(`/events/${id}/cancel/`);
+  },
+
   registerForEvent(id: number) {
     return api.post(`/events/${id}/register/`);
   },

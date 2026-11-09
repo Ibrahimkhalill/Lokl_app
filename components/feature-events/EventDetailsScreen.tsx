@@ -9,7 +9,11 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,7 +29,7 @@ import PlusIcon from "../../assets/icons/plus.svg";
 import { eventService } from "../../services/eventService";
 import { getErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
-import { parseApiDate } from "../../lib/date";
+import { parseApiDate, parseApiDateTime, toLocalDateString } from "../../lib/date";
 
 type Participant = { id: number; name: string; avatar: string | null };
 type Review = {
@@ -183,6 +187,65 @@ export default function EventDetailsScreen() {
     }
   };
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editWhen, setEditWhen] = useState<Date>(new Date());
+  const [picker, setPicker] = useState<"date" | "time" | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = () => {
+    if (!event) return;
+    setEditTitle(event.title ?? "");
+    setEditLocation(event.location ?? "");
+    setEditDesc((event as any).description ?? "");
+    setEditWhen(parseApiDateTime(event.date, event.time));
+    setPicker(null);
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!event || savingEdit || !editTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      const hh = String(editWhen.getHours()).padStart(2, "0");
+      const mm = String(editWhen.getMinutes()).padStart(2, "0");
+      await eventService.updateEvent(event.id, {
+        title: editTitle.trim(),
+        location: editLocation.trim(),
+        description: editDesc.trim(),
+        date: toLocalDateString(editWhen),
+        time: `${hh}:${mm}:00`,
+      });
+      setEditOpen(false);
+      await fetchEvent();
+    } catch (e) {
+      Alert.alert("Could not save", getErrorMessage(e));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleCancelEvent = () => {
+    if (!event) return;
+    Alert.alert("Cancel event", "Everyone who joined will be told that this event is cancelled.", [
+      { text: "Keep event", style: "cancel" },
+      {
+        text: "Cancel event",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await eventService.cancelEvent(event.id);
+            await fetchEvent();
+          } catch (e) {
+            Alert.alert("Could not cancel", getErrorMessage(e));
+          }
+        },
+      },
+    ]);
+  };
+
   const handleRegister = async () => {
     if (!event || registering) return;
     setRegistering(true);
@@ -313,6 +376,32 @@ export default function EventDetailsScreen() {
             <View style={[s.joinRequestBadge, s.joinRequestDeclined]}>
               <Ionicons name="close-circle-outline" size={16} color="#FF3B30" />
               <Text style={[s.joinRequestText, { color: "#FF3B30" }]}>Request Declined</Text>
+            </View>
+          )}
+
+          {/* Host: share, edit and cancel */}
+          {isHost && (
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
+              <TouchableOpacity
+                style={[s.actionOutlineBtn, { flex: 1, alignItems: "center" }]}
+                onPress={() =>
+                  router.push(
+                    `/events/share-event?title=${encodeURIComponent(event.title)}&subtitle=${encodeURIComponent(event.location)}&image=${encodeURIComponent(event.cover_image_url ?? "")}&link=${encodeURIComponent(`https://lokl.app/event/${event.id}`)}&type=event`
+                  )
+                }
+              >
+                <Text style={s.actionOutlineBtnText}>Share</Text>
+              </TouchableOpacity>
+              {event.status !== "Cancelled" && (
+                <>
+                  <TouchableOpacity style={[s.actionOutlineBtn, { flex: 1, alignItems: "center" }]} onPress={openEdit}>
+                    <Text style={s.actionOutlineBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.actionOutlineBtn, { flex: 1, alignItems: "center", borderColor: "#FF4D4F" }]} onPress={handleCancelEvent}>
+                    <Text style={[s.actionOutlineBtnText, { color: "#FF4D4F" }]}>Cancel event</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
 
@@ -551,6 +640,63 @@ export default function EventDetailsScreen() {
         
         </View>
       </ScrollView>
+      <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 }}>
+            <Text style={{ color: Colors.text, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>Edit event</Text>
+            {([
+              ["Title", editTitle, setEditTitle, false],
+              ["Location", editLocation, setEditLocation, false],
+              ["Description", editDesc, setEditDesc, true],
+            ] as const).map(([label, value, setter, multi]) => (
+              <View key={label} style={{ marginBottom: 10 }}>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: 6 }}>{label}</Text>
+                <TextInput
+                  value={value}
+                  onChangeText={setter}
+                  multiline={multi}
+                  style={{
+                    color: Colors.text, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.cardBorder,
+                    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, minHeight: multi ? 80 : undefined, textAlignVertical: multi ? "top" : "center",
+                  }}
+                />
+              </View>
+            ))}
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 6 }}>
+              <TouchableOpacity style={[s.actionOutlineBtn, { flex: 1, alignItems: "center" }]} onPress={() => setPicker("date")}>
+                <Text style={s.actionOutlineBtnText}>{editWhen.toDateString()}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.actionOutlineBtn, { flex: 1, alignItems: "center" }]} onPress={() => setPicker("time")}>
+                <Text style={s.actionOutlineBtnText}>{editWhen.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</Text>
+              </TouchableOpacity>
+            </View>
+            {picker && (
+              <DateTimePicker
+                value={editWhen}
+                mode={picker}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                themeVariant="dark"
+                onChange={(_, d) => {
+                  if (Platform.OS !== "ios") setPicker(null);
+                  if (d) setEditWhen(d);
+                }}
+              />
+            )}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity style={[s.actionOutlineBtn, { flex: 1, alignItems: "center" }]} onPress={() => setEditOpen(false)}>
+                <Text style={s.actionOutlineBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.joinBtn, { flex: 1, marginTop: 0 }, (!editTitle.trim() || savingEdit) && { opacity: 0.6 }]}
+                onPress={saveEdit}
+                disabled={!editTitle.trim() || savingEdit}
+              >
+                {savingEdit ? <ActivityIndicator color={Colors.black} /> : <Text style={s.joinBtnText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
