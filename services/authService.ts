@@ -1,6 +1,10 @@
 import { api } from "../lib/api";
 
 export const authService = {
+  socialLogin(data: { provider: "apple" | "google"; id_token: string; name?: string }) {
+    return api.post("/auth/social/", data);
+  },
+
   login(data: { phone?: string; email?: string; password: string }) {
     return api.post("/auth/login", data);
   },

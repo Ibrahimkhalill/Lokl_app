@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.loklusa.app",
+      "usesAppleSignIn": true,
       "icon": "./assets/images/ios.png",
       "config": {
         "usesNonExemptEncryption": false
@@ -39,6 +40,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       "expo-system-ui",
       [
         "expo-notifications",

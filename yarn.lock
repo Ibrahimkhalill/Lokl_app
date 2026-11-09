@@ -5483,6 +5483,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-apple-authentication@npm:~8.0.8":
+  version: 8.0.8
+  resolution: "expo-apple-authentication@npm:8.0.8"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10c0/6b5179de9a6d4340a35c8487781919f05f9b8170e98fcce5bf7de4e68b9df84b0a77991851b0210c1976d5673070378d8f89562d6d2f37371307e642a25446b1
+  languageName: node
+  linkType: hard
+
 "expo-application@npm:~7.0.8":
   version: 7.0.8
   resolution: "expo-application@npm:7.0.8"
@@ -7666,6 +7676,7 @@ __metadata:
     eslint: "npm:^9.0.0"
     eslint-config-expo: "npm:~10.0.0"
     expo: "npm:~54.0.37"
+    expo-apple-authentication: "npm:~8.0.8"
     expo-clipboard: "npm:~8.0.8"
     expo-dev-client: "npm:~6.0.21"
     expo-image-picker: "npm:~17.0.11"
