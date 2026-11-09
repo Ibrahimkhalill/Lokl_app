@@ -17,6 +17,7 @@ export type ApiAchievement = {
   progress_pct: number;
   unlocked: boolean;
   unlocked_at: string | null;
+  progress_label?: string;
 };
 
 export type ApiAchievementsData = {
@@ -89,7 +90,7 @@ export function AchievementsTabSection({
         const rarityColor = RARITY_COLORS[ach.rarity] ?? "#888";
         const rarityBg = RARITY_BG[ach.rarity] ?? "#44444433";
         return (
-          <View key={ach.id} style={styles.achCard}>
+          <View key={ach.id} style={[styles.achCard, !ach.unlocked && { opacity: 0.55 }]}>
             <View style={[styles.achIconWrap, ach.unlocked ? { backgroundColor: rarityBg } : styles.achIconLocked]}>
               {ach.unlocked ? (
                 <Ionicons name={(ICON_MAP[ach.icon] ?? ach.icon ?? "star-outline") as any} size={22} color={rarityColor} />
@@ -108,8 +109,8 @@ export function AchievementsTabSection({
               {!ach.unlocked && (
                 <View style={styles.achProgressWrap}>
                   <View style={styles.achProgressRow}>
-                    <Text style={styles.achProgressLabel}>Progress</Text>
-                    <Text style={styles.achProgressVal}>{ach.progress}/{ach.goal}</Text>
+                    <Text style={styles.achProgressLabel}>Locked</Text>
+                    <Text style={styles.achProgressVal}>{ach.progress_label ?? `${ach.progress} / ${ach.goal}`}</Text>
                   </View>
                   <View style={styles.achTrack}>
                     <View
