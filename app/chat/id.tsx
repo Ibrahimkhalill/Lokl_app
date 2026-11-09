@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../../constants/colors";
 import SendIcon from "../../assets/icons/navigate.svg";
 import { messageService } from "../../services/messageService";
+import { userService } from "../../services/userService";
 import { WS_BASE, fixMediaUrl, getErrorMessage } from "../../lib/api";
 import { useMessages } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
@@ -55,8 +56,21 @@ export default function ChatDetailScreen() {
   const groupId = params.group_id ? Number(params.group_id) : null;
   const eventId = params.event_id ? Number(params.event_id) : null;
   const headerName = params.name ?? "Chat";
+  const [peerAvatar, setPeerAvatar] = useState<string | null>(null);
 
   const mode: ChatMode = userId ? "dm" : groupId ? "group" : "event";
+
+  // the other person's picture for the chat header (tapping it opens their profile)
+  useEffect(() => {
+    if (!userId) return;
+    userService
+      .getUserProfile(userId)
+      .then((res) => {
+        const d = res.data?.data ?? res.data;
+        setPeerAvatar(fixMediaUrl(d?.profile?.avatar) ?? null);
+      })
+      .catch(() => {});
+  }, [userId]);
 
   const { user } = useAuth();
   const myId: number | null = user?.id ?? null;
@@ -314,7 +328,24 @@ const handleTyping = useCallback(() => {
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
+        {userId ? (
+          <TouchableOpacity
+            style={styles.headerProfile}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/explore/user-profile?user_id=${userId}&name=${encodeURIComponent(displayName ?? "")}` as never)}
+          >
+            {peerAvatar ? (
+              <Image source={{ uri: peerAvatar }} style={styles.headerAvatar} />
+            ) : (
+              <View style={[styles.headerAvatar, styles.avatarPlaceholder]}>
+                <Ionicons name="person" size={16} color={Colors.textSecondary} />
+              </View>
+            )}
+            <Text style={[styles.headerTitle, { flex: 0 }]} numberOfLines={1}>{displayName}</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.headerTitle} numberOfLines={1}>{displayName}</Text>
+        )}
         {userId ? (
           <TouchableOpacity style={styles.iconBtn} onPress={() => { Keyboard.dismiss(); setSafetyOpen(true); }} accessibilityLabel="More options">
             <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text} />
@@ -456,6 +487,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: { flex: 1, color: Colors.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
+  headerProfile: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 8 },
+  headerAvatar: { width: 32, height: 32, borderRadius: 16 },
   messageList: { paddingHorizontal: 16, paddingVertical: 20 },
   participantsRow: {
     flexDirection: "row",

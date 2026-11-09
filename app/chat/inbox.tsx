@@ -17,6 +17,7 @@ import SearchIcon from "../../assets/icons/search.svg";
 import { useMessages } from "../../context/MessageContext";
 import { EmptyState } from "../../components/primitives";
 import { ChatRowSkeleton } from "../../components/primitives/Skeletons";
+import { NewMessageModal } from "../../components/feature-chat/NewMessageModal";
 
 function timeLabel(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -33,6 +34,7 @@ export default function MessagesScreen() {
   const { conversations, loading, refreshing, refreshInbox } = useMessages();
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -73,9 +75,14 @@ export default function MessagesScreen() {
         ) : (
           <>
             <Text style={styles.headerTitle}>Messages</Text>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
-              <SearchIcon width={20} height={20} color={Colors.text} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
+                <SearchIcon width={20} height={20} color={Colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setNewOpen(true)} accessibilityLabel="New message">
+                <Ionicons name="add" size={22} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -149,6 +156,7 @@ export default function MessagesScreen() {
           }}
         />
       )}
+      <NewMessageModal visible={newOpen} onClose={() => setNewOpen(false)} />
     </SafeAreaView>
   );
 }
