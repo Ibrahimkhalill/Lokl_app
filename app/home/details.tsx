@@ -205,7 +205,7 @@ export default function DetailsScreen() {
     if (!groupsLoaded) {
       setLoadingGroups(true);
       try {
-        const res = await api.get("/groups/?my=true&page_size=50");
+        const res = await api.get("/groups/?member=me&page_size=50");
         const data = res.data?.data ?? res.data;
         const list = Array.isArray(data) ? data : (data?.results ?? []);
         setGroups(list.map((g: any) => ({ id: g.id, name: g.name, photo_url: g.photo_url ?? g.cover_image ?? null })));

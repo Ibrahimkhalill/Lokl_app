@@ -68,7 +68,7 @@ export default function ShareScreen() {
         const raw = await AsyncStorage.getItem(RECENT_KEY);
         if (raw) setRecent(JSON.parse(raw));
       } catch {}
-      const [g, f] = await Promise.allSettled([api.get("/groups/?my=true&page_size=50"), userService.getFriends()]);
+      const [g, f] = await Promise.allSettled([api.get("/groups/?member=me&page_size=50"), userService.getFriends()]);
       if (g.status === "fulfilled") {
         const d = g.value.data?.data ?? g.value.data;
         const list = Array.isArray(d) ? d : d?.results ?? [];
