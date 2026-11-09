@@ -511,10 +511,6 @@ function UserEditForm() {
         />
       </FormField>
 
-      <FormField label="Phone" labelStyle={s.fieldLabel}>
-        <AppTextInput placeholder="Phone number" value={phone} readOnly keyboardType="phone-pad" />
-      </FormField>
-
       <FormField label="Bio" labelStyle={s.fieldLabel}>
         <AppTextInput
           style={s.bioInput}

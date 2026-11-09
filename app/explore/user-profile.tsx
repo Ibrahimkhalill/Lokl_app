@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList, Keyboard } from "react-native";
+  FlatList, Image, Keyboard } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -34,6 +34,7 @@ type UserProfile = {
 };
 
 type Stats = { posts: number; followers: number; following: number };
+type SavedVenue = { id: number; name: string; type?: string; neighborhood?: string; cover?: string | null; score_display?: string };
 
 export default function UserProfileScreen() {
   const router = useRouter();
@@ -41,6 +42,8 @@ export default function UserProfileScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [activity, setActivity] = useState<{ activities: number; visited: number } | null>(null);
+  const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isRequested, setIsRequested] = useState(false);
@@ -64,6 +67,8 @@ export default function UserProfileScreen() {
       const data = res.data?.data ?? res.data;
       setProfile(data.profile);
       setStats(data.stats);
+      setActivity(data.activity_stats ?? null);
+      setSavedVenues(data.saved_venues ?? []);
       setPosts(data.posts ?? []);
       setIsFollowing(data.is_following ?? false);
       setIsRequested(data.is_requested ?? false);
@@ -187,14 +192,22 @@ export default function UserProfileScreen() {
               <Text style={styles.statValue}>{stats?.posts ?? 0}</Text>
               <Text style={styles.statLabel}>posts</Text>
             </View>
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              disabled={isLocked}
+              onPress={() => router.push(`/user/follow?tab=followers&user_id=${user_id}` as never)}
+            >
               <Text style={styles.statValue}>{stats?.followers ?? 0}</Text>
               <Text style={styles.statLabel}>followers</Text>
-            </View>
-            <View style={styles.statItem}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statItem}
+              disabled={isLocked}
+              onPress={() => router.push(`/user/follow?tab=following&user_id=${user_id}` as never)}
+            >
               <Text style={styles.statValue}>{stats?.following ?? 0}</Text>
               <Text style={styles.statLabel}>following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -257,6 +270,54 @@ export default function UserProfileScreen() {
           >
             <Text style={styles.messageBtnText}>Message</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Activities and places visited, the same as on our own profile */}
+      {!isLocked && !!activity && (
+        <View style={{ flexDirection: "row", gap: 12, paddingHorizontal: 16, marginBottom: 12 }}>
+          <View style={styles.activityBox}>
+            <Text style={styles.activityNum}>{activity.activities}</Text>
+            <Text style={styles.activityLabel}>Activities</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.activityBox}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/user/visited?user_id=${user_id}` as never)}
+          >
+            <Text style={styles.activityNum}>{activity.visited}</Text>
+            <Text style={styles.activityLabel}>Visited</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Venues this person saved */}
+      {!isLocked && savedVenues.length > 0 && (
+        <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+          <Text style={styles.savedTitle}>SAVED VENUES</Text>
+          {savedVenues.map((v) => (
+            <TouchableOpacity
+              key={v.id}
+              style={styles.savedRow}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/home/details?id=${v.id}` as never)}
+            >
+              {v.cover ? (
+                <Image source={{ uri: v.cover }} style={styles.savedThumb} />
+              ) : (
+                <View style={[styles.savedThumb, { backgroundColor: Colors.inputBg, justifyContent: "center", alignItems: "center" }]}>
+                  <Ionicons name="location-outline" size={18} color={Colors.textSecondary} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.savedName} numberOfLines={1}>{v.name}</Text>
+                <Text style={styles.savedMeta} numberOfLines={1}>{[v.type, v.neighborhood].filter(Boolean).join(" · ")}</Text>
+              </View>
+              {!!v.score_display && (
+                <View style={styles.savedScore}><Text style={styles.savedScoreText}>{v.score_display}</Text></View>
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -474,4 +535,14 @@ const styles = StyleSheet.create({
   },
   lockedTitle: { color: Colors.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
   lockedSub: { color: Colors.textSecondary, fontSize: 13, textAlign: "center", lineHeight: 20 },
+  activityBox: { flex: 1, backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder, paddingVertical: 14, alignItems: "center" },
+  activityNum: { color: Colors.text, fontSize: 24, fontWeight: "800" },
+  activityLabel: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  savedTitle: { color: Colors.textSecondary, fontSize: 12, fontWeight: "700", letterSpacing: 0.5, marginBottom: 8 },
+  savedRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
+  savedThumb: { width: 52, height: 52, borderRadius: 10 },
+  savedName: { color: Colors.text, fontSize: 14, fontWeight: "700" },
+  savedMeta: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  savedScore: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  savedScoreText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
 });

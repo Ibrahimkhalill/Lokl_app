@@ -64,7 +64,7 @@ function UserAvatar({ uri, size }: { uri: string | null; size: number }) {
 
 export default function FollowScreen() {
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, user_id } = useLocalSearchParams<{ tab?: string; user_id?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) ?? "followers");
 
   const [meData, setMeData] = useState<MeData | null>(null);
@@ -77,10 +77,15 @@ export default function FollowScreen() {
     if (refresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const res = await userService.getMe();
-      const d = res.data?.data ?? res.data;
-      setMeData(d);
-      const ids = new Set<number>((d.following ?? []).map((u: FollowUser) => u.id));
+      const meRes = await userService.getMe();
+      const me = meRes.data?.data ?? meRes.data;
+      // someone else's lists when opened from their profile, otherwise our own
+      const d = user_id
+        ? (await userService.getUserProfile(Number(user_id))).data?.data
+        : me;
+      setMeData(d ?? me);
+      // the Follow buttons always reflect who WE follow
+      const ids = new Set<number>((me.following ?? []).map((u: FollowUser) => u.id));
       setFollowingIds(ids);
     } catch (e) {
       console.log("[Follow] error:", getErrorMessage(e));
@@ -88,7 +93,7 @@ export default function FollowScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user_id]);
 
   useFocusEffect(useCallback(() => { fetchMe(); }, [fetchMe]));
 

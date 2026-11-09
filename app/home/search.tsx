@@ -19,7 +19,6 @@ import { NEIGHBORHOODS } from "../../constants/neighborhoods";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchIcon from "../../assets/icons/search.svg";
 import LocationIcon from "../../assets/icons/locations.svg";
-import NavigateIcon from "../../assets/icons/navigate.svg";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/primitives";
 
@@ -205,14 +204,6 @@ export default function SearchScreen() {
           {item.type}{item.address ? ` · ${item.address}` : ""}
         </Text>
       </View>
-
-      <TouchableOpacity
-        style={styles.navigateBtn}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        onPress={() => handleVenuePress(item)}
-      >
-        <NavigateIcon width={18} height={18} color={Colors.text} />
-      </TouchableOpacity>
     </TouchableOpacity>
   );
 

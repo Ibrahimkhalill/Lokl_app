@@ -32,6 +32,7 @@ export default function Account() {
   const { showToast } = useToast();
   const { clearSession } = useAuth();
   const [userName, setUserName] = useState("");
+  const [userPhone, setUserPhone] = useState("");
   const [loading, setLoading] = useState(true);
   
   // Password modal states
@@ -63,6 +64,7 @@ export default function Account() {
       const response = await settingService.getOwnProfile();
       const data = response.data?.data || response.data;
       setUserName(data.name || "");
+      setUserPhone(data.phone_number || data.phone || "");
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -185,6 +187,11 @@ export default function Account() {
         <View style={s.row}>
           <Text style={s.rowLabel}>Name</Text>
           <Text style={s.rowValue}>{userName || "Not set"}</Text>
+        </View>
+        <View style={s.divider} />
+        <View style={s.row}>
+          <Text style={s.rowLabel}>Phone Number</Text>
+          <Text style={s.rowValue}>{userPhone || "Not set"}</Text>
         </View>
         <View style={s.divider} />
         <TouchableOpacity 

@@ -271,10 +271,10 @@ export default function ProfileScreen() {
             <Text style={styles.statsGridNum}>{activityStats?.activities ?? 0}</Text>
             <Text style={styles.statsGridLabel}>Activities</Text>
           </View>
-          <View style={styles.statsGridItem}>
+          <TouchableOpacity style={styles.statsGridItem} activeOpacity={0.8} onPress={() => router.push("/user/visited" as never)}>
             <Text style={styles.statsGridNum}>{activityStats?.visited ?? 0}</Text>
             <Text style={styles.statsGridLabel}>Visited</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Monthly Activity Calendar */}
