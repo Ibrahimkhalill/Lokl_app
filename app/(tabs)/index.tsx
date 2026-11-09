@@ -339,6 +339,26 @@ export default function HomeScreen() {
     if (venue) zoomToVenue(venue);
   }, [zoomToVenue]);
 
+  // Swipe sideways on the venue name/score area (not the photos) to go to the next or previous venue.
+  // Venues come best-ranked first, so the top venue is shown first and the user swipes down the list.
+  const stepVenue = useCallback((delta: number) => {
+    const list = venuesRef.current;
+    const i = list.findIndex((v) => v.id === selectedIdRef.current);
+    const next = i >= 0 ? list[i + delta] : undefined;
+    if (next) selectVenue(next.id);
+  }, [selectVenue]);
+  const stepRef = useRef(stepVenue);
+  stepRef.current = stepVenue;
+  const infoPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -40) stepRef.current(1);
+        else if (g.dx > 40) stepRef.current(-1);
+      },
+    })
+  ).current;
+
   // On focus: patch only the venue that was just reviewed (no full reload)
   useFocusEffect(
     useCallback(() => {
@@ -689,8 +709,8 @@ export default function HomeScreen() {
                 )}
               </View>
 
-              {/* Info */}
-              <View style={styles.venueInfo}>
+              {/* Info: swipe sideways here to move to the next venue */}
+              <View style={styles.venueInfo} {...infoPan.panHandlers}>
                 <Text style={styles.venueName} numberOfLines={1}>
                   {selectedVenue.name.toUpperCase()}
                 </Text>
@@ -717,6 +737,21 @@ export default function HomeScreen() {
                   )} */}
                 </View>
               </View>
+
+            {/* Which venue of the list this is, with arrows as an alternative to swiping */}
+            {venues.length > 1 && (
+              <View style={styles.pagerRow}>
+                <TouchableOpacity hitSlop={10} onPress={() => stepVenue(-1)} disabled={venues[0]?.id === selectedId}>
+                  <Ionicons name="chevron-back" size={18} color={venues[0]?.id === selectedId ? Colors.cardBorder : Colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.pagerText}>
+                  {venues.findIndex((v) => v.id === selectedId) + 1} of {venues.length} · swipe for next
+                </Text>
+                <TouchableOpacity hitSlop={10} onPress={() => stepVenue(1)} disabled={venues[venues.length - 1]?.id === selectedId}>
+                  <Ionicons name="chevron-forward" size={18} color={venues[venues.length - 1]?.id === selectedId ? Colors.cardBorder : Colors.text} />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Friend Avatars */}
             {cardFriends.length > 0 && (
@@ -774,6 +809,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  pagerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 6 },
+  pagerText: { color: Colors.textSecondary, fontSize: 12 },
 
   map: { width, height },
 
