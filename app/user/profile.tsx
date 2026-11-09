@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   savedVenueScore: { backgroundColor: Colors.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   savedVenueScoreText: { color: Colors.black, fontSize: 12, fontWeight: "800" },
   businessCompact: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 24, padding: 12,
+    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 24, marginHorizontal: 20, padding: 12,
     backgroundColor: Colors.card, borderRadius: 14, borderWidth: 1, borderColor: Colors.cardBorder,
   },
   businessCompactIcon: {
