@@ -58,6 +58,13 @@ function leadingBlanks(date?: string): number {
   return (new Date(y, m - 1, d).getDay() + 6) % 7;
 }
 
+/** "November 2026" for a "YYYY-MM-DD" date. */
+function monthTitle(date?: string): string {
+  if (!date) return "This Month";
+  const [y, m] = date.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
 function getStreakMeta(type: string) {
   return STREAK_ICON_MAP[type] ?? {
     icon: <Ionicons name="flame-outline" size={22} color="#fff" />,
@@ -147,7 +154,7 @@ export function StreaksTabSection({
             {isFirst && streak.calendar_days.length > 0 && (
               <>
                 <View style={styles.divider} />
-                <Text style={styles.calendarTitle}>Last 30 Days Activity</Text>
+                <Text style={styles.calendarTitle}>{monthTitle(streak.calendar_days[0]?.date)} Activity</Text>
 
                 <View style={styles.calendarHeader}>
                   {WEEK_DAYS.map((d) => (
