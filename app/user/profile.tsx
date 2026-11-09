@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     flex: 1, textAlign: "center", color: "#6A7185", fontSize: 11,
   },
   calGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
-  calCellWrap: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
+  calCellWrap: { width: "14.28%", aspectRatio: 1, padding: 2 },
   calCell: {
     flex: 1, borderRadius: 12,
     justifyContent: "center", alignItems: "center",

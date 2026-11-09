@@ -127,7 +127,7 @@ export function StreaksTabSection({
             <View style={styles.streakProgressRow}>
               <Text style={styles.streakProgressLabel}>Progress to goal</Text>
               <Text style={styles.streakProgressVal}>
-                {String(streak.current).padStart(2, "0")}/{streak.goal} weeks
+                {String(streak.current).padStart(2, "0")}/{streak.goal} {streak.streak_type === "lokl" ? "2-week periods" : "weeks"}
               </Text>
             </View>
             <View style={styles.progressTrack}>
@@ -216,7 +216,7 @@ export function StreaksTabSection({
                   <View style={styles.currentStreakHeader}>
                     <FireIcon width={17} height={17} color={Colors.black} />
                     <Text style={styles.currentStreakLabel}>Current Streak</Text>
-                    <Text style={styles.currentStreakDays}>{streak.current} {streak.current === 1 ? "week" : "weeks"}</Text>
+                    <Text style={styles.currentStreakDays}>{streak.current} {streak.streak_type === "lokl" ? (streak.current === 1 ? "period" : "periods") : (streak.current === 1 ? "week" : "weeks")}</Text>
                   </View>
                   <Text style={styles.currentStreakMsg}>{streak.streak_message}</Text>
                 </LinearGradient>
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   calendarHeader: { flexDirection: "row", marginBottom: 8 },
   calendarDay: { flex: 1, color: "#6A7185", fontSize: 11, textAlign: "center" },
   calendarGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 16 },
-  calCellWrap: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
+  calCellWrap: { width: "14.28%", aspectRatio: 1, padding: 2 },
   calCell: {
     flex: 1,
     borderRadius: 12,
