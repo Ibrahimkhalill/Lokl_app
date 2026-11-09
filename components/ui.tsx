@@ -3,7 +3,7 @@
  * Prefer importing from `components/primitives` in new code.
  */
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -122,6 +122,12 @@ export function SocialButtons() {
 
   return (
     <View style={socialStyles.container}>
+      <Modal visible={busy} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={{ color: Colors.text, marginTop: 12, fontSize: 14 }}>Signing you in...</Text>
+        </View>
+      </Modal>
       <TouchableOpacity style={socialStyles.btn} activeOpacity={0.8} onPress={signInWithGoogle}>
         <View style={socialStyles.iconBox}>
           <GoogleIcon width={20} height={20} />
