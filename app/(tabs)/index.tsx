@@ -189,9 +189,10 @@ const VenueMarker = React.memo(function VenueMarker({
 const SelectedMarker = React.memo(function SelectedMarker({ pin }: { pin: VenuePin }) {
   const [track, setTrack] = useState(true);
   useEffect(() => {
+    setTrack(true);
     const t = setTimeout(() => setTrack(false), 700);
     return () => clearTimeout(t);
-  }, []);
+  }, [pin.id, pin.score_display]);
   return (
     <Marker
       coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
@@ -307,6 +308,11 @@ export default function HomeScreen() {
   }, [mapReady, zoomRegion]);
 
   const venuesRef = useRef<VenuePin[]>([]);
+  // Pins drawn on the map (kept mounted across pans and zooms, see loadVenues)
+  const MAX_MOUNTED_PINS = 150;
+  const pinStore = useRef<Map<number, VenuePin>>(new Map());
+  const pinFilterKey = useRef("");
+  const [mapPins, setMapPins] = useState<VenuePin[]>([]);
 
   // Animate map so the pin lands in the centre of the visible area
   // between the search bar (top) and the venue card (bottom).
@@ -483,6 +489,36 @@ export default function HomeScreen() {
       });
       venuesRef.current = stable;
       setVenues(stable);
+
+      // Pins already on the map stay mounted while the person pans and zooms: adding and removing native
+      // markers on every move is what made the map crash. They are only cleared when the filters change.
+      const filterKey = JSON.stringify([params.type, params.min_rating, params.price_level, params.amenities, params.plan_tier, params.radius_km, params.neighborhood]);
+      if (pinFilterKey.current !== filterKey) {
+        pinFilterKey.current = filterKey;
+        pinStore.current = new Map();
+      }
+      let changed = false;
+      for (const v of stable) {
+        const old = pinStore.current.get(v.id);
+        if (!old || old !== v) {
+          pinStore.current.set(v.id, v);
+          changed = changed || !old || old.score_display !== v.score_display;
+        }
+      }
+      if (pinStore.current.size > MAX_MOUNTED_PINS) {
+        // far too many: forget the oldest ones that are not on screen now
+        const onScreen = new Set(stable.map((v) => v.id));
+        for (const id of Array.from(pinStore.current.keys())) {
+          if (pinStore.current.size <= MAX_MOUNTED_PINS) break;
+          if (!onScreen.has(id) && id !== selectedIdRef.current) pinStore.current.delete(id);
+        }
+        changed = true;
+      }
+      setMapPins((prev) => {
+        const next = Array.from(pinStore.current.values());
+        if (!changed && prev.length === next.length) return prev;
+        return next;
+      });
       // The preview card starts on the best-rated venue of the area being looked at.
       if (data.length > 0) {
         if (!data.some((v) => v.id === selectedIdRef.current)) setSelectedId(data[0].id);
@@ -582,10 +618,10 @@ export default function HomeScreen() {
         showsBuildings={false}
         showsTraffic={false}
       >
-        {venues.map((pin) => (
+        {mapPins.map((pin) => (
           <VenueMarker key={pin.id} pin={pin} onPress={selectVenue} />
         ))}
-        {selectedVenue ? <SelectedMarker key={`sel-${selectedVenue.id}`} pin={selectedVenue} /> : null}
+        {selectedVenue ? <SelectedMarker pin={selectedVenue} /> : null}
       </MapView>
 
       {/* Search Bar overlay */}
