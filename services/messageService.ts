@@ -17,7 +17,8 @@ export const messageService = {
     return api.get(`/groups/${groupId}/messages/`);
   },
   sendGroupMessage(groupId: number, content: string) {
-    return api.post(`/groups/${groupId}/messages/`, { content });
+    // the API field is "body"; "content" is kept for older servers
+    return api.post(`/groups/${groupId}/messages/`, { body: content, content });
   },
   getEventChat(eventId: number) {
     return api.get(`/events/${eventId}/chat/`);

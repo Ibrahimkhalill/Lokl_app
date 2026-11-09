@@ -492,18 +492,11 @@ export default function DetailsScreen() {
                 style={styles.actionBtn}
                 onPress={() =>
                   router.push(
-                    `/events/share-event?title=${encodeURIComponent(venue.name)}&subtitle=${encodeURIComponent(venue.address ?? "")}&image=${encodeURIComponent(venue.cover ?? "")}&link=${encodeURIComponent(venue.website ?? "")}&type=venue`
+                    `/events/share-event?title=${encodeURIComponent(venue.name)}&subtitle=${encodeURIComponent(venue.address ?? "")}&image=${encodeURIComponent(venue.cover ?? "")}&link=${encodeURIComponent(`https://lokl.app/venue/${venue.id}`)}&type=venue`
                   )
                 }
               >
                 <Text style={styles.actionBtnText}>Share</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.shareGroupBtn]}
-                onPress={handleOpenShareToGroup}
-              >
-                <Ionicons name="people-outline" size={14} color={Colors.white} />
-                <Text style={[styles.actionBtnText]}>Share to Group</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionIconBtn}
