@@ -612,6 +612,9 @@ export default function DetailsScreen() {
               </View>
             </View>
           )}
+          {(!!allHours || !!venue.phone || !!venue.website || !!venue.address) && (
+            <Text style={styles.googleCredit}>Venue details and photos from Google Maps</Text>
+          )}
 
           {/* Amenities */}
           {amenityList.length > 0 && (
@@ -1002,6 +1005,7 @@ const styles = StyleSheet.create({
   infoText: { flex: 1 },
   infoLabel: { color: Colors.textSecondary, fontSize: 12, marginBottom: 3 },
   infoValue: { color: Colors.text, fontSize: 14 },
+  googleCredit: { color: Colors.textSecondary, fontSize: 11, marginTop: 2, marginBottom: 6 },
   infoLink: { color: Colors.primary },
 
   sectionTitle: {
