@@ -2512,6 +2512,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-google-signin/google-signin@npm:^17.0.0":
+  version: 17.0.0
+  resolution: "@react-native-google-signin/google-signin@npm:17.0.0"
+  peerDependencies:
+    expo: ">=52.0.40"
+    react: "*"
+    react-native: "*"
+  peerDependenciesMeta:
+    expo:
+      optional: true
+  checksum: 10c0/fa8ce095708dbeefb9f3dfe5ca5ef9ef41cf924935f3746c7cdb6d72cac640bd29f4cf4785523ee72b6d70d51218c46172552aa14dd43346010e0cade99d5bcb
+  languageName: node
+  linkType: hard
+
 "@react-native/assets-registry@npm:0.81.5":
   version: 0.81.5
   resolution: "@react-native/assets-registry@npm:0.81.5"
@@ -7671,6 +7685,7 @@ __metadata:
     "@gorhom/bottom-sheet": "npm:^5.2.14"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/datetimepicker": "npm:^9.1.0"
+    "@react-native-google-signin/google-signin": "npm:^17.0.0"
     "@types/react": "npm:~19.1.10"
     axios: "npm:^1.16.1"
     eslint: "npm:^9.0.0"

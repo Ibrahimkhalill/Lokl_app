@@ -80,6 +80,8 @@ const divStyles = StyleSheet.create({
 });
 
 // ─── Social Buttons ─────────────────────────────────────────────────────────
+const GOOGLE_IOS_CLIENT_ID = "59478352282-39un0a44hoehovgogqpmilq2vlfm1iup.apps.googleusercontent.com";
+
 export function SocialButtons() {
   const router = useRouter();
   const { login } = useAuth();
@@ -116,8 +118,33 @@ export function SocialButtons() {
     }
   }
 
-  function signInWithGoogle() {
-    showToast({ type: "info", title: "Coming soon", message: "Sign in with Google will be available in the next update." });
+  async function signInWithGoogle() {
+    if (busy) return;
+    try {
+      // Loaded on tap: older app builds without the native module get a clear message instead of a crash.
+      const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
+      GoogleSignin.configure({ iosClientId: GOOGLE_IOS_CLIENT_ID });
+      await GoogleSignin.hasPlayServices();
+      const result: any = await GoogleSignin.signIn();
+      if (result?.type === "cancelled") return; // the person closed the Google sheet
+      const idToken = result?.data?.idToken;
+      if (!idToken) throw new Error("No identity token");
+      setBusy(true);
+      const res = await authService.socialLogin({ provider: "google", id_token: idToken, name: result?.data?.user?.name || undefined });
+      const { accessToken, refreshToken, user } = res.data.data;
+      await login(accessToken, refreshToken, user);
+      router.replace("/(tabs)");
+    } catch (e: any) {
+      if (e?.code === "SIGN_IN_CANCELLED" || e?.code === "-5") return;
+      const missing = /RNGoogleSignin|TurboModule|NativeModule|Cannot find module/i.test(String(e?.message));
+      showToast({
+        type: "error",
+        title: "Sign in failed",
+        message: missing ? "Please update the app to use Google sign-in." : getErrorMessage(e),
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
