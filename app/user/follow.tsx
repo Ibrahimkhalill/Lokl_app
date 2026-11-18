@@ -166,7 +166,38 @@ export default function FollowScreen() {
   const profile = meData?.profile;
   const stats = meData?.stats;
 
-  const renderHeader = () => (
+  // Followers / Following: just the list with a switch between the two (no profile card, that is the profile page).
+  const renderListHeader = () => (
+    <View style={styles.profileHeader}>
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => (router.canGoBack() ? router.back() : router.navigate("/(tabs)/profile"))}
+      >
+        <Ionicons name="arrow-back" size={20} color={Colors.text} />
+      </TouchableOpacity>
+      {user_id && !!(profile?.name ?? profile?.username) && (
+        <Text style={styles.listOwner}>{profile?.name ?? profile?.username}</Text>
+      )}
+      <View style={styles.tabBar}>
+        {([
+          { key: "followers", label: "Followers", value: stats?.followers ?? 0 },
+          { key: "following", label: "Following", value: stats?.following ?? 0 },
+        ] as const).map((t) => (
+          <TouchableOpacity
+            key={t.key}
+            style={[styles.tabItem, activeTab === t.key && styles.tabItemActive]}
+            onPress={() => setActiveTab(t.key as Tab)}
+          >
+            <Text style={[styles.tabLabel, activeTab === t.key && styles.tabLabelActive]}>
+              {t.label} · {t.value}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderProfileHeader = () => (
     <View>
       <View style={styles.profileHeader}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate("/(tabs)/profile")}>
@@ -203,6 +234,8 @@ export default function FollowScreen() {
       
     </View>
   );
+
+  const renderHeader = activeTab === "posts" ? renderProfileHeader : renderListHeader;
 
   // ── Posts tab ──────────────────────────────────────────────────────────────
   if (activeTab === "posts") {
@@ -282,10 +315,12 @@ export default function FollowScreen() {
             />
           }
           renderItem={({ item }) => {
-            const isOutline = activeTab === "followers" ? followingIds.has(item.id) : true;
-            const label = activeTab === "followers"
-              ? (followingIds.has(item.id) ? "Following" : "Follow Back")
-              : "Unfollow";
+            const iFollow = followingIds.has(item.id);
+            const isOutline = iFollow;
+            // On our own "Following" list the button unfollows; on anyone's list it shows who we follow.
+            const label = iFollow
+              ? (activeTab === "following" && !user_id ? "Unfollow" : "Following")
+              : (activeTab === "followers" ? "Follow Back" : "Follow");
             return (
               <View style={styles.userRow}>
                 <TouchableOpacity
@@ -334,6 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
     marginBottom: 14,
   },
+  listOwner: { color: Colors.text, fontSize: 17, fontWeight: "700", marginBottom: 12 },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   profileInfo: { flex: 1 },
   username: { color: Colors.text, fontSize: 15, fontWeight: "700", marginBottom: 8 },

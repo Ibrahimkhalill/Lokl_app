@@ -57,6 +57,8 @@ type ApiEvent = {
   latitude?: string;
   longitude?: string;
   is_registered?: boolean;
+  is_private?: boolean;
+  join_request_status?: "Pending" | "Approved" | "Declined" | null;
   organizer?: {
     id: number;
     name: string;
@@ -277,6 +279,21 @@ export default function EventsScreen() {
     }
   };
 
+  // Private events: ask the host instead of joining
+  const handleRequest = async (event: ApiEvent) => {
+    if (registering === event.id) return;
+    setRegistering(event.id);
+    try {
+      await eventService.requestToJoinEvent(event.id);
+      setEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, join_request_status: "Pending" } : e)));
+      fetchEvents();
+    } catch (e) {
+      Alert.alert("Couldn't send request", getErrorMessage(e));
+    } finally {
+      setRegistering(null);
+    }
+  };
+
   const renderEventCard = ({ item: event }: { item: ApiEvent }) => {
     const category = event.sport_type || event.event_type || "";
     const dateStr = event.event_date || event.date || "";
@@ -314,6 +331,16 @@ export default function EventsScreen() {
               <Text style={s.categoryTagText}>{category}</Text>
             </View>
           ) : null}
+          <View style={[s.privacyTag, event.is_private ? s.privacyTagPrivate : s.privacyTagPublic]}>
+            <Ionicons
+              name={event.is_private ? "lock-closed" : "people"}
+              size={12}
+              color={event.is_private ? Colors.primary : "#05DF72"}
+            />
+            <Text style={[s.privacyTagText, { color: event.is_private ? Colors.primary : "#05DF72" }]}>
+              {event.is_private ? "Private" : "Public"}
+            </Text>
+          </View>
         </View>
         <View style={s.eventBody}>
           <Text style={s.eventTitle}>{event.title.toUpperCase()}</Text>
@@ -388,16 +415,22 @@ export default function EventsScreen() {
                   <Text style={s.leaveBtnText}>Leave Event</Text>
                 )}
               </TouchableOpacity>
+            ) : event.is_private && (event.join_request_status === "Pending" || event.join_request_status === "Declined") ? (
+              <View style={[s.leaveBtn, { opacity: 0.7 }]}>
+                <Text style={s.leaveBtnText}>
+                  {event.join_request_status === "Pending" ? "Request Pending" : "Request Declined"}
+                </Text>
+              </View>
             ) : (
               <TouchableOpacity
                 style={s.joinBtn}
-                onPress={() => handleRegister(event)}
+                onPress={() => (event.is_private ? handleRequest(event) : handleRegister(event))}
                 disabled={registering === event.id}
               >
                 {registering === event.id ? (
                   <ActivityIndicator size="small" color={Colors.black} />
                 ) : (
-                  <Text style={s.joinBtnText}>Join Event</Text>
+                  <Text style={s.joinBtnText}>{event.is_private ? "Request" : "Join Event"}</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -725,6 +758,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
   },
   categoryTagText: { color: Colors.text, fontSize: 12, fontWeight: "600" },
+  privacyTag: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  privacyTagPrivate: { borderColor: Colors.primary },
+  privacyTagPublic: { borderColor: "#05DF72" },
+  privacyTagText: { fontSize: 12, fontWeight: "700" },
   eventBody: { padding: 14 },
   eventTitle: {
     color: Colors.text,

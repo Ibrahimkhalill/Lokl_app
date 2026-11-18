@@ -38,6 +38,22 @@ type ChatMessage = {
 
 type ChatMode = "dm" | "group" | "event";
 
+// A venue, event or post that was shared into the chat: the message carries its lokl.app link.
+const SHARE_LINK = /https?:\/\/lokl\.app\/(venue|event|post)\/(\d+)\/?/i;
+const SHARE_ROUTE: Record<string, (id: string) => string> = {
+  venue: (id) => `/home/details?id=${id}`,
+  event: (id) => `/events/event-details?id=${id}`,
+  post: (id) => `/explore/post?id=${id}`,
+};
+const SHARE_LABEL: Record<string, string> = { venue: "Open venue", event: "Open event", post: "Open post" };
+
+/** Splits a message into the text to show and the shared item it points to (if any). */
+function splitShared(content: string): { text: string; kind?: string; id?: string } {
+  const m = content.match(SHARE_LINK);
+  if (!m) return { text: content };
+  return { text: content.replace(m[0], "").replace(/\n{2,}/g, "\n").trim(), kind: m[1].toLowerCase(), id: m[2] };
+}
+
 // function timeLabel(iso: string) {
 //   const d = new Date(iso);
 //   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -397,11 +413,28 @@ const handleTyping = useCallback(() => {
                       {item.localImageUri ? (
                         <Image source={{ uri: item.localImageUri }} style={styles.bubbleImage} resizeMode="cover" />
                       ) : null}
-                      {item.content ? (
-                        <Text style={[styles.bubbleText, item.localImageUri ? { marginTop: 8 } : null]}>
-                          {item.content}
-                        </Text>
-                      ) : null}
+                      {(() => {
+                        const shared = splitShared(item.content ?? "");
+                        return (
+                          <>
+                            {shared.text ? (
+                              <Text style={[styles.bubbleText, item.localImageUri ? { marginTop: 8 } : null]}>
+                                {shared.text}
+                              </Text>
+                            ) : null}
+                            {shared.kind && shared.id ? (
+                              <TouchableOpacity
+                                style={styles.sharedChip}
+                                activeOpacity={0.8}
+                                onPress={() => router.push(SHARE_ROUTE[shared.kind!](shared.id!) as never)}
+                              >
+                                <Ionicons name="open-outline" size={15} color={Colors.text} />
+                                <Text style={styles.sharedChipText}>{SHARE_LABEL[shared.kind]}</Text>
+                              </TouchableOpacity>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </View>
                    
                   </View>
@@ -537,6 +570,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   bubbleText: { color: Colors.text, fontSize: 14, lineHeight: 20 },
+  sharedChip: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    marginTop: 8, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.cardBorder, backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  sharedChipText: { color: Colors.text, fontSize: 13, fontWeight: "700" },
   bubbleImage: { width: 200, height: 140, borderRadius: 12 },
   msgTime: { color: Colors.textMuted, fontSize: 10, marginTop: 4, marginLeft: 2 },
   msgTimeMe: { textAlign: "right", marginRight: 2 },

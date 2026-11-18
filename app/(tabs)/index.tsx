@@ -145,22 +145,29 @@ interface VenuePin {
 const TAB_BAR_HEIGHT = 90;
 
 /**
- * A venue pin. Pins never change their look, so they are drawn once and then left alone (redrawing pins is what
- * made the map lag and crash). Only a pin whose score changes is drawn again.
+ * A venue pin. Pins stay mounted (adding and removing native markers is what made the map lag and crash). The
+ * venue that is selected (tapped, or shown in the preview card) is drawn white and larger by the pin itself, so
+ * exactly one pin is white at a time and nothing is ever added or removed when the selection moves.
  */
 const VenueMarker = React.memo(function VenueMarker({
   pin,
+  selected,
   onPress,
 }: {
   pin: VenuePin;
+  selected: boolean;
   onPress: (id: number) => void;
 }) {
-  const [track, setTrack] = useState(true);
+  // What the pin looks like right now. The map takes a picture of the pin; while the look has changed and the
+  // picture is not taken yet, tracksViewChanges stays on, in the same render as the change (not one render later).
+  const look = `${pin.score_display}|${selected ? 1 : 0}`;
+  const [drawn, setDrawn] = useState("");
+  const track = drawn !== look;
   useEffect(() => {
-    setTrack(true);
-    const t = setTimeout(() => setTrack(false), 700);
+    if (drawn === look) return;
+    const t = setTimeout(() => setDrawn(look), 700);
     return () => clearTimeout(t);
-  }, [pin.score_display]);
+  }, [look, drawn]);
 
   return (
     <Marker
@@ -168,44 +175,15 @@ const VenueMarker = React.memo(function VenueMarker({
       onPress={() => onPress(pin.id)}
       anchor={{ x: 0.5, y: 0.5 }}
       tracksViewChanges={track}
-      zIndex={1}
+      zIndex={selected ? 1000 : 1}
     >
       <View style={styles.markerOuter}>
-        <View collapsable={false} style={styles.mapPill}>
-          <CategoryIcon type={pin.type} size={14} color={Colors.white} fallback={pin.icon} />
+        <View collapsable={false} style={selected ? [styles.mapPill, styles.mapPillSelected, styles.mapPillBig] : styles.mapPill}>
+          <CategoryIcon type={pin.type} size={selected ? 18 : 14} color={selected ? Colors.black : Colors.white} fallback={pin.icon} />
           <View collapsable={false}>
-            <Text style={styles.mapPillScore}>{pin.score_display}</Text>
-          </View>
-        </View>
-      </View>
-    </Marker>
-  );
-});
-
-/**
- * The tapped venue: a larger, highlighted pin drawn on top of its normal pin, so the place stands out on the map
- * and nothing disappears. A fresh marker is created for every selection, so it is always drawn.
- */
-const SelectedMarker = React.memo(function SelectedMarker({ pin }: { pin: VenuePin }) {
-  const [track, setTrack] = useState(true);
-  useEffect(() => {
-    setTrack(true);
-    const t = setTimeout(() => setTrack(false), 700);
-    return () => clearTimeout(t);
-  }, [pin.id, pin.score_display]);
-  return (
-    <Marker
-      coordinate={{ latitude: Number(pin.lat), longitude: Number(pin.lng) }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={track}
-      zIndex={1000}
-      tappable={false}
-    >
-      <View style={styles.markerOuter}>
-        <View collapsable={false} style={[styles.mapPill, styles.mapPillSelected, styles.mapPillBig]}>
-          <CategoryIcon type={pin.type} size={18} color={Colors.black} fallback={pin.icon} />
-          <View collapsable={false}>
-            <Text style={[styles.mapPillScore, styles.mapPillScoreSelected, { fontSize: 16 }]}>{pin.score_display}</Text>
+            <Text style={selected ? [styles.mapPillScore, styles.mapPillScoreSelected, { fontSize: 16 }] : styles.mapPillScore}>
+              {pin.score_display}
+            </Text>
           </View>
         </View>
       </View>
@@ -475,10 +453,16 @@ export default function HomeScreen() {
         };
       };
 
-      const data = all.map(normalize).filter(Boolean) as VenuePin[];
+      // Best ranked first: this is the order the preview card swipes through.
+      const data = (all.map(normalize).filter(Boolean) as VenuePin[]).sort((a, b) => Number(b.score) - Number(a.score));
 
-      // Keep the venue the user just tapped, even if the new area would not list it.
-      const keep = venuesRef.current.find((v) => v.id === selectedIdRef.current);
+      // When the filters changed, the preview card starts again on the best-ranked venue that matches them.
+      const filterKey = JSON.stringify([params.type, params.min_rating, params.price_level, params.amenities, params.plan_tier, params.radius_km, params.neighborhood]);
+      const filtersChanged = pinFilterKey.current !== "" && pinFilterKey.current !== filterKey;
+
+      // Keep the venue the user just tapped, even if the new area would not list it (not after a filter change:
+      // it would stay in the card although it does not match).
+      const keep = filtersChanged ? undefined : venuesRef.current.find((v) => v.id === selectedIdRef.current);
       if (keep && !data.some((v) => v.id === keep.id)) data.push(keep);
 
       // Reuse the pin objects already on the map so unchanged markers are not rebuilt.
@@ -492,7 +476,6 @@ export default function HomeScreen() {
 
       // Pins already on the map stay mounted while the person pans and zooms: adding and removing native
       // markers on every move is what made the map crash. They are only cleared when the filters change.
-      const filterKey = JSON.stringify([params.type, params.min_rating, params.price_level, params.amenities, params.plan_tier, params.radius_km, params.neighborhood]);
       if (pinFilterKey.current !== filterKey) {
         pinFilterKey.current = filterKey;
         pinStore.current = new Map();
@@ -521,7 +504,7 @@ export default function HomeScreen() {
       });
       // The preview card starts on the best-rated venue of the area being looked at.
       if (data.length > 0) {
-        if (!data.some((v) => v.id === selectedIdRef.current)) setSelectedId(data[0].id);
+        if (filtersChanged || !data.some((v) => v.id === selectedIdRef.current)) setSelectedId(data[0].id);
       } else {
         setSelectedId(null);
       }
@@ -619,9 +602,12 @@ export default function HomeScreen() {
         showsTraffic={false}
       >
         {mapPins.map((pin) => (
-          <VenueMarker key={pin.id} pin={pin} onPress={selectVenue} />
+          <VenueMarker key={pin.id} pin={pin} selected={pin.id === selectedId} onPress={selectVenue} />
         ))}
-        {selectedVenue ? <SelectedMarker pin={selectedVenue} /> : null}
+        {/* the selected venue is always on the map, even when it is not in the kept pins */}
+        {selectedVenue && !mapPins.some((p) => p.id === selectedVenue.id) ? (
+          <VenueMarker key={selectedVenue.id} pin={selectedVenue} selected onPress={selectVenue} />
+        ) : null}
       </MapView>
 
       {/* Search Bar overlay */}

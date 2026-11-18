@@ -362,7 +362,7 @@ export default function EventDetailsScreen() {
             <TouchableOpacity style={s.joinBtn} onPress={handleRequestToJoin} disabled={requestingJoin}>
               {requestingJoin
                 ? <ActivityIndicator size="small" color={Colors.black} />
-                : <Text style={s.joinBtnText}>Request to Join</Text>
+                : <Text style={s.joinBtnText}>Request</Text>
               }
             </TouchableOpacity>
           )}
