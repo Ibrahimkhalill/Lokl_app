@@ -127,6 +127,7 @@ export default function CreateEventScreen() {
   }
 
   async function openVenuePicker() {
+    Keyboard.dismiss();
     setVenueQuery("");
     setVenueResults([]);
     setVenuePickerVisible(true);
@@ -294,7 +295,7 @@ export default function CreateEventScreen() {
           <Text style={s.label}>Event Type*</Text>
           <TouchableOpacity
             style={s.dropdownField}
-            onPress={() => typeSheetRef.current?.present()}
+            onPress={() => { Keyboard.dismiss(); typeSheetRef.current?.present(); }}
             activeOpacity={0.8}
           >
             <Text style={[s.dropdownText, !eventType && s.dropdownPlaceholder]}>
@@ -359,7 +360,7 @@ export default function CreateEventScreen() {
               <Text style={s.label}>Date*</Text>
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => setActivePicker("date")}
+                onPress={() => { Keyboard.dismiss(); setActivePicker("date"); }}
                 style={s.pickerField}
               >
                 <Text style={s.pickerFieldText}>
@@ -375,7 +376,7 @@ export default function CreateEventScreen() {
               <Text style={s.label}>Time*</Text>
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => setActivePicker("time")}
+                onPress={() => { Keyboard.dismiss(); setActivePicker("time"); }}
                 style={s.pickerField}
               >
                 <Text style={s.pickerFieldText}>
@@ -472,7 +473,7 @@ export default function CreateEventScreen() {
           <Text style={s.label}>Neighborhood (optional)</Text>
           <TouchableOpacity
             style={[s.dropdownField, { marginBottom: 18 }]}
-            onPress={() => neighborhoodSheetRef.current?.present()}
+            onPress={() => { Keyboard.dismiss(); neighborhoodSheetRef.current?.present(); }}
             activeOpacity={0.85}
           >
             <Text style={[s.dropdownText, !neighborhood && s.dropdownPlaceholder]}>
